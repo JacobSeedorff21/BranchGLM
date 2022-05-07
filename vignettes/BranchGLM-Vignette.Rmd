@@ -1,0 +1,213 @@
+---
+title: "BranchGLM Vignette"
+output: 
+  rmarkdown::html_vignette:
+    toc: TRUE
+    number_sections: TRUE
+
+vignette: >
+  %\VignetteIndexEntry{BranchGLM Vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Description
+
+**BranchGLM** is a package for fitting GLMs, performing variable selection, and 
+creating ROC curves. Most functions in this package make use of RcppArmadillo 
+and some of them can also make use of openMP to perform parallel computations. 
+This vignette introduces the package, provides examples on how to use the 
+main functions in the package and also describes the methods employed by the 
+functions.
+
+# Getting Started
+
+## Installation
+
+- The easiest way to install **BranchGLM** is through the `install.packages` function
+
+```{r}
+
+# install.packages("BranchGLM")
+
+```
+
+# Fitting GLMs
+
+- `BranchGLM` allows fitting of gaussian, binomial, and poisson GLMs with a variety of links available.  
+- Parallel computation can also be done to speed up the fitting process, but it is only useful for larger datasets.
+
+## Optimization methods
+
+- The optimization method can be specified, the default method is fisher scoring, but BFGS and L-BFGS are also available. 
+- BFGS and L-BFGS typically perform better when there are many predictors in the model (at least 30 predictors), otherwise fisher scoring is typically faster. 
+- BFGS and L-BFSG are quasi-newton methods which don't require the hessian, but do require an initial matrix used to help approximate the true inverse hessian. 
+- The initial matrix is taken to be the inverse of the fisher information, this is a good choice because it typically leads to fast convergence compared to other initial matrices. 
+- The `grads` argument is for L-BFGS only and it is the number of gradients that are stored at a time and are used to approximate the inverse hessian. The default value for this is 10, but another common choice is 5. 
+- All methods make use of a backtracking line search using the armijo-goldstein condition to determine the step size to help ensure convergence. 
+- All methods also make use of two different criteria to determine convergence, these checks are for a sufficient decrease in the negative log likelihood and also to check if the beta vector is changing very much. 
+- The `tol` argument controls how strict the convergence criteria are, higher tolerance will lead to more accurate results, but may also be slower.
+
+## Examples
+
+- An offset can be specified using `offset`, it should be a numeric vector.
+
+```{r}
+### Using mtcars
+
+library(BranchGLM)
+
+cars <- mtcars
+
+### Fitting linear regression model to predict mpg
+
+carsFit <- BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity")
+
+carsFit
+
+```
+
+## Useful functions
+
+- **BranchGLM** also has many utility functions for GLMs such as
+  - `coef` to extract the coefficients
+  - `logLik` to extract the log likelihood
+  - `AIC` to extract the AIC
+  - `BIC` to extract the BIC
+  - `predict` to obtain predictions from the fitted model
+- The coefficients, standard errors, wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
+- Unlike glm there is no summary method, all the important information is included in the `BranchGLM` object.
+
+```{r}
+### Predict method
+
+predict(carsFit)
+
+### Accessing coefficients matrix
+
+carsFit$coefficients
+
+```
+
+# Performing variable selection
+
+- Forward selection, backward elimination, and branch and bound selection can be done using `VariableSelection`.
+- `VariableSelection` can accept either a `BranchGLM` object or a formula along with the data and the desired family and link to perform the variable selection.
+- Available metrics are AIC and BIC, which are used to compare models and to select the best model.
+- `VariableSelection` returns the final model and some other information about the search.
+- Note that `VariableSelection` will not properly handle interaction terms, i.e. it may keep an interaction term while removing the lower-order terms.
+- `keep` can also be specified if any set of variables are desired to be kept in every model.
+
+## Stepwise methods
+
+- Forward selection and backward elimination are both stepwise variable selection methods.
+- They are not guaranteed to find the best model or even a good model, but they are very fast.
+- Forward selection is recommended if the number of variables is greater than the number of observations or if many of the larger models don't converge.
+
+### Forward selection example
+
+```{r}
+### Forward selection with mtcars
+
+VariableSelection(carsFit, type = "forward")
+
+```
+
+### Backward elimination example
+
+```{r}
+### Backward elimination with mtcars
+
+VariableSelection(carsFit, type = "backward")
+
+```
+
+## Branch and bound
+
+- Branch and bound is much slower than the other methods, but it is guaranteed to find the best model.
+- The branch and bound method can be much faster than an exhaustive search and can also be made many times faster if parallel computation is used.
+- One way to judge how much faster the branch and bound algorithm is compared to an exhaustive search is to look at the ratio of the number of models checked against the total number of possible models.
+
+### Branch and bound example
+
+```{r}
+### Branch and bound with mtcars
+
+VariableSelection(carsFit, type = "branch and bound", showprogress = FALSE)
+
+### Can also use formula and data and can also specify keep
+
+FormulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gaussian", 
+                               link = "identity", type = "branch and bound",
+                               showprogress = FALSE)
+
+### One way to judge how well the branch and bound performs is 
+
+FormulaVS$numchecked / 2^(length(FormulaVS$variables))
+
+### Extracting final model
+
+FormulaVS$finalmodel
+
+```
+
+## Using keep
+
+- Specifiyng variables via `keep` will ensure that those variables are kept through the selection process.
+
+```{r}
+### Example of using keep
+
+VariableSelection(mpg ~ . ,data = cars, family = "gaussian", 
+                               link = "identity", type = "branch and bound",
+                               keep = c("hp", "cyl"), metric = "BIC",
+                               showprogress = FALSE)
+
+```
+
+## Convergence issues
+
+- In the branch and bound method, if one of the models used to find the lowerbound for a set of models for the desired metric does not converge, then the lowerbound is set to be negative infinity. 
+- If this happens too much in the algorithm, then it basically degenerates into an exhaustive search which can be very slow. 
+- For this reason it is not recommended to use branch and bound when many of the larger models do not converge, forward selection would probably be a better choice if branch and bound takes too long
+- Backward elimination also may not provide desired results when the upper models do not converge, so if this happens forward selection would probably be a better choice for variable selection.
+- When a model has a non-invertible fisher information that model cannot be evaluated, so it is ignored when selecting the model with the best metric value
+
+# Utility functions for binomial GLMs
+
+## Table
+
+```{r}
+### Need to find dataset to use here
+
+```
+
+## ROC
+
+```{r}
+
+
+
+```
+
+## Cindex/AUC
+
+```{r}
+
+
+```
+
+## MultipleROCPlots
+
+```{r}
+### Showing ROC plots for logit, probit, and cloglog
+
+
+```
