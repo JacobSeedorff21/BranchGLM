@@ -185,7 +185,15 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 ## Table
 
 ```{r}
-### Need to find dataset to use here
+### Predicting if a car gets at least 18 mpg
+
+carsCat <- cars
+
+carsCat$mpg <- ifelse(carsCat$mpg > 15, 1, 0)
+
+catFit <- BranchGLM(mpg ~ ., data = carsCat, family = "binomial", link = "logit")
+
+Table(catFit)
 
 ```
 
@@ -193,7 +201,9 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 
 ```{r}
 
+catROC <- ROC(catFit)
 
+plot(catROC)
 
 ```
 
@@ -201,6 +211,9 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 
 ```{r}
 
+Cindex(catFit)
+
+AUC(catFit)
 
 ```
 
@@ -209,5 +222,13 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 ```{r}
 ### Showing ROC plots for logit, probit, and cloglog
 
+probitFit <- BranchGLM(mpg ~ . ,data = carsCat, family = "binomial", 
+                       link = "probit")
+
+cloglogFit <- BranchGLM(mpg ~ . ,data = carsCat, family = "binomial", 
+                       link = "cloglog")
+
+MultipleROCCurves(catROC, ROC(probitFit), ROC(cloglogFit), 
+                  names = c("Logistic ROC", "Probit ROC", "Cloglog ROC"))
 
 ```
