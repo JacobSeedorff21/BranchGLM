@@ -19,26 +19,26 @@ BranchGLM(
 )
 }
 \arguments{
-\item{formula}{A formula.}
+\item{formula}{a formula for the model.}
 
-\item{data}{A dataframe.}
+\item{data}{a dataframe that contains the response and predictor variables.}
 
 \item{family}{distribution used to model the data, one of "gaussian", "binomal", or "poisson"}
 
 \item{link}{link used to link mean structure to linear predictors. One of, 
 "identity", "logit", "probit", "cloglog", or "log".}
 
-\item{offset}{Offset vector, by default the zero vector is used.}
+\item{offset}{offset vector, by default the zero vector is used.}
 
-\item{method}{One of "Fisher", "BFGS", or "LBFGS".}
+\item{method}{one of "Fisher", "BFGS", or "LBFGS".}
 
-\item{grads}{Number of gradients to use to approximate information with, only for LBFGS.}
+\item{grads}{number of gradients to use to approximate information with, only for LBFGS.}
 
-\item{parallel}{Whether or not to make use of parallelization via OpenMP.}
+\item{parallel}{whether or not to make use of parallelization via OpenMP.}
 
-\item{nthreads}{Number of threads used with OpenMP, only used if parallel = TRUE.}
+\item{nthreads}{number of threads used with OpenMP, only used if parallel = TRUE.}
 
-\item{tol}{Tolerance used to determine model convergence.}
+\item{tol}{tolerance used to determine model convergence.}
 
 \item{contrasts}{see contrasts.arg of model.matrix.default.}
 }
@@ -55,4 +55,8 @@ i.e. no matrix decomposition is used.
 Can use BFGS, L-BFGS, or Fisher Scoring to fit the GLM. BFGS and LBFGS are 
 typically faster than Fisher Scoring when there are at least 50 covariates 
 and Fisher Scoring is typically best when there are fewer than 20 covariates.
+}
+\examples{
+Data <- iris
+BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 }

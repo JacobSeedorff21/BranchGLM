@@ -16,3 +16,8 @@ Returns log-likelihood
 \description{
 Gets log-likelihood from fitted model.
 }
+\examples{
+Data <- iris
+Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+logLik(Fit)
+}

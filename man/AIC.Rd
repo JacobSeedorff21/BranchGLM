@@ -19,3 +19,9 @@ Returns AIC
 \description{
 Gets AIC from fitted model.
 }
+\examples{
+Data <- iris
+Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+AIC(Fit)
+BIC(Fit)
+}

@@ -18,6 +18,9 @@
 #' @details Can use BFGS, L-BFGS, or Fisher Scoring to fit the GLM. BFGS and LBFGS are 
 #' typically faster than Fisher Scoring when there are at least 50 covariates 
 #' and Fisher Scoring is typically best when there are fewer than 20 covariates.
+#' @examples
+#' Data <- iris
+#' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 #' @export
 
 BranchGLM <- function(formula, data, family, link, offset = NULL, 
@@ -128,6 +131,10 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
 #' @param fit A BranchGLM or BranchGLMboot object.
 #' @description Gets log-likelihood from fitted model.
 #' @return Returns log-likelihood
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' logLik(Fit)
 #' @export
 
 logLik.BranchGLM<- function(fit){
@@ -138,8 +145,12 @@ logLik.BranchGLM<- function(fit){
 #' @name AIC
 #' @param fit A BranchGLM or BranchGLMboot object.
 #' @description Gets AIC from fitted model.
-#' @name AIC
 #' @return Returns AIC
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' AIC(Fit)
+#' BIC(Fit)
 #' @export
 
 AIC.BranchGLM <- function(fit){
@@ -162,6 +173,10 @@ BIC.BranchGLM <- function(fit){
 #' @param fit A BranchGLM or BranchGLMboot object.
 #' @description Extract coefficient estimates from BranchGLM or BranchGLMboot object.
 #' @return  Returns a named vector of the coefficient estimates.
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' coef(Fit)
 #' @export
 
 coef.BranchGLM <- function(fit){
@@ -179,6 +194,12 @@ coef.BranchGLM <- function(fit){
 #' @description Gets predictions from BranchGLM model.
 #' @return A numeric vector of predictions.
 #' @name predict
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' predict(Fit)
+#' ### Example with new data
+#' predict(Fit, newdata = iris[1:20,])
 #' @export
 
 predict.BranchGLM <- function(fit, newdata = NULL, type = "response"){

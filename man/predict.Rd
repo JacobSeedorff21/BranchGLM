@@ -25,3 +25,10 @@ Gets predictions from BranchGLM model.
 \details{
 Link corresponds to the linear predictors and response corresponds to the predicted probabilities.
 }
+\examples{
+Data <- iris
+Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+predict(Fit)
+### Example with new data
+predict(Fit, newdata = iris[1:20,])
+}

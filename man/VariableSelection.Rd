@@ -42,42 +42,43 @@ VariableSelection(x, ...)
 )
 }
 \arguments{
-\item{formula}{A formula.}
+\item{formula}{a formula used to define upper model.}
 
-\item{data}{A dataframe.}
+\item{data}{a dataframe with the response and predictor variables.}
 
 \item{family}{distribution used to model the data, one of "gaussian", "binomal", or "poisson"}
 
 \item{link}{link used to link mean structure to linear predictors. One of, 
 "identity", "logit", "probit", "cloglog", or "log".}
 
-\item{offset}{Offset vector, by default the zero vector is used.}
+\item{offset}{offset vector, by default the zero vector is used.}
 
-\item{method}{One of "Fisher", "BFGS", or "LBFGS". If method is not specified, 
+\item{method}{one of "Fisher", "BFGS", or "LBFGS". If method is not specified, 
 the method that was originally used to fit the BranchGLM model is used.}
 
-\item{type}{One of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.}
+\item{type}{one of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.}
 
-\item{metric}{Metric used to choose model, the default is "AIC".}
+\item{metric}{metric used to choose model, the default is "AIC".Other metrics 
+are BIC and AICc.}
 
-\item{keep}{Vector of names to denote variables that must be in the model.}
+\item{keep}{vector of names to denote variables that must be in the model.}
 
-\item{maxsize}{Maximum number of variables to consider in a single model, the 
+\item{maxsize}{maximum number of variables to consider in a single model, the 
 default is the total number of variables.
 This number adds onto any variables specified in keep.}
 
-\item{grads}{Number of gradients to use to approximate information with, only for LBFGS.}
+\item{grads}{number of gradients to use to approximate information with, only for LBFGS.}
 
-\item{parallel}{One of TRUE or FALSE to indicate if parallelization should be used.
+\item{parallel}{one of TRUE or FALSE to indicate if parallelization should be used.
 Only available for branch and bound selection.}
 
-\item{nthreads}{Number of threads used with OpenMP, only used if parallel is TRUE.}
+\item{nthreads}{number of threads used with OpenMP, only used if parallel is TRUE.}
 
-\item{tol}{Tolerance used to determine model convergence.}
+\item{tol}{tolerance used to determine model convergence.}
 
-\item{showprogress}{Whether to show progress updates for branch and bound.}
+\item{showprogress}{whether to show progress updates for branch and bound.}
 
-\item{fit}{A BranchGLM object.}
+\item{fit}{a BranchGLM object.}
 }
 \value{
 A BranchGLMVS object.
@@ -92,4 +93,21 @@ The model in the formula or the formula from the fitted model is
 treated as the upper model. The variables specified in keep along with an 
 intercept (if included in formula) is the lower model. When an intercept is 
 included in the model formula it is kept in each model.
+}
+\examples{
+Data <- iris
+Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+
+### Doing branch and bound selection 
+VariableSelection(Fit, type = "branch and bound", metric = "BIC")
+
+### Now doing it in parallel (although it isn't necessary for this dataset)
+VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metric = "BIC")
+
+### Using a formula
+VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
+link = "identity", metric = "BIC", type = "branch and bound")
+
+### Using the keep argument
+VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", metric = "BIC")
 }

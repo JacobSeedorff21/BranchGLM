@@ -28,6 +28,22 @@
 #' treated as the upper model. The variables specified in keep along with an 
 #' intercept (if included in formula) is the lower model. When an intercept is 
 #' included in the model formula it is kept in each model.
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' 
+#' ### Doing branch and bound selection 
+#' VariableSelection(Fit, type = "branch and bound", metric = "BIC")
+#' 
+#' ### Now doing it in parallel (although it isn't necessary for this dataset)
+#' VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metric = "BIC")
+#' 
+#' ### Using a formula
+#' VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
+#' link = "identity", metric = "BIC", type = "branch and bound")
+#' 
+#' ### Using the keep argument
+#' VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", metric = "BIC")
 #' @return A BranchGLMVS object.
 #' @name VariableSelection
 #' @export

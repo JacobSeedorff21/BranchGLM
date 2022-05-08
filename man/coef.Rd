@@ -16,3 +16,8 @@ Returns a named vector of the coefficient estimates.
 \description{
 Extract coefficient estimates from BranchGLM or BranchGLMboot object.
 }
+\examples{
+Data <- iris
+Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+coef(Fit)
+}
