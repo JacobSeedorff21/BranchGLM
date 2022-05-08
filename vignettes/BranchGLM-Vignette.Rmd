@@ -110,6 +110,7 @@ carsFit$coefficients
 - Forward selection and backward elimination are both stepwise variable selection methods.
 - They are not guaranteed to find the best model or even a good model, but they are very fast.
 - Forward selection is recommended if the number of variables is greater than the number of observations or if many of the larger models don't converge.
+- Parallel computation is not available for these methods because they should be fast enough without it.
 
 ### Forward selection example
 
@@ -134,8 +135,12 @@ VariableSelection(carsFit, type = "backward")
 - Branch and bound is much slower than the other methods, but it is guaranteed to find the best model.
 - The branch and bound method can be much faster than an exhaustive search and can also be made many times faster if parallel computation is used.
 - One way to judge how much faster the branch and bound algorithm is compared to an exhaustive search is to look at the ratio of the number of models checked against the total number of possible models.
+  - If this ratio is close to 1, then it is performing poorly and has to check almost every model, if it is close to 0, then it is performing well and ruled out many models without having to check them.
 
 ### Branch and bound example
+
+- If `showprogress` is true, then progress of the branch and bound algorithm will be reported occasionally.
+- Parallel computation can be used with this method and can lead to very large speedups.
 
 ```{r}
 ### Branch and bound with mtcars
@@ -176,7 +181,7 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 
 - In the branch and bound method, if one of the models used to find the lowerbound for a set of models for the desired metric does not converge, then the lowerbound is set to be negative infinity. 
 - If this happens too much in the algorithm, then it basically degenerates into an exhaustive search which can be very slow. 
-- For this reason it is not recommended to use branch and bound when many of the larger models do not converge, forward selection would probably be a better choice if branch and bound takes too long
+- For this reason it is not recommended to use branch and bound when many of the larger models do not converge, forward selection would probably be a better choice if branch and bound takes too long.
 - Backward elimination also may not provide desired results when the upper models do not converge, so if this happens forward selection would probably be a better choice for variable selection.
 - When a model has a non-invertible fisher information that model cannot be evaluated, so it is ignored when selecting the model with the best metric value
 
@@ -187,11 +192,9 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 ```{r}
 ### Predicting if a car gets at least 18 mpg
 
-carsCat <- cars
+catData <- ToothGrowth
 
-carsCat$mpg <- ifelse(carsCat$mpg > 15, 1, 0)
-
-catFit <- BranchGLM(mpg ~ ., data = carsCat, family = "binomial", link = "logit")
+catFit <- BranchGLM(supp ~ ., data = catData, family = "binomial", link = "logit")
 
 Table(catFit)
 
@@ -222,13 +225,28 @@ AUC(catFit)
 ```{r}
 ### Showing ROC plots for logit, probit, and cloglog
 
-probitFit <- BranchGLM(mpg ~ . ,data = carsCat, family = "binomial", 
+probitFit <- BranchGLM(supp ~ . ,data = catData, family = "binomial", 
                        link = "probit")
 
-cloglogFit <- BranchGLM(mpg ~ . ,data = carsCat, family = "binomial", 
+cloglogFit <- BranchGLM(supp ~ . ,data = catData, family = "binomial", 
                        link = "cloglog")
 
 MultipleROCCurves(catROC, ROC(probitFit), ROC(cloglogFit), 
                   names = c("Logistic ROC", "Probit ROC", "Cloglog ROC"))
+
+```
+
+## Using predictions
+
+- For each of the methods used in this section predicted probabilities and observed
+classes can also be supplied instead of the `BranchGLM` object.
+
+```{r}
+
+preds <- predict(catFit)
+
+Table(preds, catData$supp)
+
+ROC(preds, catData$supp) |> plot()
 
 ```
