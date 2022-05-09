@@ -98,12 +98,8 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                       double LowerBound, arma::uvec* NewOrder, Progress* p){
   
   checkUserInterrupt();
-  if(LowerBound < *BestMetric){
-    if(maxsize > 0 && NewOrder->n_elem - cur > 0){ 
-      if(NewOrder->n_elem - cur > 1){
-        p->update(1);
-      }
-      p->update(1);
+  if(LowerBound < *BestMetric && maxsize > 0){
+      p->update(2);
       p->print();
       arma::uvec NewOrder2(NewOrder->n_elem - cur);
       arma::vec Metrics(NewOrder->n_elem - cur);
@@ -117,8 +113,8 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
         Metrics.at(j) = ParMetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
                    tol, metric);
       }
-      // Updating numchecked and potential updating the best model
-      *numchecked += NewOrder->n_elem - cur;
+      // Updating numchecked and potentially updating the best model
+      *numchecked += NewOrder2.n_elem;
       arma::uvec sorted = sort_index(Metrics);
       NewOrder2 = NewOrder2(sorted);
       Metrics = Metrics(sorted);
@@ -130,20 +126,22 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       //Getting lower bounds
       
       arma::uvec Counts(NewOrder->n_elem, arma::fill::zeros);
+      if(maxsize > 1){
 #pragma omp parallel for
-      for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
-        arma::ivec CurModel2 = *CurModel;
-        CurModel2.at(NewOrder2.at(j)) = 1;
-        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
-        Metrics.at(j) = UpdateBound(X, indices, NewOrder2.at(j), LowerBound, metric, xTemp.n_cols);
-        if(j > 0 && Metrics.at(j) < *BestMetric){
-          Counts.at(j) = 1;
-          Metrics.at(j) = ParGetBound(X, Y, Offset, method, m, Link, Dist, &CurModel2,
-                     indices, tol, metric, 
-                     j + 1, xTemp.n_cols, &NewOrder2, Metrics.at(j));
+        for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
+          arma::ivec CurModel2 = *CurModel;
+          CurModel2.at(NewOrder2.at(j)) = 1;
+          arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+          Metrics.at(j) = UpdateBound(X, indices, NewOrder2.at(j), LowerBound, metric, xTemp.n_cols);
+          if(j > 0 && Metrics.at(j) < *BestMetric){
+            Counts.at(j) = 1;
+            Metrics.at(j) = ParGetBound(X, Y, Offset, method, m, Link, Dist, &CurModel2,
+                       indices, tol, metric, 
+                       j + 1, xTemp.n_cols, &NewOrder2, Metrics.at(j));
+          }
         }
+        (*numchecked) += sum(Counts);
       }
-      (*numchecked) += sum(Counts);
       checkUserInterrupt();
       // Recursively calling this function for each new model
       for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
@@ -154,19 +152,6 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                           Metrics.at(j), &NewOrder2, p);
       }
     }
-    else if(NewOrder->n_elem - cur == 1){
-      p->update(1);
-      arma::ivec CurModel2 = *CurModel;
-      CurModel2.at(CurModel2.n_elem) = 1;
-      arma::mat xTemp =  GetMatrix(X, &CurModel2, indices);
-      double NewMetric = UpdateBound(X, indices, NewOrder->at(cur), LowerBound, 
-                                     metric, xTemp.n_cols);
-      if(NewMetric < *BestMetric){
-        *BestMetric = NewMetric;
-        *BestModel = CurModel2;
-      }
-    }
-  }
   else{
     p->update(GetNum(NewOrder->n_elem - cur, maxsize));
     p->print();
@@ -241,28 +226,32 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   LowerBound = ParGetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel,
                                        &Indices, tol, metric, 
                                        0, xTemp.n_cols, &NewOrder, LowerBound);
-  
+  numchecked++;
   if(Metrics.at(0) < BestMetric){
     BestMetric = Metrics.at(0);
     BestModel.at(NewOrder.at(0)) = 1;
   }
-  
   arma::uvec Counts(NewOrder.n_elem, arma::fill::zeros);
+  if(maxsize > 1){
 #pragma omp parallel for
-  for(unsigned int j = 0; j < NewOrder.n_elem; j++){
-    arma::ivec CurModel2 = CurModel;
-    CurModel2.at(NewOrder.at(j)) = 1;
-    arma::mat xTemp = GetMatrix(&X, &CurModel2, &Indices);
-    Metrics.at(j) = UpdateBound(&X, &Indices, NewOrder.at(j), LowerBound, metric, xTemp.n_cols);
-    if(j > 0 && Metrics.at(j) < BestMetric){
-      Counts.at(j) = 1;
-      Metrics.at(j) = ParGetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2,
-                 &Indices, tol, metric, 
-                 j + 1, xTemp.n_cols, &NewOrder, Metrics.at(j));
+    for(unsigned int j = 0; j < NewOrder.n_elem; j++){
+      arma::ivec CurModel2 = CurModel;
+      CurModel2.at(NewOrder.at(j)) = 1;
+      arma::mat xTemp = GetMatrix(&X, &CurModel2, &Indices);
+      Metrics.at(j) = UpdateBound(&X, &Indices, NewOrder.at(j), LowerBound, metric, xTemp.n_cols);
+      if(j > 0 && Metrics.at(j) < BestMetric){
+        Counts.at(j) = 1;
+        Metrics.at(j) = ParGetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2,
+                   &Indices, tol, metric, 
+                   j + 1, xTemp.n_cols, &NewOrder, Metrics.at(j));
+      }
     }
   }
   numchecked += sum(Counts);
-  for(unsigned int j = 0; j < NewOrder.n_elem; j++){
+  if(NewOrder.n_elem > 1){
+    p.update(1);
+  }
+  for(unsigned int j = 0; j < NewOrder.n_elem - 1; j++){
     arma::ivec CurModel2 = CurModel;
     CurModel2.at(NewOrder.at(j)) = 1;
     ParBranch(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2, &BestModel, 

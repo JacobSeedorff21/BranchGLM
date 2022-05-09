@@ -415,18 +415,14 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   arma::mat xTemp = GetMatrix(X, CurModel, indices);
   // Updating lower bound, first checking naive bound, then calculating better bound
   LowerBound = UpdateBound(X, indices, NewOrder->at(cur), LowerBound, metric, xTemp.n_cols);
-  if(update && LowerBound < *BestMetric){
+  if(maxsize > 0 && update && LowerBound < *BestMetric){
     (*numchecked)++;
     LowerBound = GetBound(X, Y, Offset, method, m, Link, Dist, CurModel,
                                 indices, tol, metric, 
                                 cur, xTemp.n_cols, NewOrder, LowerBound);
   }
-  if(LowerBound < *BestMetric){
-    if(maxsize > 0){ 
-      if(NewOrder->n_elem - cur > 1){
-        p->update(1);
-      }
-      p->update(1);
+  if(LowerBound < *BestMetric && maxsize > 0){
+      p->update(2);
       p->print();
       arma::uvec NewOrder2(NewOrder->n_elem - cur);
       arma::vec Metrics(NewOrder->n_elem - cur);
@@ -464,7 +460,6 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
         }         
       }
     }
-  }
   else{
     p->update(GetNum(NewOrder->n_elem - cur, maxsize));
     p->print();
@@ -532,6 +527,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   LowerBound = GetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel,
                                     &Indices, tol, metric, 
                                     0, 0, &NewOrder, LowerBound);
+  numchecked++;
   if(NewOrder.n_elem > 1){
     p.update(1);
   }
