@@ -229,7 +229,7 @@ Cindex.numeric <- function(preds, y){
   if(is.numeric(y)){
     cindex <- CindexU(preds, y)
   }
-  else if(is.logical(y)){
+  else if(is.factor(y)){
     y <- (y == levels(y)[2])
     cindex <- CindexU(preds, y)
   }
