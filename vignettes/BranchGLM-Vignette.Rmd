@@ -31,7 +31,7 @@ functions.
 
 ## Installation
 
-- The easiest way to install **BranchGLM** is through the `install.packages` function
+- The easiest way to install **BranchGLM** is through the `install.packages()` function
 
 ```{r}
 
@@ -41,7 +41,7 @@ functions.
 
 # Fitting GLMs
 
-- `BranchGLM` allows fitting of gaussian, binomial, and poisson GLMs with a variety of links available.  
+- `BranchGLM()` allows fitting of gaussian, binomial, and poisson GLMs with a variety of links available.  
 - Parallel computation can also be done to speed up the fitting process, but it is only useful for larger datasets.
 
 ## Optimization methods
@@ -77,11 +77,11 @@ carsFit
 ## Useful functions
 
 - **BranchGLM** also has many utility functions for GLMs such as
-  - `coef` to extract the coefficients
-  - `logLik` to extract the log likelihood
-  - `AIC` to extract the AIC
-  - `BIC` to extract the BIC
-  - `predict` to obtain predictions from the fitted model
+  - `coef()` to extract the coefficients
+  - `logLik()` to extract the log likelihood
+  - `AIC()` to extract the AIC
+  - `BIC()` to extract the BIC
+  - `predict()` to obtain predictions from the fitted model
 - The coefficients, standard errors, wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
 - Unlike glm there is no summary method, all the important information is included in the `BranchGLM` object.
 
@@ -98,11 +98,11 @@ carsFit$coefficients
 
 # Performing variable selection
 
-- Forward selection, backward elimination, and branch and bound selection can be done using `VariableSelection`.
-- `VariableSelection` can accept either a `BranchGLM` object or a formula along with the data and the desired family and link to perform the variable selection.
+- Forward selection, backward elimination, and branch and bound selection can be done using `VariableSelection()`.
+- `VariableSelection()` can accept either a `BranchGLM` object or a formula along with the data and the desired family and link to perform the variable selection.
 - Available metrics are AIC and BIC, which are used to compare models and to select the best model.
-- `VariableSelection` returns the final model and some other information about the search.
-- Note that `VariableSelection` will not properly handle interaction terms, i.e. it may keep an interaction term while removing the lower-order terms.
+- `VariableSelection()` returns the final model and some other information about the search.
+- Note that `VariableSelection()` will not properly handle interaction terms, i.e. it may keep an interaction term while removing the lower-order terms.
 - `keep` can also be specified if any set of variables are desired to be kept in every model.
 
 ## Stepwise methods
@@ -165,7 +165,7 @@ FormulaVS$finalmodel
 
 ## Using keep
 
-- Specifiyng variables via `keep` will ensure that those variables are kept through the selection process.
+- Specifying variables via `keep` will ensure that those variables are kept through the selection process.
 
 ```{r}
 ### Example of using keep
@@ -186,6 +186,12 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 - When a model has a non-invertible fisher information that model cannot be evaluated, so it is ignored when selecting the model with the best metric value
 
 # Utility functions for binomial GLMs
+
+- **BranchGLM** also has some utility functions for binomial GLMs
+  - `Table()` creates a confusion matrix based on the predicted classes and observed classes
+  - `ROC()` creates an ROC curve which can be plotted with `plot()`
+  - `AUC()` and `Cindex()` calculate the area under the ROC curve
+  - `MultipleROCCurves()` allows for the plotting of multiple ROC curves on the same plot
 
 ## Table
 
