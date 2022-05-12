@@ -61,206 +61,16 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
                                       grads = 10, parallel = FALSE, 
                                       nthreads = 8, tol = 1e-4, contrasts = NULL,
                                       showprogress = TRUE){
-  if(!is(formula, "formula")){
-    stop("formula must be a valid formula")
-  }
-  if(length(parallel) > 1 || !is.logical(parallel)){
-    stop("parallel must be either TRUE or FALSE")
-  }
-  if(!is(data, "data.frame")){
-    stop("data must be a data frame")
-  }
-  if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
-    stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
-  }
-  if(!family %in% c("gaussian", "binomial", "poisson")){
-    stop("family must be one of 'gaussian', 'binomial', or 'poisson'")
-  }
-  if(!link %in% c("logit", "probit", "cloglog", "log", "identity")){
-    stop("link must be one of 'logit', 'probit', 'cloglog', 'log', or 'identity'")
-  }
-  if(length(metric) != 1 || !is.character(metric)){
-    stop("metric must be one of 'AIC', 'AICc', or 'BIC'")
-  }else if(!(metric %in% c("AIC", "AICc", "BIC"))){
-    stop("metric must be one of 'AIC', 'AICc', or 'BIC'")
-  }
-  mf <- match.call(expand.dots = FALSE)
-  m <- match(c("formula", "data"), names(mf), 0L)
-  mf <- mf[c(1L, m)]
-  mf$drop.unused.levels <- TRUE
-  mf[[1L]] <- as.name("model.frame")
-  mf <- eval(mf, parent.frame())
-  y <- model.response(mf, "any")
-  x <- model.matrix(formula, data, contrasts)
   
-  ## Checking y variable for binomial regression
+  ### Fitting upper model
+  fit <- BranchGLM(formula, data = data, family = family, link = link, 
+                   offset = offset, method = method, grads = grads, tol = tol, 
+                   contrasts = contrasts)
   
-  if(family == "binomial"){
-    if(is.factor(y) && (nlevels(y) == 2)){
-      ylevel <- levels(y)
-      y <- as.numeric(y == ylevel[2])
-    }else if(is.numeric(y) && all(y %in% c(0, 1))){
-      ylevel <- c(0, 1)
-    }else if(is.logical(y)){
-      ylevel <- c(FALSE, TRUE)
-      y <- y * 1
-    }else{
-      stop("Response variable for binomial regression must be numeric with only 
-      0s and 1s, a two-level factor, or a logical vector")
-    }
-  }
-  
-  ### Checks for offset
-  
-  if(is.null(offset)){
-    offset <- rep(0, nrow(x))
-  }else if(length(offset) != length(y)){
-    stop("offset must have the same length as the y")
-  }else if(!is.numeric(offset)){
-    stop("offset must be a numeric vector")
-  }
-  
-  indices <- attributes(x)$assign
-  
-  ## Checking for intercept term
-  if(colnames(x)[1] == "(Intercept)"){
-    intercept <- TRUE
-  }else{
-    intercept <- FALSE
-    indices <- indices - 1
-  }
-  
-  counts <- table(indices)
-  if(is.null(maxsize)){
-  maxsize <- length(counts)
-  }else if(length(maxsize) != 1 || !is.numeric(maxsize) || maxsize < 0){
-   stop("maxsize must be a positive integer specifying the max size of the models") 
-  }
-  ## Setting starting model
-  
-  keep1 <- keep
-  
-  if(is.null(keep) && type != "backward"){
-    keep <- rep(0, length(counts))
-    if(intercept){
-      keep[1] <- -1
-    }
-  }else if(is.null(keep) && type == "backward"){
-    keep <- rep(1, length(counts))
-    keep[1] <- -1
-  }else{
-    CurNames <- attributes(terms(formula, data = data))$factors |>
-      colnames()
-    keep <- (CurNames %in% keep) * -1
-    if(type == "backward"){
-      keep[keep == 0] <- 1
-    }
-    if(intercept){
-      keep <- c(-1, keep) 
-    }
-  }
-  
-  if(type == "forward"){
-      df <- ForwardCpp(x, y, offset, indices, counts, method, grads,
-                       link, family, nthreads, tol, intercept, keep, maxsize, metric)
-  }else if(type == "backward"){
-      df <- BackwardCpp(x, y, offset, indices, counts, method, grads,
-                        link, family, nthreads, tol, intercept, keep, maxsize, 
-                        metric)
-  }else if(type == "branch and bound"){
-    if(parallel){
-      df <- ParBranchAndBoundCpp(x, y, offset, indices, counts, method, grads,
-                                        link, family, nthreads, tol, keep, maxsize, 
-                                        metric, showprogress)
-    }else{
-      df <- BranchAndBoundCpp(x, y, offset, indices, counts, method, grads,
-                                     link, family, 1, tol, keep, maxsize, 
-                                     metric, showprogress)
-    }
-  }else{
-    stop("type must be one of 'forward', 'backward', or 'branch and bound'")
-  }
-  
-  df$model[df$model == -1] <- 1
-  
-  df$order <- df$order[df$order != -1]
-  
-  if(!intercept){
-    df$order <- df$order + 1
-  }else{
-    df$model <- df$model[-1] 
-  }
-  
-  df$fit$names <- attributes(terms(formula, data = data))$factors |>
-    colnames()
-  
-  tempnames1 <- df$fit$names
-  
-  df$fit$names <-df$fit$names[as.logical(df$model)]
-  
-  df$fit$yname <- attributes(terms(formula, data = data))$variables[-1] |>
-    as.character()
-  df$fit$yname <- df$fit$yname[attributes(terms(formula, data = data))$response]
-  
-  tempnames <- paste0(df$fit$names, collapse = "+")
-  
-  if(nchar(tempnames) == 0 && intercept){
-    tempnames <- 1
-  }else if(nchar(tempnames) == 0){
-    stop("Final model included no variables or intercept")
-  }
-  
-  df$fit$formula <- as.formula(paste0(df$fit$yname, " ~ ", tempnames))
-  
-  if(!intercept){
-    df$fit$formula <- deparse1(df$fit$formula) |>
-      paste0(" - 1") |>
-      as.formula()
-  }
-  
-  df$fit$x <- model.matrix(df$fit$formula, data, contrasts)
-  
-  row.names(df$fit$coefficients) <- colnames(df$fit$x)
-  
-  df$fit$y <- y
-  
-  df$fit$parallel <- parallel
-  
-  df$fit$missing <- nrow(data) - nrow(x)
-  
-  df$fit$link <- link
-  
-  df$fit$contrasts <- contrasts
-  
-  df$fit$family <- family
-  
-  df$fit$method <- method
-  
-  df$fit$offset <- offset
-  
-  if(family == "binomial"){
-    df$fit$ylevel <- ylevel
-  }
-  if(type != "branch and bound"){
-  FinalList <- list("finalmodel" = structure(df$fit, class = "BranchGLM"),
-                    "variables" = df$model, 
-                    "numchecked" = df$numchecked,
-                    "order" = tempnames1[df$order],
-                    "type" = type,
-                    "keep" = keep1,
-                    "metric" = metric,
-                    "bestmetric" = df$bestmetric)
-  }else{
-    FinalList <- list("finalmodel" = structure(df$fit, class = "BranchGLM"),
-                      "variables" = df$model, 
-                      "numchecked" = df$numchecked,
-                      "type" = type,
-                      "keep" = keep1,
-                      "metric" = metric,
-                      "bestmetric" = df$bestmetric)
-  }
-  
-  structure(FinalList, class = "BranchGLMVS")
+  ### Performing variable selection
+  VariableSelection(fit, type = type, metric = metric, keep = keep, 
+                    maxsize = maxsize, grads = grads, parallel = parallel, 
+                    nthreads = nthreads, tol = tol, showprogress = showprogress)
 }
 
 #'@rdname VariableSelection
@@ -270,7 +80,7 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
                                         keep = NULL, maxsize = NULL, 
                                         method = NULL, grads = 10, parallel = FALSE, 
                                         nthreads = 8, tol = 1e-4, showprogress = TRUE){
-  
+  ## Performing argument checks
   if(is.null(method)){
     method <- fit$method
   }
@@ -282,9 +92,9 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
     nthreads <- 8
   }
   if(length(metric) > 1 || !is.character(metric)){
-    stop("metric must be one of 'AIC', 'AICc', or 'BIC'")
-  }else if(!(metric %in% c("AIC", "AICc", "BIC"))){
-    stop("metric must be one of 'AIC', 'AICc', or 'BIC'")
+    stop("metric must be one of 'AIC', or 'BIC'")
+  }else if(!(metric %in% c("AIC", "BIC"))){
+    stop("metric must be one of 'AIC' or 'BIC'")
   }
   indices <- attributes(fit$x)$assign
   
