@@ -58,8 +58,7 @@ the method that was originally used to fit the BranchGLM model is used.}
 
 \item{type}{one of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.}
 
-\item{metric}{metric used to choose model, the default is "AIC".Other metrics 
-are BIC and AICc.}
+\item{metric}{metric used to choose model, the default is "AIC", but "BIC" is also available.}
 
 \item{keep}{vector of names to denote variables that must be in the model.}
 
@@ -67,7 +66,7 @@ are BIC and AICc.}
 default is the total number of variables.
 This number adds onto any variables specified in keep.}
 
-\item{grads}{number of gradients to use to approximate information with, only for LBFGS.}
+\item{grads}{number of gradients to use to approximate inverse information with, only for LBFGS.}
 
 \item{parallel}{one of TRUE or FALSE to indicate if parallelization should be used.
 Only available for branch and bound selection.}
@@ -78,21 +77,32 @@ Only available for branch and bound selection.}
 
 \item{showprogress}{whether to show progress updates for branch and bound.}
 
-\item{fit}{a BranchGLM object.}
+\item{fit}{a BranchGLM object used to define the upper model.}
 }
 \value{
-A BranchGLMVS object.
+A \code{BranchGLMVS} object with the following components
+\item{\code{finalmodel}}{ the final \code{BranchGLM} model selected}
+\item{\code{variables}}{ a vector corresponding to the selected variables}
+\item{\code{numchecked}}{ number of models fit}
+\item{\code{order}}{ the order the variables were added to the model or removed from the model, this is not included for branch and bound selection}
+\item{\code{type}}{ type of variable selection employed}
+\item{\code{keep}}{ character vector of variables kept in each model, NULL if none specified}
+\item{\code{metric}}{ metric used to select model}
+\item{\code{bestmetric}}{ the best metric found in the search}
 }
 \description{
-Performs variable selection for GLMs with forward, backward, or 
-branch and bound selection. Performs best subset selection using a branch and 
-bound algorithm that can massively speed up the process.
+\code{VariableSelection} performs forward selection, backward elimination, 
+and branch and bound selection for generalized linear models.
 }
 \details{
 The model in the formula or the formula from the fitted model is 
 treated as the upper model. The variables specified in keep along with an 
 intercept (if included in formula) is the lower model. When an intercept is 
 included in the model formula it is kept in each model.
+
+The branch and bound method makes use of an efficient branch and bound algorithm 
+to find the optimal model. This is will find the best model according the metric, but 
+can be much faster than an exhaustive search.
 }
 \examples{
 Data <- iris

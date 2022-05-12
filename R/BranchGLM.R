@@ -10,14 +10,46 @@
 #' @param parallel whether or not to make use of parallelization via OpenMP.
 #' @param nthreads number of threads used with OpenMP, only used if parallel = TRUE.
 #' @param tol tolerance used to determine model convergence.
-#' @param contrasts see contrasts.arg of model.matrix.default.
-#' @details  The likelihood equations are solved directly when using any of the methods 
-#' i.e. no matrix decomposition is used. 
-#' @return A BranchGLM object.
-#' @description Fits a GLM via RcppArmadillo, can be fit in parallel. 
-#' @details Can use BFGS, L-BFGS, or Fisher Scoring to fit the GLM. BFGS and LBFGS are 
-#' typically faster than Fisher Scoring when there are at least 50 covariates 
-#' and Fisher Scoring is typically best when there are fewer than 20 covariates.
+#' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
+#' @return A \code{BranchGLM} object which is a list with the following components
+#' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
+#' \item{\code{iterations}}{ number of iterations it took the algorithm to converge}
+#' \item{\code{dispersion}}{ the value of the dispersion parameter}
+#' \item{\code{logLik}}{ the log-likelihood of the fitted model}
+#' \item{\code{nulldev}}{ the null deviance of the fitted model}
+#' \item{\code{resdev}}{ the residual deviance of the fitted model}
+#' \item{\code{AIC}}{ the AIC of the fitted model}
+#' \item{\code{preds}}{ predictions from the fitted model}
+#' \item{\code{linpreds}}{ linear predictors from the fitted model}
+#' \item{\code{formula}}{ formula used to fit the model}
+#' \item{\code{method}}{ iterative method used to fit the model}
+#' \item{\code{y}}{ y vector used in the model}
+#' \item{\code{x}}{ design matrix used to fit the model}
+#' \item{\code{data}}{ original dataframe supplied to the function}
+#' \item{\code{names}}{ names of the variables}
+#' \item{\code{yname}}{ name of y variable}
+#' \item{\code{parallel}}{ whether parallelization was employed to speed up model fitting process}
+#' \item{\code{missing}}{ number of missing values removed from the original dataset}
+#' \item{\code{link}}{ link function used to model the data}
+#' \item{\code{offset}}{ offset vector}
+#' \item{\code{family}}{ family used to model the data}
+#' \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
+#' @description Fits generalized linear models via RcppArmadillo. Also has the 
+#' ability to fit the models with parallelization via openMP.
+#' @details Can use BFGS, L-BFGS, or Fisher scoring to fit the GLM. BFGS and L-BFGS are 
+#' typically faster than Fisher scoring when there are at least 50 covariates 
+#' and Fisher scoring is typically best when there are fewer than 20 covariates.
+#' This function does not currently support the use of weights. 
+#' 
+#' The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
+#' convergence, each of the methods makes use of a backtracking line-search using 
+#' the armijo-goldstein condition to find an adequate step size. There are also 
+#' two conditions used to control convergence, the first is whether there is a 
+#' sufficient decrease in the negative log-likelihood, and the other is whether 
+#' each of the elements of the beta vector changes by a sufficient amount. The 
+#' \code{tol} argument controls both of these criteria.
+#' 
+#' The likelihood equations are solved directly, i.e. no matrix decomposition is used.
 #' @examples
 #' Data <- iris
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -282,7 +314,7 @@ print.BranchGLM <- function(fit, coefdigits = 4, digits = 0){
   cat(paste0("\nAIC: ", round(fit$AIC, digits = digits)))
   
   if(fit$method == "Fisher"){
-    method = "Fisher Scoring"
+    method = "Fisher scoring"
   }else if(fit$method == "LBFGS"){
       method = "L-BFGS"
       }else{method = "BFGS"}

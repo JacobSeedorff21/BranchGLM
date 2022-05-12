@@ -5,29 +5,31 @@
 #' @param link link used to link mean structure to linear predictors. One of, 
 #' "identity", "logit", "probit", "cloglog", or "log".
 #' @param offset offset vector, by default the zero vector is used.
-#' @param fit a BranchGLM object.
+#' @param fit a BranchGLM object used to define the upper model.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". If method is not specified, 
 #' the method that was originally used to fit the BranchGLM model is used.
 #' @param type one of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.
-#' @param metric metric used to choose model, the default is "AIC".Other metrics 
-#' are BIC and AICc.
+#' @param metric metric used to choose model, the default is "AIC", but "BIC" is also available.
 #' @param keep vector of names to denote variables that must be in the model.
 #' @param maxsize maximum number of variables to consider in a single model, the 
 #' default is the total number of variables.
 #' This number adds onto any variables specified in keep. 
-#' @param grads number of gradients to use to approximate information with, only for LBFGS.
+#' @param grads number of gradients to use to approximate inverse information with, only for LBFGS.
 #' @param parallel one of TRUE or FALSE to indicate if parallelization should be used.
 #' Only available for branch and bound selection.
 #' @param nthreads number of threads used with OpenMP, only used if parallel is TRUE.
 #' @param tol tolerance used to determine model convergence.
 #' @param showprogress whether to show progress updates for branch and bound.
-#' @description Performs variable selection for GLMs with forward, backward, or 
-#' branch and bound selection. Performs best subset selection using a branch and 
-#' bound algorithm that can massively speed up the process. 
+#' @description \code{VariableSelection} performs forward selection, backward elimination, 
+#' and branch and bound selection for generalized linear models.
 #' @details The model in the formula or the formula from the fitted model is 
 #' treated as the upper model. The variables specified in keep along with an 
 #' intercept (if included in formula) is the lower model. When an intercept is 
 #' included in the model formula it is kept in each model.
+#' 
+#' The branch and bound method makes use of an efficient branch and bound algorithm 
+#' to find the optimal model. This is will find the best model according the metric, but 
+#' can be much faster than an exhaustive search.
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -44,7 +46,15 @@
 #' 
 #' ### Using the keep argument
 #' VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", metric = "BIC")
-#' @return A BranchGLMVS object.
+#' @return A \code{BranchGLMVS} object with the following components
+#' \item{\code{finalmodel}}{ the final \code{BranchGLM} model selected}
+#' \item{\code{variables}}{ a vector corresponding to the selected variables}
+#' \item{\code{numchecked}}{ number of models fit}
+#' \item{\code{order}}{ the order the variables were added to the model or removed from the model, this is not included for branch and bound selection}
+#' \item{\code{type}}{ type of variable selection employed}
+#' \item{\code{keep}}{ character vector of variables kept in each model, NULL if none specified}
+#' \item{\code{metric}}{ metric used to select model}
+#' \item{\code{bestmetric}}{ the best metric found in the search}
 #' @name VariableSelection
 #' @export
 #' 
@@ -69,7 +79,8 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
   
   ### Performing variable selection
   VariableSelection(fit, type = type, metric = metric, keep = keep, 
-                    maxsize = maxsize, grads = grads, parallel = parallel, 
+                    maxsize = maxsize, method = method, grads = grads, 
+                    parallel = parallel, 
                     nthreads = nthreads, tol = tol, showprogress = showprogress)
 }
 
