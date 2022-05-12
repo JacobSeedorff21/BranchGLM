@@ -47,13 +47,10 @@ functions.
 ## Optimization methods
 
 - The optimization method can be specified, the default method is fisher scoring, but BFGS and L-BFGS are also available. 
-- BFGS and L-BFGS typically perform better when there are many predictors in the model (at least 30 predictors), otherwise fisher scoring is typically faster. 
-- BFGS and L-BFSG are quasi-newton methods which don't require the hessian, but do require an initial matrix used to help approximate the true inverse hessian. 
-- The initial matrix is taken to be the inverse of the fisher information, this is a good choice because it typically leads to fast convergence compared to other initial matrices. 
-- The `grads` argument is for L-BFGS only and it is the number of gradients that are stored at a time and are used to approximate the inverse hessian. The default value for this is 10, but another common choice is 5. 
-- All methods make use of a backtracking line search using the armijo-goldstein condition to determine the step size to help ensure convergence. 
-- All methods also make use of two different criteria to determine convergence, these checks are for a sufficient decrease in the negative log likelihood and also to check if the beta vector is changing very much. 
+- BFGS and L-BFGS typically perform better when there are many predictors in the model (at least 30 predictors), otherwise fisher scoring is typically faster.  
+- The `grads` argument is for L-BFGS only and it is the number of gradients that are stored at a time and are used to approximate the inverse hessian. The default value for this is 10, but another common choice is 5.
 - The `tol` argument controls how strict the convergence criteria are, higher tolerance will lead to more accurate results, but may also be slower.
+- All methods should converge in 1 iteration for linear regression.
 
 ## Examples
 
@@ -66,11 +63,18 @@ library(BranchGLM)
 
 cars <- mtcars
 
-### Fitting linear regression model to predict mpg
+### Fitting linear regression model with Fisher scoring
 
 carsFit <- BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity")
 
 carsFit
+
+### Fitting linear regression with LBFGS
+
+LBFGSFit <- BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity",
+                      method = "LBFGS", grads = 5)
+
+LBFGSFit
 
 ```
 
@@ -147,7 +151,7 @@ VariableSelection(carsFit, type = "backward")
 
 VariableSelection(carsFit, type = "branch and bound", showprogress = FALSE)
 
-### Can also use formula and data and can also specify keep
+### Can also use a formula and data
 
 FormulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gaussian", 
                                link = "identity", type = "branch and bound",
@@ -179,11 +183,10 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 
 ## Convergence issues
 
-- In the branch and bound method, if one of the models used to find the lowerbound for a set of models for the desired metric does not converge, then the lowerbound is set to be negative infinity. 
-- If this happens too much in the algorithm, then it basically degenerates into an exhaustive search which can be very slow. 
-- For this reason it is not recommended to use branch and bound when many of the larger models do not converge, forward selection would probably be a better choice if branch and bound takes too long.
-- Backward elimination also may not provide desired results when the upper models do not converge, so if this happens forward selection would probably be a better choice for variable selection.
-- When a model has a non-invertible fisher information that model cannot be evaluated, so it is ignored when selecting the model with the best metric value
+- It is not recommended to use branch and bound if the upper models do not converge since it can make the algorithm very slow.
+- Sometimes when using backwards selection and all the upper models that are tested 
+do not converge, no final model can be selected.
+- For these reasons, if there are convergence issues it is recommended to use forward selection.
 
 # Utility functions for binomial GLMs
 
@@ -212,7 +215,7 @@ Table(catFit)
 
 catROC <- ROC(catFit)
 
-plot(catROC)
+plot(catROC, main = "ROC Curve", col = "indianred")
 
 ```
 
@@ -228,7 +231,7 @@ AUC(catFit)
 
 ## MultipleROCPlots
 
-```{r}
+```{r, fig.width = 4, fig.height = 4}
 ### Showing ROC plots for logit, probit, and cloglog
 
 probitFit <- BranchGLM(supp ~ . ,data = catData, family = "binomial", 
@@ -253,6 +256,8 @@ preds <- predict(catFit)
 
 Table(preds, catData$supp)
 
-ROC(preds, catData$supp) |> plot()
+AUC(preds, catData$supp)
+
+ROC(preds, catData$supp) |> plot(main = "ROC Curve", col = "deepskyblue")
 
 ```
