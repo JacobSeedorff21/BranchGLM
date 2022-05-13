@@ -13,7 +13,7 @@
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
 #' @return A \code{BranchGLM} object which is a list with the following components
 #' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
-#' \item{\code{iterations}}{ number of iterations it took the algorithm to converge}
+#' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
 #' \item{\code{logLik}}{ the log-likelihood of the fitted model}
 #' \item{\code{resdev}}{ the residual deviance of the fitted model}
@@ -46,7 +46,8 @@
 #' two conditions used to control convergence, the first is whether there is a 
 #' sufficient decrease in the negative log-likelihood, and the other is whether 
 #' each of the elements of the beta vector changes by a sufficient amount. The 
-#' \code{tol} argument controls both of these criteria.
+#' \code{tol} argument controls both of these criteria. If the algorithm fails to 
+#' converge, then \code{iterations} will be -1.
 #' 
 #' The likelihood equations are solved directly, i.e. no matrix decomposition is used.
 #' @examples
@@ -108,23 +109,14 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   }else if(!is.numeric(offset)){
     stop("offset must be a numeric vector")
   }
-  
-  ### Checking for intercept (used to calculate null deviance)
-  if(colnames(x)[1] == "(Intercept)"){
-    intercept <- TRUE
-  }else{
-    intercept <- FALSE
-  }
-  
   ### Fitting GLM
   if(length(parallel) != 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")
   }else if(parallel){
     df <- BranchGLMfit(x, y, offset, method, grads, link, family, nthreads, 
-                       tol, intercept) 
+                       tol) 
   }else{
-    df <- BranchGLMfit(x, y, offset, method, grads, link, family, 1, tol,
-                       intercept) 
+    df <- BranchGLMfit(x, y, offset, method, grads, link, family, 1, tol) 
   }
   
   row.names(df$coefficients) <- colnames(x)
@@ -323,9 +315,13 @@ print.BranchGLM <- function(fit, coefdigits = 4, digits = 0){
   }else if(fit$method == "LBFGS"){
       method = "L-BFGS"
       }else{method = "BFGS"}
-  
-  cat(paste0("\nAlgorithm converged in ", fit$iterations, " iterations using ", method, "\n"))
-  
+  if(fit$iterations == 1){
+    cat(paste0("\nAlgorithm converged in 1 iteration using ", method, "\n"))
+  }else if(fit$iterations > 1){
+    cat(paste0("\nAlgorithm converged in ", fit$iterations, " iterations using ", method, "\n"))
+  }else{
+    cat("\nAlgorithm failed to converge")
+  }
   
   if(fit$parallel){
     cat("Parallel computation was used to speed up model fitting process")

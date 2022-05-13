@@ -52,6 +52,6 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 
 List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
-                unsigned int nthreads, double tol, bool intercept);
+                unsigned int nthreads, double tol);
 
 #endif

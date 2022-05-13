@@ -535,8 +535,7 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                      std::string method,  unsigned int m, std::string Link, 
                      std::string Dist,
-                     unsigned int nthreads, double tol, 
-                     bool intercept){
+                     unsigned int nthreads, double tol){
   
   arma::vec beta(x.cols(), arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
@@ -631,7 +630,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
 
 List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
-                unsigned int nthreads, double tol, bool intercept){
+                unsigned int nthreads, double tol){
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);

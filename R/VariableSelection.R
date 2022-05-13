@@ -155,21 +155,21 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
   if(type == "forward"){
     df <- ForwardCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
                      fit$link, fit$family, nthreads, tol, keep, maxsize, 
-                     metric, intercept)
+                     metric)
     
   }else if(type == "backward"){
     df <- BackwardCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
                       fit$link, fit$family, nthreads, tol, keep, maxsize, 
-                      metric, intercept)
+                      metric)
   }else if(type == "branch and bound"){
     if(parallel){
       df <- ParBranchAndBoundCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
                                         fit$link, fit$family, nthreads, tol, keep, maxsize, 
-                                        metric, showprogress, intercept)
+                                        metric, showprogress)
     }else{
       df <- BranchAndBoundCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
                                       fit$link, fit$family, nthreads, tol, keep, maxsize, 
-                                      metric, showprogress, intercept)
+                                      metric, showprogress)
     }
   }else{
     stop("type must be one of 'forward', 'backward', or 'branch and bound'")
