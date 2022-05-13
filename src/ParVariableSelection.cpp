@@ -1,6 +1,7 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include "ParBranchGLMHelpers.h"
+#include "BranchGLMHelpers.h"
 #include "VariableSelection.h"
 using namespace Rcpp;
 
@@ -167,7 +168,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
                                  std::string Link, std::string Dist,
                                  unsigned int nthreads, double tol, 
                                  IntegerVector keep, int maxsize, std::string metric,
-                                 bool display_progress = true){
+                                 bool display_progress, bool intercept){
   
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
@@ -266,8 +267,8 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
-  List helper =  ParBranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                                  nthreads, tol);
+  List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
+                                  nthreads, tol, intercept);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("model") = keep,

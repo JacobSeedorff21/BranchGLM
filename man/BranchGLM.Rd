@@ -48,7 +48,6 @@ A \code{BranchGLM} object which is a list with the following components
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
-\item{\code{nulldev}}{ the null deviance of the fitted model}
 \item{\code{resdev}}{ the residual deviance of the fitted model}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
@@ -72,13 +71,13 @@ Fits generalized linear models via RcppArmadillo. Also has the
 ability to fit the models with parallelization via openMP.
 }
 \details{
-Can use BFGS, L-BFGS, or Fisher Scoring to fit the GLM. BFGS and L-BFGS are 
-typically faster than Fisher Scoring when there are at least 50 covariates 
-and Fisher Scoring is typically best when there are fewer than 20 covariates.
+Can use BFGS, L-BFGS, or Fisher scoring to fit the GLM. BFGS and L-BFGS are 
+typically faster than Fisher scoring when there are at least 50 covariates 
+and Fisher scoring is typically best when there are fewer than 20 covariates.
 This function does not currently support the use of weights. 
 
 The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
-convergence each of the methods makes use of a backtracking line-search using 
+convergence, each of the methods makes use of a backtracking line-search using 
 the armijo-goldstein condition to find an adequate step size. There are also 
 two conditions used to control convergence, the first is whether there is a 
 sufficient decrease in the negative log-likelihood, and the other is whether 

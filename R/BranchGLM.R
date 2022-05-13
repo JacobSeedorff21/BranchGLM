@@ -16,7 +16,6 @@
 #' \item{\code{iterations}}{ number of iterations it took the algorithm to converge}
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
 #' \item{\code{logLik}}{ the log-likelihood of the fitted model}
-#' \item{\code{nulldev}}{ the null deviance of the fitted model}
 #' \item{\code{resdev}}{ the residual deviance of the fitted model}
 #' \item{\code{AIC}}{ the AIC of the fitted model}
 #' \item{\code{preds}}{ predictions from the fitted model}
@@ -102,7 +101,6 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   x <- model.matrix(formula, data, contrasts)
   
   ### Checks for offset
-  
   if(is.null(offset)){
     offset <- rep(0, nrow(x))
   }else if(length(offset) != length(y)){
@@ -111,13 +109,22 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     stop("offset must be a numeric vector")
   }
   
+  ### Checking for intercept (used to calculate null deviance)
+  if(colnames(x)[1] == "(Intercept)"){
+    intercept <- TRUE
+  }else{
+    intercept <- FALSE
+  }
+  
   ### Fitting GLM
   if(length(parallel) != 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")
   }else if(parallel){
-    df <- BranchGLMfit(x, y, offset, method, grads, link, family, nthreads, tol) 
+    df <- BranchGLMfit(x, y, offset, method, grads, link, family, nthreads, 
+                       tol, intercept) 
   }else{
-    df <- BranchGLMfit(x, y, offset, method, grads, link, family, 1, tol) 
+    df <- BranchGLMfit(x, y, offset, method, grads, link, family, 1, tol,
+                       intercept) 
   }
   
   row.names(df$coefficients) <- colnames(x)
@@ -307,8 +314,6 @@ print.BranchGLM <- function(fit, coefdigits = 4, digits = 0){
   cat(paste0("\nDispersion parameter taken to be ", round(fit$dispersion, coefdigits)))
   cat(paste0("\n", nrow(fit$x), " observations used to fit model\n(", fit$missing, 
              " observations removed due to missingness)\n"))
-  cat(paste0("\nNull Deviance: ", round(fit$nullDev, digits = digits), " on ",
-             nrow(fit$x) - 1, " degrees of freedom"))
   cat(paste0("\nResidual Deviance: ", round(fit$resDev, digits = digits), " on ",
              nrow(fit$x) - nrow(fit$coefficients), " degrees of freedom"))
   cat(paste0("\nAIC: ", round(fit$AIC, digits = digits)))

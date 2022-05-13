@@ -171,9 +171,8 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                 IntegerVector indices, IntegerVector num,
                 std::string method, int m,
                 std::string Link, std::string Dist,
-                unsigned int nthreads, double tol, 
-                bool intercept, IntegerVector keep, 
-                unsigned int steps,std::string metric){
+                unsigned int nthreads, double tol, IntegerVector keep, 
+                unsigned int steps, std::string metric, bool intercept){
   
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
@@ -209,7 +208,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                               nthreads, tol);
+                               nthreads, tol, intercept);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("order") = order,
@@ -260,8 +259,9 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                  IntegerVector indices, IntegerVector num,
                  std::string method, int m,
                  std::string Link, std::string Dist,
-                 unsigned int nthreads, double tol, bool intercept,
-                 IntegerVector keep, unsigned int steps, std::string metric){
+                 unsigned int nthreads, double tol,
+                 IntegerVector keep, unsigned int steps, std::string metric, 
+                 bool intercept){
   
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
@@ -299,7 +299,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                               nthreads, tol);
+                               nthreads, tol, intercept);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("order") = order,
@@ -475,7 +475,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                             std::string Link, std::string Dist,
                             unsigned int nthreads, double tol, 
                             IntegerVector keep, int maxsize, std::string metric,
-                            bool display_progress = true){
+                            bool display_progress, bool intercept){
   
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
@@ -554,7 +554,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                               nthreads, tol);
+                               nthreads, tol, intercept);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("model") = keep,

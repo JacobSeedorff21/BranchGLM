@@ -180,30 +180,6 @@ double ParLogLikelihoodCpp(const arma::mat* X, const arma::vec* Y,
   return(LogLik);
 }
 
-// Defining log likelihood for intercept-only model
-
-double ParLogLikelihoodNull(const arma::mat* X, const arma::vec* Y, std::string Dist){
-  
-  double LogLik = 0;
-  arma::vec mu(Y->n_elem);
-  mu.fill(mean(*Y));
-  
-  if(Dist == "poisson"){
-    LogLik = arma::dot(*Y, log(mu)) - arma::accu(mu);
-  }
-  else if(Dist == "binomial"){
-    arma::vec theta = (mu) / (1 - mu);
-    LogLik = arma::dot(*Y, log(theta)) - arma::accu(log1p(theta));
-  }else if(Dist == "gamma"){
-    arma::vec theta = -1 / mu;
-    LogLik = -arma::dot(*Y, theta) + arma::accu(log(-theta));
-  }else{
-    LogLik = -arma::accu(pow(*Y - mu, 2)) / 2;
-  }
-  
-  return(LogLik);
-}
-
 // Defining log likelihood for saturated model
 
 double ParLogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist){
@@ -557,7 +533,6 @@ List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec*
   
   double satLogLik = ParLogLikelihoodSat(X, Y, Dist);
   double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
-  double nullDev = -2 * (ParLogLikelihoodNull(X, Y, Dist) - satLogLik);
   double resDev = -2 * (LogLik - satLogLik);
   double AIC = -2 * LogLik + 2 * X->n_cols;
   
@@ -577,9 +552,6 @@ List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec*
     AIC = -2 * LogLik + 2 * (X->n_cols);
   }
   
-  
-  omp_set_num_threads(1);
-  
   return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
                             Named("SE") = sqrt(dispersion) * SE,
                             Named("z") = z, 
@@ -587,7 +559,6 @@ List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec*
                             Named("iterations") = Iter,
                             Named("dispersion") = dispersion,
                             Named("logLik") =  LogLik,
-                            Named("nullDev") = nullDev,
                             Named("resDev") = resDev,
                             Named("AIC") = AIC,
                             Named("preds") = NumericVector(mu.begin(), mu.end()),

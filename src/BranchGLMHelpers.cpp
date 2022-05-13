@@ -190,30 +190,6 @@ double LogLikelihoodCpp(const arma::mat* X, const arma::vec* Y,
   return(LogLik);
 }
 
-// Defining log likelihood for intercept-only model
-
-double LogLikelihoodNull(const arma::mat* X, const arma::vec* Y, std::string Dist){
-  
-  double LogLik = 0;
-  arma::vec mu(Y->n_elem);
-  mu.fill(mean(*Y));
-  
-  if(Dist == "poisson"){
-    LogLik = arma::dot(*Y, log(mu)) - arma::accu(mu);
-  }
-  else if(Dist == "binomial"){
-    arma::vec theta = (mu) / (1 - mu);
-    LogLik = arma::dot(*Y, log(theta)) - arma::accu(log1p(theta));
-  }else if(Dist == "gamma"){
-    arma::vec theta = -1 / mu;
-    LogLik = -arma::dot(*Y, theta) + arma::accu(log(-theta));
-  }else{
-    LogLik = -arma::accu(pow(*Y - mu, 2)) / 2;
-  }
-  
-  return(LogLik);
-}
-
 // Defining log likelihood for saturated model
 
 double LogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist){
@@ -556,10 +532,11 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 
 
 // [[Rcpp::export]]
-
 List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
-                     std::string method,  unsigned int m, std::string Link, std::string Dist,
-                     unsigned int nthreads, double tol){
+                     std::string method,  unsigned int m, std::string Link, 
+                     std::string Dist,
+                     unsigned int nthreads, double tol, 
+                     bool intercept){
   
   arma::vec beta(x.cols(), arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
@@ -617,7 +594,6 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   
   double satLogLik = LogLikelihoodSat(&X, &Y, Dist);
   double LogLik = -LogLikelihoodCpp(&X, &Y, &mu, Dist);
-  double nullDev = -2 * (LogLikelihoodNull(&X, &Y, Dist) - satLogLik);
   double resDev = -2 * (LogLik - satLogLik);
   double AIC = -2 * LogLik + 2 * X.n_cols;
   
@@ -647,7 +623,6 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                             Named("iterations") = Iter,
                             Named("dispersion") = dispersion,
                             Named("logLik") =  LogLik,
-                            Named("nullDev") = nullDev,
                             Named("resDev") = resDev,
                             Named("AIC") = AIC,
                             Named("preds") = NumericVector(mu.begin(), mu.end()),
@@ -656,7 +631,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
 
 List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
-                unsigned int nthreads, double tol){
+                unsigned int nthreads, double tol, bool intercept){
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
@@ -712,7 +687,6 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   
   double satLogLik = LogLikelihoodSat(X, Y, Dist);
   double LogLik = -LogLikelihoodCpp(X, Y, &mu, Dist);
-  double nullDev = -2 * (LogLikelihoodNull(X, Y, Dist) - satLogLik);
   double resDev = -2 * (LogLik - satLogLik);
   double AIC = -2 * LogLik + 2 * X->n_cols;
   
@@ -742,7 +716,6 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
                             Named("iterations") = Iter,
                             Named("dispersion") = dispersion,
                             Named("logLik") =  LogLik,
-                            Named("nullDev") = nullDev,
                             Named("resDev") = resDev,
                             Named("AIC") = AIC,
                             Named("preds") = NumericVector(mu.begin(), mu.end()),
