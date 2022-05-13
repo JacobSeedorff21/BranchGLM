@@ -91,3 +91,20 @@ test_that("non-invertible info works", {
                          parallel = TRUE, type = "backward") |>
                  suppressWarnings())
 })
+
+### Residual deviance tests
+### Toothgrowth regression tests
+test_that("residual deviance works", {
+  library(BranchGLM)
+  Data <- ToothGrowth
+  
+  ## Logistic regression residual deviance tests
+  ### With intercept
+  LogitFit <- BranchGLM(supp ~ ., data = Data, family = "poisson", 
+                        link = "log")
+  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
+  
+  expect_equal(LogitFit$resdev, GLMFit$residual.deviance)
+  
+  
+})
