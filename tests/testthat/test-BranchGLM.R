@@ -45,7 +45,7 @@ test_that("binomial regression and stuff works", {
   LogitFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", 
                          link = "logit")
   
-  ### Variable Selection with linear regression
+  ### Branch and bound variable selection with logistic regression
   LogitVS <- VariableSelection(LogitFit, type = "branch and bound")
   LogitVS2 <- VariableSelection(supp ~ ., data = Data, family = "binomial", 
                                  link = "logit", type = "branch and bound", 
@@ -53,6 +53,23 @@ test_that("binomial regression and stuff works", {
   
   expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
   
+  ### Forward variable selection with logistic regression
+  LogitVS <- VariableSelection(LogitFit, type = "forward")
+  LogitVS2 <- VariableSelection(supp ~ ., data = Data, family = "binomial", 
+                                link = "logit", type = "forward",
+                                parallel = TRUE)
+  
+  expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
+  
+  ### Backward variable selection with logistic regression
+  LogitVS <- VariableSelection(LogitFit, type = "backward", metric = "BIC")
+  LogitVS2 <- VariableSelection(supp ~ ., data = Data, family = "binomial", 
+                                link = "logit", type = "backward", metric = "BIC", 
+                                parallel = TRUE)
+  
+  expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
+  
+  ## Checking binomial utility functions
   ### Table
   LogitTable <- Table(LogitFit)
   expect_equal(LogitTable$Table, matrix(c(17, 7, 13, 23), ncol = 2))
@@ -76,6 +93,7 @@ test_that("non-invertible info works", {
   y <- x %*% beta + rnorm(10)
   Data <- cbind(y, x) |>
           as.data.frame()
+  
   ## Testing functions with non-invertible fisher info
   ### Testing BranchGLM
   expect_error(BranchGLM(V1 ~ ., data = Data, family = "gaussian", link = "identity") |>
@@ -90,6 +108,13 @@ test_that("non-invertible info works", {
   expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity",
                          parallel = TRUE, type = "backward") |>
                  suppressWarnings())
+  
+  ### Testing forward selection for no error
+  expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity", type = "forward") |>
+                suppressWarnings(), NA)
+  expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity",
+                                 parallel = TRUE, type = "forward") |>
+                 suppressWarnings(), NA)
 })
 
 ### Residual deviance tests
@@ -98,13 +123,25 @@ test_that("residual deviance works", {
   library(BranchGLM)
   Data <- ToothGrowth
   
-  ## Logistic regression residual deviance tests
-  ### With intercept
-  LogitFit <- BranchGLM(supp ~ ., data = Data, family = "poisson", 
+  ## Residual deviance tests
+  ### Poisson
+  PoissonFit <- BranchGLM(as.numeric(supp) ~ ., data = Data, family = "poisson", 
                         link = "log")
+  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
+  
+  expect_equal(PoissonFit$resdev, GLMFit$residual.deviance)
+  
+  ## Logistic
+  LogitFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", 
+                        link = "logit")
   GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
   
   expect_equal(LogitFit$resdev, GLMFit$residual.deviance)
   
+  ## Linear
+  LinearFit <- BranchGLM(as.numeric(supp) ~ ., data = Data, family = "gaussian", 
+                        link = "identity")
+  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
   
+  expect_equal(LinearFit$resdev, GLMFit$residual.deviance)
 })
