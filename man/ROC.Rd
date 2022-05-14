@@ -18,11 +18,18 @@ ROC(x, ...)
 \item{y}{Observed values, can be a numeric vector of 0s and 1s, a two-level 
 factor vector, or a logical vector.}
 
-\item{fit}{A BranchGLM object.}
+\item{fit}{A \code{BranchGLM} object.}
 }
 \value{
-A BranchGLMROC object.
+A \code{BranchGLMROC} object which can be plotted with \code{plot()}. The AUC can also 
+be calculated using \code{AUC()}.
 }
 \description{
 Creates an ROC curve.
+}
+\examples{
+Data <- ToothGrowth
+Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
+MyROC <- ROC(Fit)
+plot(MyROC)
 }

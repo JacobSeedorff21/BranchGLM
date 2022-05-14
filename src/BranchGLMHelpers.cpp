@@ -320,7 +320,7 @@ arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
 int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                    const arma::vec* Y, const arma::vec* Offset,
                    std::string Link, std::string Dist, 
-                   double tol = pow(10, -8), int m = 5, 
+                   double tol, int maxit, int m = 5, 
                    double C1 = pow(10, -4)){
   
   int k = 0;
@@ -346,7 +346,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
-    if(k == 200){ 
+    if(k == maxit){ 
       warning("LBFGS failed to converge");
       k = -1;
       break;
@@ -393,7 +393,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int BFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                   const arma::vec* Y, const arma::vec* Offset,
                   std::string Link, std::string Dist,
-                  double tol =  pow(10, -8), double C1 = pow(10, -4)){
+                  double tol, int maxit, double C1 = pow(10, -4)){
   
   int k = 0;
   arma::vec mu = LinkCpp(X, beta, Offset, Link, Dist);
@@ -417,7 +417,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
-    if(k == 200){ 
+    if(k == maxit){ 
       warning("BFGS failed to converge");
       k = -1;
       break;
@@ -470,7 +470,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                                const arma::vec* Y, const arma::vec* Offset,
                                std::string Link, std::string Dist,
-                               double tol = pow(10, -8), 
+                               double tol, int maxit,  
                                double C1 = pow(10, -4)){
   
   int k = 0;
@@ -489,8 +489,8 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     checkUserInterrupt();
     alpha = 1;
     
-    // Checks if we've reached 50 iterations and stops if we have
-    if(k == 50){ 
+    // Checks if we've reached maxit iterations and stops if we have
+    if(k == maxit){ 
       warning("Fisher Scoring failed to converge");
       k = -1;
       break;
@@ -535,7 +535,7 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                      std::string method,  unsigned int m, std::string Link, 
                      std::string Dist,
-                     unsigned int nthreads, double tol){
+                     unsigned int nthreads, double tol, int maxit){
   
   arma::vec beta(x.cols(), arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
@@ -546,13 +546,13 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   omp_set_num_threads(nthreads);
   
   if(method == "BFGS"){
-    Iter = BFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol);
+    Iter = BFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
   else if(method == "LBFGS"){
-    Iter = LBFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, m);
+    Iter = LBFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = FisherScoringGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol);
+    Iter = FisherScoringGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
   if(Iter == -2){
     stop("Algorithm failed to converge because the fisher info was not invertible");
@@ -630,7 +630,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
 
 List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
-                unsigned int nthreads, double tol){
+                unsigned int nthreads, double tol, int maxit){
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
@@ -638,14 +638,14 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   omp_set_num_threads(nthreads);
   
   if(method == "BFGS"){
-    Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
     
   }
   else if(method == "LBFGS"){
-    Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, m);
+    Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
   }
   if(Iter == -2){
     stop("Algorithm failed because the fisher info was not invertible");

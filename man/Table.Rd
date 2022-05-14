@@ -16,18 +16,23 @@ Table(x, ...)
 \method{Table}{BranchGLM}(fit, cutoff = 0.5)
 }
 \arguments{
-\item{preds}{A numeric vector of predictions between 0 and 1 or a two-level factor vector.}
+\item{preds}{a numeric vector of predictions between 0 and 1 or a two-level factor vector.}
 
-\item{y}{Observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
+\item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
 a logical vector. Must be a two-level factor vector if preds is also a two-level factor vector.}
 
-\item{cutoff}{Cutoff for predicted values, default is 0.5.}
+\item{cutoff}{cutoff for predicted values, default is 0.5.}
 
-\item{fit}{A BranchGLM object.}
+\item{fit}{a \code{BranchGLM} object.}
 }
 \value{
-A BranchGLMTable object.
+a \code{BranchGLMTable} object.
 }
 \description{
 Creates confusion matrix and calculates related measures.
+}
+\examples{
+Data <- ToothGrowth
+Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
+Table(Fit)
 }

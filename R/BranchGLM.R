@@ -1,7 +1,7 @@
 #' Fits GLMs
 #' @param formula a formula for the model.
 #' @param data a dataframe that contains the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "binomal", or "poisson"
+#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson"
 #' @param link link used to link mean structure to linear predictors. One of, 
 #' "identity", "logit", "probit", "cloglog", or "log".
 #' @param offset offset vector, by default the zero vector is used.
@@ -10,6 +10,8 @@
 #' @param parallel whether or not to make use of parallelization via OpenMP.
 #' @param nthreads number of threads used with OpenMP, only used if parallel = TRUE.
 #' @param tol tolerance used to determine model convergence.
+#' @param maxit maximum number of iterations performed. The default for 
+#' Fisher scoring is 50 and for the other methods the default is 200.
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
 #' @return A \code{BranchGLM} object which is a list with the following components
 #' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
@@ -57,7 +59,7 @@
 
 BranchGLM <- function(formula, data, family, link, offset = NULL, 
                     method = "Fisher", grads = 10, parallel = FALSE, nthreads = 8, 
-                    tol = 1e-4, contrasts = NULL){
+                    tol = 1e-4, maxit = NULL, contrasts = NULL){
   
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
@@ -82,8 +84,18 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   mf <- eval(mf, parent.frame())
   y <- model.response(mf, "any")
   
-  ## Checking y variable for binomial regression
+  ## Setting maxit
+  if(is.null(maxit)){
+    if(method == "Fisher"){
+      maxit <- 50
+    }else{
+      maxit <- 200
+    }
+  }else if(length(maxit) != 1 || !is.numeric(maxit) || maxit != as.integer(maxit) || maxit < 0){
+    stop("maxit must be a non-negative integer")
+  }
   
+  ## Checking y variable for each family
   if(family == "binomial"){
     if(is.factor(y) && (nlevels(y) == 2)){
       ylevel <- levels(y)
@@ -94,10 +106,20 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
       ylevel <- c(FALSE, TRUE)
       y <- y * 1
     }else{
-      stop("Response variable for binomial regression must be numeric with only 
+      stop("response variable for binomial regression must be numeric with only 
       0s and 1s, a two-level factor, or a logical vector")
       }
+  }else if(family == "poisson"){
+      if(!is.numeric(y) || any(y < 0)){
+        stop("response variable for poisson regression must be a numeric vector of non-negative integers")
+      }else if(any(as.integer(y)!= y)){
+        stop("response variable for poisson regression must be a numeric vector of non-negative integers")
     }
+  }else if(family == "gaussian"){
+    if(!is.numeric(y)){
+      stop("response variable for gaussian regression must be numeric")
+    }
+  }
   
   x <- model.matrix(formula, data, contrasts)
   
@@ -114,9 +136,9 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     stop("parallel must be either TRUE or FALSE")
   }else if(parallel){
     df <- BranchGLMfit(x, y, offset, method, grads, link, family, nthreads, 
-                       tol) 
+                       tol, maxit) 
   }else{
-    df <- BranchGLMfit(x, y, offset, method, grads, link, family, 1, tol) 
+    df <- BranchGLMfit(x, y, offset, method, grads, link, family, 1, tol, maxit) 
   }
   
   row.names(df$coefficients) <- colnames(x)
@@ -154,7 +176,6 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     df$ylevel <- ylevel
   }
   structure(df, class = "BranchGLM")
-  
 }
 
 #' Extract Log-Likelihood
@@ -167,7 +188,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 #' logLik(Fit)
 #' @export
-
+#' 
 logLik.BranchGLM<- function(fit){
   Fit$logLik
 }
@@ -264,7 +285,6 @@ predict.BranchGLM <- function(fit, newdata = NULL, type = "response"){
 }
 
 GetPreds <- function(XBeta, Link){
-  
   if(Link == "log"){
     exp(XBeta)
   }

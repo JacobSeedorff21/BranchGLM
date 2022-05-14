@@ -34,22 +34,22 @@ arma::vec ParLBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
 int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                    const arma::vec* Y, const arma::vec* Offset,
                    std::string Link, std::string Dist, 
-                   double tol = pow(10, -8), unsigned int m = 5, 
+                   double tol, int maxit, unsigned int m = 5, 
                    double C1 = pow(10, -4));
 
 int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                   const arma::vec* Y, const arma::vec* Offset,
                   std::string Link, std::string Dist,
-                  double tol =  pow(10, -8), double C1 = pow(10, -4));
+                  double tol, int maxit, double C1 = pow(10, -4));
 
 int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                                const arma::vec* Y, const arma::vec* Offset,
                                std::string Link, std::string Dist,
-                               double tol = pow(10, -8), 
+                               double tol, int maxit, 
                                double C1 = pow(10, -4));
 
 List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
-                unsigned int nthreads, double tol);
+                unsigned int nthreads, double tol, int maxit);
 
 #endif

@@ -15,6 +15,7 @@ BranchGLM(
   parallel = FALSE,
   nthreads = 8,
   tol = 1e-04,
+  maxit = NULL,
   contrasts = NULL
 )
 }
@@ -23,7 +24,7 @@ BranchGLM(
 
 \item{data}{a dataframe that contains the response and predictor variables.}
 
-\item{family}{distribution used to model the data, one of "gaussian", "binomal", or "poisson"}
+\item{family}{distribution used to model the data, one of "gaussian", "binomial", or "poisson"}
 
 \item{link}{link used to link mean structure to linear predictors. One of, 
 "identity", "logit", "probit", "cloglog", or "log".}
@@ -40,12 +41,15 @@ BranchGLM(
 
 \item{tol}{tolerance used to determine model convergence.}
 
+\item{maxit}{maximum number of iterations performed. The default for 
+Fisher scoring is 50 and for the other methods the default is 200.}
+
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 }
 \value{
 A \code{BranchGLM} object which is a list with the following components
 \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
-\item{\code{iterations}}{ number of iterations it took the algorithm to converge}
+\item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
 \item{\code{resdev}}{ the residual deviance of the fitted model}
@@ -82,7 +86,8 @@ the armijo-goldstein condition to find an adequate step size. There are also
 two conditions used to control convergence, the first is whether there is a 
 sufficient decrease in the negative log-likelihood, and the other is whether 
 each of the elements of the beta vector changes by a sufficient amount. The 
-\code{tol} argument controls both of these criteria.
+\code{tol} argument controls both of these criteria. If the algorithm fails to 
+converge, then \code{iterations} will be -1.
 
 The likelihood equations are solved directly, i.e. no matrix decomposition is used.
 }

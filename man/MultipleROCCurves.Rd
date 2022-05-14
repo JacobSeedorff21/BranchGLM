@@ -15,21 +15,40 @@ MultipleROCCurves(
 )
 }
 \arguments{
-\item{...}{Any number of BranchGLMROC objects.}
+\item{...}{any number of BranchGLMROC objects.}
 
-\item{legendpos}{Where to place legend.}
+\item{legendpos}{where to place legend.}
 
-\item{title}{Title for plot.}
+\item{title}{title for plot.}
 
-\item{colors}{Vector of colors to be used on ROC curves.}
+\item{colors}{vector of colors to be used on ROC curves.}
 
-\item{names}{Vector of names used to create legend for ROC curves.}
+\item{names}{vector of names used to create legend for ROC curves.}
 
-\item{lty}{Vector of linetypes used to create legend for ROC curves or a 
+\item{lty}{vector of linetypes used to create ROC curves or a 
 single linetype to be used for all ROC curves.}
 
-\item{lwd}{Vector of linewidths used to create legend for ROC curves or a 
-single linewidth to be used for all ROC curves.}
+\item{lwd}{vector of linewidths used to create ROC curves or a 
+single linewidth to be used for all ROC curves.
+#' @examples 
+Data <- ToothGrowth
+
+### Logistic ROC
+LogisticFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
+LogisticROC <- ROC(LogisticFit)
+
+### Probit ROC
+ProbitFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "probit")
+ProbitROC <- ROC(ProbitFit)
+
+### Cloglog ROC
+CloglogFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "cloglog")
+CloglogROC <- ROC(CloglogFit)
+
+### Plotting ROC curves
+
+MultipleROCCurves(LogisticROC, ProbitROC, CloglogROC, 
+                  names = c("Logistic ROC", "Probit ROC", "Cloglog ROC"))}
 }
 \description{
 Plotting Multiple ROC Curves

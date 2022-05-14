@@ -278,7 +278,7 @@ arma::vec ParLBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
 int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                       const arma::vec* Y, const arma::vec* Offset,
                       std::string Link, std::string Dist, 
-                      double tol = pow(10, -8), unsigned int m = 5, 
+                      double tol, int maxit, unsigned int m = 5, 
                       double C1 = pow(10, -4)){
   
   int k = 0;
@@ -303,7 +303,7 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double alpha;
   
   while(arma::norm(g1) > tol){
-    if(k == 200){ 
+    if(k == maxit){ 
       k = -1;
       break;
     }
@@ -348,7 +348,7 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                      const arma::vec* Y, const arma::vec* Offset,
                      std::string Link, std::string Dist,
-                     double tol =  pow(10, -8), double C1 = pow(10, -4)){
+                     double tol, int maxit, double C1 = pow(10, -4)){
   
   int k = 0;
   arma::vec mu = ParLinkCpp(X, beta, Offset, Link, Dist);
@@ -370,7 +370,7 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double t;
   
   while(arma::norm(g1) > tol){
-    if(k == 200){ 
+    if(k == maxit){ 
       k = -1;
       break;
     }
@@ -421,7 +421,7 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                              const arma::vec* Y, const arma::vec* Offset,
                              std::string Link, std::string Dist,
-                             double tol = pow(10, -8), 
+                             double tol, int maxit, 
                              double C1 = pow(10, -4)){
   
   int k = 0;
@@ -439,8 +439,8 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   while(arma::norm(g1) > tol){
     alpha = 1;
     
-    // Checks if we've reached 50 iterations and stops if we have
-    if(k == 50){ 
+    // Checks if we've reached maxit iterations and stops if we have
+    if(k == maxit){ 
       k = -1;
       break;
     }
@@ -479,7 +479,7 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 
 List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                    std::string method,  unsigned int m, std::string Link, std::string Dist,
-                   unsigned int nthreads, double tol){
+                   unsigned int nthreads, double tol, int maxit){
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
@@ -487,14 +487,14 @@ List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec*
   omp_set_num_threads(nthreads);
   
   if(method == "BFGS"){
-    Iter = ParBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = ParBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
     
   }
   else if(method == "LBFGS"){
-    Iter = ParLBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, m);
+    Iter = ParLBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = ParFisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = ParFisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
   }
   
   arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);

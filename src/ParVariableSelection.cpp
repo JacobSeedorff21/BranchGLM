@@ -10,19 +10,19 @@ using namespace Rcpp;
 double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                        std::string method, 
                        int m, std::string Link, std::string Dist,
-                       double tol, std::string metric){
+                       double tol, int maxit, std::string metric){
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
   int Iter;
   if(method == "BFGS"){
-    Iter = ParBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = ParBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
     
   }
   else if(method == "LBFGS"){
-    Iter = ParLBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, m);
+    Iter = ParLBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = ParFisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = ParFisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
   }
   if(Iter == -2){
     return(arma::datum::inf);
@@ -47,7 +47,8 @@ double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* 
 double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                         std::string method, int m, std::string Link, std::string Dist,
                         arma::ivec* CurModel,  arma::ivec* indices, 
-                        double tol, std::string metric, unsigned int cur, int minsize,
+                        double tol, int maxit,
+                        std::string metric, unsigned int cur, int minsize,
                         arma::uvec* NewOrder, double LowerBound){
   int Iter;
   arma::ivec UpperModel = *CurModel;
@@ -60,14 +61,14 @@ double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offs
   arma::vec beta(xTemp.n_cols, arma::fill::zeros);
   
   if(method == "BFGS"){
-    Iter = ParBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol);
+    Iter = ParBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit);
     
   }
   else if(method == "LBFGS"){
-    Iter = ParLBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, m);
+    Iter = ParLBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = ParFisherScoringGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol);
+    Iter = ParFisherScoringGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit);
   }
   if(Iter < 0){
     return(LowerBound);
@@ -95,6 +96,7 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                       std::string method, int m, std::string Link, std::string Dist,
                       arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
                       unsigned int* numchecked,arma::ivec* indices, double tol, 
+                      int maxit, 
                       int maxsize, unsigned int cur, std::string metric, 
                       double LowerBound, arma::uvec* NewOrder, Progress* p){
   
@@ -112,7 +114,7 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         NewOrder2.at(j) = NewOrder->at(j + cur);
         Metrics.at(j) = ParMetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
-                   tol, metric);
+                   tol, maxit, metric);
       }
       // Updating numchecked and potentially updating the best model
       *numchecked += NewOrder2.n_elem;
@@ -137,7 +139,7 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
           if(j > 0 && Metrics.at(j) < *BestMetric){
             Counts.at(j) = 1;
             Metrics.at(j) = ParGetBound(X, Y, Offset, method, m, Link, Dist, &CurModel2,
-                       indices, tol, metric, 
+                       indices, tol, maxit, metric, 
                        j + 1, xTemp.n_cols, &NewOrder2, Metrics.at(j));
           }
         }
@@ -149,7 +151,7 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
         arma::ivec CurModel2 = *CurModel;
         CurModel2.at(NewOrder2.at(j)) = 1;
         ParBranch(X, Y, Offset, method, m, Link, Dist, &CurModel2, BestModel, 
-                          BestMetric, numchecked, indices, tol, maxsize - 1, j + 1, metric, 
+                          BestMetric, numchecked, indices, tol, maxit, maxsize - 1, j + 1, metric, 
                           Metrics.at(j), &NewOrder2, p);
       }
     }
@@ -166,7 +168,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
                                  IntegerVector indices, IntegerVector num,
                                  std::string method, int m,
                                  std::string Link, std::string Dist,
-                                 unsigned int nthreads, double tol, 
+                                 unsigned int nthreads, double tol, int maxit, 
                                  IntegerVector keep, int maxsize, std::string metric,
                                  bool display_progress){
   
@@ -179,7 +181,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
   double BestMetric = arma::datum::inf;
   BestMetric = ParMetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
-                               tol, metric);
+                               tol, maxit, metric);
   unsigned int numchecked = 1;
   unsigned int size = 0;
   omp_set_num_threads(nthreads);
@@ -215,7 +217,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
     CurModel2.at(NewOrder.at(j)) = 1;
     arma::mat xTemp = GetMatrix(&X, &CurModel2, &Indices);
     Metrics.at(j) = ParMetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
-               tol, metric);
+               tol, maxit, metric);
   }
   checkUserInterrupt();
   numchecked += NewOrder.n_elem;
@@ -225,7 +227,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   Metrics = Metrics(sorted);
   double LowerBound = -arma::datum::inf;
   LowerBound = ParGetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel,
-                                       &Indices, tol, metric, 
+                                       &Indices, tol, maxit, metric, 
                                        0, xTemp.n_cols, &NewOrder, LowerBound);
   numchecked++;
   if(Metrics.at(0) < BestMetric){
@@ -243,7 +245,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
       if(j > 0 && Metrics.at(j) < BestMetric){
         Counts.at(j) = 1;
         Metrics.at(j) = ParGetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2,
-                   &Indices, tol, metric, 
+                   &Indices, tol, maxit, metric, 
                    j + 1, xTemp.n_cols, &NewOrder, Metrics.at(j));
       }
     }
@@ -256,7 +258,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
     arma::ivec CurModel2 = CurModel;
     CurModel2.at(NewOrder.at(j)) = 1;
     ParBranch(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2, &BestModel, 
-                     &BestMetric, &numchecked, &Indices, tol, maxsize - 1, j + 1, metric, 
+                     &BestMetric, &numchecked, &Indices, tol, maxit, maxsize - 1, j + 1, metric, 
                      Metrics.at(j), &NewOrder, &p);
     
   }
@@ -268,7 +270,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                                  nthreads, tol);
+                                  nthreads, tol, maxit);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("model") = keep,

@@ -23,6 +23,7 @@ VariableSelection(x, ...)
   parallel = FALSE,
   nthreads = 8,
   tol = 1e-04,
+  maxit = NULL,
   contrasts = NULL,
   showprogress = TRUE
 )
@@ -38,6 +39,7 @@ VariableSelection(x, ...)
   parallel = FALSE,
   nthreads = 8,
   tol = 1e-04,
+  maxit = NULL,
   showprogress = TRUE
 )
 }
@@ -46,7 +48,7 @@ VariableSelection(x, ...)
 
 \item{data}{a dataframe with the response and predictor variables.}
 
-\item{family}{distribution used to model the data, one of "gaussian", "binomal", or "poisson"}
+\item{family}{distribution used to model the data, one of "gaussian", "binomial", or "poisson"}
 
 \item{link}{link used to link mean structure to linear predictors. One of, 
 "identity", "logit", "probit", "cloglog", or "log".}
@@ -74,6 +76,9 @@ Only available for branch and bound selection.}
 \item{nthreads}{number of threads used with OpenMP, only used if parallel is TRUE.}
 
 \item{tol}{tolerance used to determine model convergence.}
+
+\item{maxit}{maximum number of iterations performed. The default for 
+Fisher scoring is 50 and for the other methods the default is 200.}
 
 \item{showprogress}{whether to show progress updates for branch and bound.}
 

@@ -7,10 +7,16 @@
 \method{plot}{BranchGLMROC}(ROC, ...)
 }
 \arguments{
-\item{ROC}{A BranchGLMROC object.}
+\item{ROC}{a BranchGLMROC object.}
 
 \item{...}{arguments passed to generic plot function.}
 }
 \description{
-plot plots a ROC curve.
+This plots a ROC curve.
+}
+\examples{
+Data <- ToothGrowth
+Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
+MyROC <- ROC(Fit)
+plot(MyROC)
 }

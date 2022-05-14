@@ -104,19 +104,19 @@ arma::mat GetMatrix(const arma::mat* X, arma::ivec* CurModel,
 double MetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                     std::string method, 
                     int m, std::string Link, std::string Dist,
-                    double tol, std::string metric){
+                    double tol, int maxit, std::string metric){
   int Iter;
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
   if(method == "BFGS"){
-    Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
     
   }
   else if(method == "LBFGS"){
-    Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, m);
+    Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol);
+    Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
   }
   if(Iter == -2){
     return(arma::datum::inf);
@@ -144,7 +144,7 @@ void add1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
           std::string method, int m, std::string Link, std::string Dist,
           arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
           unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
-          arma::ivec* indices, double tol, std::string metric){
+          arma::ivec* indices, double tol, int maxit, std::string metric){
   
   for(unsigned int j = 0; j < CurModel->n_elem; j++){
     if(CurModel->at(j) == 0){
@@ -153,7 +153,7 @@ void add1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       CurModel2.at(j) = 1;
       arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
       double NewMetric = MetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
-                                      tol, metric);
+                                      tol, maxit, metric);
       
       if(NewMetric < *BestMetric){
         *BestModel = CurModel2;
@@ -171,7 +171,8 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                 IntegerVector indices, IntegerVector num,
                 std::string method, int m,
                 std::string Link, std::string Dist,
-                unsigned int nthreads, double tol, IntegerVector keep, 
+                unsigned int nthreads, double tol, int maxit,
+                IntegerVector keep, 
                 unsigned int steps, std::string metric){
   
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
@@ -184,7 +185,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
   double BestMetric = arma::datum::inf;
   BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
-                                   tol, metric);
+                                   tol, maxit, metric);
   unsigned int numchecked = 0;
   
   IntegerVector order(CurModel.n_elem, -1);
@@ -197,7 +198,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     bool flag = true;
     CurModel = BestModel;
     add1(&X, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
-         &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, metric);
+         &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
     
     if(flag){
       break;
@@ -208,7 +209,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                               nthreads, tol);
+                               nthreads, tol, maxit);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("order") = order,
@@ -226,7 +227,7 @@ void drop1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
            std::string method, int m, std::string Link, std::string Dist,
            arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
            unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
-           arma::ivec* indices, double tol, std::string metric){
+           arma::ivec* indices, double tol, int maxit, std::string metric){
   
   unsigned int j = 0;
   
@@ -237,7 +238,7 @@ void drop1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       CurModel2.at(j) = 0;
       arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
       double NewMetric = MetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
-                                      tol, metric);
+                                      tol, maxit, metric);
       
       if(NewMetric < *BestMetric){
         *BestModel = CurModel2;
@@ -255,7 +256,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                  IntegerVector indices, IntegerVector num,
                  std::string method, int m,
                  std::string Link, std::string Dist,
-                 unsigned int nthreads, double tol,
+                 unsigned int nthreads, double tol, int maxit,
                  IntegerVector keep, unsigned int steps, std::string metric){
   
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
@@ -267,7 +268,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
   double BestMetric = arma::datum::inf;
-  BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, tol, 
+  BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, tol, maxit,
                             metric);
   
   unsigned int numchecked = 0;
@@ -282,7 +283,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     bool flag = true;
     CurModel = BestModel;
     drop1(&X, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
-          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, metric);
+          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
     
     if(flag){
       break;
@@ -294,7 +295,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                               nthreads, tol);
+                               nthreads, tol, maxit);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("order") = order,
@@ -330,7 +331,8 @@ double BoundHelper(const arma::mat* X, double logLik,
 
 double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method, int m, std::string Link, std::string Dist,
-                arma::ivec* CurModel,  arma::ivec* indices, double tol, 
+                arma::ivec* CurModel,  arma::ivec* indices, double tol,
+                int maxit, 
                 std::string metric, unsigned int cur, int minsize,
                 arma::uvec* NewOrder, double LowerBound){
   int Iter;
@@ -343,14 +345,14 @@ double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   arma::vec beta(xTemp.n_cols, arma::fill::zeros);
   
   if(method == "BFGS"){
-    Iter = BFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol);
+    Iter = BFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit);
     
   }
   else if(method == "LBFGS"){
-    Iter = LBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, m);
+    Iter = LBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = FisherScoringGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol);
+    Iter = FisherScoringGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit);
   }
   if(Iter < 0){
     return(LowerBound);
@@ -403,6 +405,7 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                  std::string method, int m, std::string Link, std::string Dist,
                  arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
                  unsigned int* numchecked,arma::ivec* indices, double tol, 
+                 int maxit,
                  int maxsize, unsigned int cur, std::string metric, 
                  double LowerBound, arma::uvec* NewOrder, Progress* p,
                  bool update = false){
@@ -413,7 +416,7 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   if(maxsize > 0 && update && LowerBound < *BestMetric){
     (*numchecked)++;
     LowerBound = GetBound(X, Y, Offset, method, m, Link, Dist, CurModel,
-                                indices, tol, metric, 
+                                indices, tol, maxit, metric, 
                                 cur, xTemp.n_cols, NewOrder, LowerBound);
   }
   if(LowerBound < *BestMetric && maxsize > 0){
@@ -430,7 +433,7 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
         xTemp = GetMatrix(X, &CurModel2, indices);
         NewOrder2.at(k) = NewOrder->at(j);
         Metrics.at(k) = MetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
-                   tol, metric);
+                   tol, maxit, metric);
           
         if(Metrics.at(k) < *BestMetric){
           *BestModel = CurModel2;
@@ -445,12 +448,12 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       CurModel2.at(NewOrder2.at(j)) = 1;
       if(j == 0){
         Branch(X, Y, Offset, method, m, Link, Dist, &CurModel2, BestModel, 
-                      BestMetric, numchecked, indices, tol, maxsize - 1, j + 1, metric, 
+                      BestMetric, numchecked, indices, tol, maxit, maxsize - 1, j + 1, metric, 
                       LowerBound, &NewOrder2, p);
       }
       else{
         Branch(X, Y, Offset, method, m, Link, Dist, &CurModel2, BestModel, 
-                    BestMetric, numchecked, indices, tol, maxsize - 1, j + 1, metric, 
+                    BestMetric, numchecked, indices, tol, maxit, maxsize - 1, j + 1, metric, 
                     LowerBound, &NewOrder2, p, true);
         }         
       }
@@ -468,7 +471,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                             IntegerVector indices, IntegerVector num,
                             std::string method, int m,
                             std::string Link, std::string Dist,
-                            unsigned int nthreads, double tol, 
+                            unsigned int nthreads, double tol, int maxit, 
                             IntegerVector keep, int maxsize, std::string metric,
                             bool display_progress){
   
@@ -480,7 +483,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
   double BestMetric = arma::datum::inf;
-  BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, tol, 
+  BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, tol, maxit, 
                             metric);
   unsigned int numchecked = 1;
   unsigned int size = 0;
@@ -507,7 +510,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
       xTemp = GetMatrix(&X, &CurModel2, &Indices);
       NewOrder.at(k) = j;
       Metrics.at(k) = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
-                 tol, metric);
+                 tol, maxit, metric);
       
       if(Metrics.at(k) < BestMetric){
         BestModel = CurModel2;
@@ -520,7 +523,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   NewOrder = NewOrder(sort_index(Metrics));
   double LowerBound = -arma::datum::inf;
   LowerBound = GetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel,
-                                    &Indices, tol, metric, 
+                                    &Indices, tol, maxit, metric, 
                                     0, 0, &NewOrder, LowerBound);
   numchecked++;
   if(NewOrder.n_elem > 1){
@@ -531,12 +534,12 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     CurModel2.at(NewOrder.at(j)) = 1;
     if(j == 0){
       Branch(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2, &BestModel, 
-             &BestMetric, &numchecked, &Indices, tol, maxsize - 1, j + 1, metric, 
+             &BestMetric, &numchecked, &Indices, tol, maxit, maxsize - 1, j + 1, metric, 
              LowerBound, &NewOrder, &p);
     }
     else{
       Branch(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2, &BestModel, 
-                  &BestMetric, &numchecked, &Indices, tol, maxsize - 1, j + 1, metric, 
+                  &BestMetric, &numchecked, &Indices, tol, maxit, maxsize - 1, j + 1, metric, 
                   LowerBound, &NewOrder, &p, true);
     }
                 
@@ -549,7 +552,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                               nthreads, tol);
+                               nthreads, tol, maxit);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("model") = keep,

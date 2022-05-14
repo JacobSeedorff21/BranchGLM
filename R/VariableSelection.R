@@ -1,7 +1,7 @@
 #' Variable Selection for GLMs 
 #' @param formula a formula used to define upper model.
 #' @param data a dataframe with the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "binomal", or "poisson"
+#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson"
 #' @param link link used to link mean structure to linear predictors. One of, 
 #' "identity", "logit", "probit", "cloglog", or "log".
 #' @param offset offset vector, by default the zero vector is used.
@@ -19,6 +19,8 @@
 #' Only available for branch and bound selection.
 #' @param nthreads number of threads used with OpenMP, only used if parallel is TRUE.
 #' @param tol tolerance used to determine model convergence.
+#' @param maxit maximum number of iterations performed. The default for 
+#' Fisher scoring is 50 and for the other methods the default is 200.
 #' @param showprogress whether to show progress updates for branch and bound.
 #' @description \code{VariableSelection} performs forward selection, backward elimination, 
 #' and branch and bound selection for generalized linear models.
@@ -69,19 +71,109 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
                                       method = "Fisher", type = "forward", metric = "AIC",
                                       keep = NULL, maxsize = NULL,
                                       grads = 10, parallel = FALSE, 
-                                      nthreads = 8, tol = 1e-4, contrasts = NULL,
+                                      nthreads = 8, tol = 1e-4, maxit = NULL,
+                                      contrasts = NULL,
                                       showprogress = TRUE){
   
-  ### Fitting upper model
-  fit <- BranchGLM(formula, data = data, family = family, link = link, 
-                   offset = offset, method = method, grads = grads, tol = tol, 
-                   contrasts = contrasts)
+  ### Creating pseudo BranchGLM object to put into VariableSelection.BranchGLM
+  if(!is(formula, "formula")){
+    stop("formula must be a valid formula")
+  }
+  if(!is(data, "data.frame")){
+    stop("data must be a data frame")
+  }
+  if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
+    warning("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
+  }
+  if(!family %in% c("gaussian", "binomial", "poisson")){
+    stop("family must be one of 'gaussian', 'binomial', or 'poisson'")
+  }
+  if(!link %in% c("logit", "probit", "cloglog", "log", "identity")){
+    stop("link must be one of 'logit', 'probit', 'cloglog', 'log', or 'identity'")
+  }
+  mf <- match.call(expand.dots = FALSE)
+  m <- match(c("formula", "data"), names(mf), 0L)
+  mf <- mf[c(1L, m)]
+  mf$drop.unused.levels <- TRUE
+  mf[[1L]] <- as.name("model.frame")
+  mf <- eval(mf, parent.frame())
+  y <- model.response(mf, "any")
+  
+  ## Checking y variable for each family
+  if(family == "binomial"){
+    if(is.factor(y) && (nlevels(y) == 2)){
+      ylevel <- levels(y)
+      y <- as.numeric(y == ylevel[2])
+    }else if(is.numeric(y) && all(y %in% c(0, 1))){
+      ylevel <- c(0, 1)
+    }else if(is.logical(y)){
+      ylevel <- c(FALSE, TRUE)
+      y <- y * 1
+    }else{
+      stop("response variable for binomial regression must be numeric with only 
+      0s and 1s, a two-level factor, or a logical vector")
+    }
+  }else if(family == "poisson"){
+    if(!is.numeric(y) || any(y < 0)){
+      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
+    }else if(any(as.integer(y)!= y)){
+      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
+    }
+  }else if(family == "gaussian"){
+    if(!is.numeric(y)){
+      stop("response variable for gaussian regression must be numeric")
+    }
+  }
+  
+  x <- model.matrix(formula, data, contrasts)
+  
+  ### Checks for offset
+  if(is.null(offset)){
+    offset <- rep(0, nrow(x))
+  }else if(length(offset) != length(y)){
+    stop("offset must have the same length as the y")
+  }else if(!is.numeric(offset)){
+    stop("offset must be a numeric vector")
+  }
+  
+  df <- list()
+  
+  df$formula <- formula
+  
+  df$y <- y
+  
+  df$x <- x
+  
+  df$data <- data
+  
+  df$names <- attributes(terms(formula, data = data))$factors |>
+    colnames()
+  
+  df$yname <- attributes(terms(formula, data = data))$variables[-1] |>
+    as.character()
+  
+  df$yname <- df$yname[attributes(terms(formula, data = data))$response]
+  
+  df$missing <- nrow(data) - nrow(x)
+  
+  df$link <- link
+  
+  df$contrasts <- contrasts
+  
+  df$offset <- offset
+  
+  df$family <- family
+  if(family == "binomial"){
+    df$ylevel <- ylevel
+  }
+  fit <- structure(df, class = "BranchGLM")
   
   ### Performing variable selection
   VariableSelection(fit, type = type, metric = metric, keep = keep, 
                     maxsize = maxsize, method = method, grads = grads, 
                     parallel = parallel, 
-                    nthreads = nthreads, tol = tol, showprogress = showprogress)
+                    nthreads = nthreads, tol = tol, maxit = maxit,
+                    showprogress = showprogress)
 }
 
 #'@rdname VariableSelection
@@ -90,7 +182,8 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
 VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
                                         keep = NULL, maxsize = NULL, 
                                         method = NULL, grads = 10, parallel = FALSE, 
-                                        nthreads = 8, tol = 1e-4, showprogress = TRUE){
+                                        nthreads = 8, tol = 1e-4, maxit = NULL,
+                                        showprogress = TRUE){
   ## Performing argument checks
   if(is.null(method)){
     method <- fit$method
@@ -109,8 +202,18 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
   }
   indices <- attributes(fit$x)$assign
   
-  ## Checking for intercept
+  ## Setting maxit
+  if(is.null(maxit)){
+    if(method == "Fisher"){
+      maxit <- 50
+    }else{
+      maxit <- 200
+    }
+  }else if(length(maxit) != 1 || !is.numeric(maxit) || maxit != as.integer(maxit) || maxit < 0){
+    stop("maxit must be a non-negative integer")
+  }
   
+  ## Checking for intercept
   if(colnames(fit$x)[1] == "(Intercept)"){
     intercept <- TRUE
   }else{
@@ -154,21 +257,21 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
   }
   if(type == "forward"){
     df <- ForwardCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                     fit$link, fit$family, nthreads, tol, keep, maxsize, 
+                     fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
                      metric)
     
   }else if(type == "backward"){
     df <- BackwardCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                      fit$link, fit$family, nthreads, tol, keep, maxsize, 
+                      fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
                       metric)
   }else if(type == "branch and bound"){
     if(parallel){
       df <- ParBranchAndBoundCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                                        fit$link, fit$family, nthreads, tol, keep, maxsize, 
+                                        fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
                                         metric, showprogress)
     }else{
       df <- BranchAndBoundCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                                      fit$link, fit$family, nthreads, tol, keep, maxsize, 
+                                      fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
                                       metric, showprogress)
     }
   }else{

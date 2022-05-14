@@ -38,3 +38,9 @@ Calculates c-index.
 Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object.
 Uses Mann-Whitney U to calculate it otherwise.
 }
+\examples{
+Data <- ToothGrowth
+Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
+Cindex(Fit)
+AUC(Fit)
+}

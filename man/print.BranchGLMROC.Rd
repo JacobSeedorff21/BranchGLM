@@ -7,10 +7,10 @@
 \method{print}{BranchGLMROC}(ROC)
 }
 \arguments{
-\item{ROC}{fastlogsiticROC object.}
+\item{ROC}{BranchGLMROC object.}
 }
 \value{
-A BranchGLMROC object.
+a BranchGLMROC object.
 }
 \description{
 Print Method for BranchGLMROC
