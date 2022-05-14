@@ -20,28 +20,27 @@ knitr::opts_chunk$set(
 
 # Description
 
-**BranchGLM** is a package for fitting GLMs, performing variable selection, and 
+**BranchGLM** is a package for fitting glms, performing variable selection, and 
 creating ROC curves. Most functions in this package make use of RcppArmadillo 
 and some of them can also make use of openMP to perform parallel computations. 
 This vignette introduces the package, provides examples on how to use the 
 main functions in the package and also describes the methods employed by the 
 functions.
 
-# Getting Started
+# Installation
 
-## Installation
+**BranchGLM** can be installed using the `install_github()` function from the 
+**devtools** package.
 
-- The easiest way to install **BranchGLM** is through the `install.packages()` function
+```{r, eval = FALSE}
 
-```{r}
-
-# install.packages("BranchGLM")
+devtools::install_github("JacobSeedorff21/BranchGLM")
 
 ```
 
-# Fitting GLMs
+# Fitting glms
 
-- `BranchGLM()` allows fitting of gaussian, binomial, and poisson GLMs with a variety of links available.  
+- `BranchGLM()` allows fitting of gaussian, binomial, and poisson glms with a variety of links available.  
 - Parallel computation can also be done to speed up the fitting process, but it is only useful for larger datasets.
 
 ## Optimization methods
@@ -80,7 +79,7 @@ LBFGSFit
 
 ## Useful functions
 
-- **BranchGLM** also has many utility functions for GLMs such as
+- **BranchGLM** also has many utility functions for glms such as
   - `coef()` to extract the coefficients
   - `logLik()` to extract the log likelihood
   - `AIC()` to extract the AIC
@@ -188,9 +187,9 @@ VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
 do not converge, no final model can be selected.
 - For these reasons, if there are convergence issues it is recommended to use forward selection.
 
-# Utility functions for binomial GLMs
+# Utility functions for binomial glms
 
-- **BranchGLM** also has some utility functions for binomial GLMs
+- **BranchGLM** also has some utility functions for binomial glms
   - `Table()` creates a confusion matrix based on the predicted classes and observed classes
   - `ROC()` creates an ROC curve which can be plotted with `plot()`
   - `AUC()` and `Cindex()` calculate the area under the ROC curve
