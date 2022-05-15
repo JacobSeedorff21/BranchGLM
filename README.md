@@ -95,7 +95,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.21    0.05    0.25
+    ##    0.24    0.00    0.23
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -105,28 +105,17 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  136.79    0.00  136.95
+    ##  133.13    0.03  133.23
+
+### Checking results
 
 ``` r
 ## Results
-### Branch and bound
-coef(BranchVS$finalmodel) |>
-  names()
+### Checking if both methods give same results
+all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
 ```
 
-    ##  [1] "(Intercept)" "V3"          "V4"          "V5"          "V7"         
-    ##  [6] "V8"          "V9"          "V10"         "V13"         "V14"        
-    ## [11] "V16"
-
-``` r
-### Exhaustive search
-coef(BestVS$BestModel) |>
-  names()
-```
-
-    ##  [1] "(Intercept)" "V3"          "V4"          "V5"          "V7"         
-    ##  [6] "V8"          "V9"          "V10"         "V13"         "V14"        
-    ## [11] "V16"
+    ## [1] TRUE
 
 The branch and bound method can be many times faster than an exhaustive
 search and is still guaranteed to find the optimal model.

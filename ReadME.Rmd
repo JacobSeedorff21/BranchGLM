@@ -102,14 +102,15 @@ Xy <- cbind(df[,-1], df[,1])
 ### Timing exhaustive search
 system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1))
 
-## Results
-### Branch and bound
-coef(BranchVS$finalmodel) |>
-  names()
+```
 
-### Exhaustive search
-coef(BestVS$BestModel) |>
-  names()
+### Checking results
+
+```{r}
+
+## Results
+### Checking if both methods give same results
+all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
 
 ```
 
