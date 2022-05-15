@@ -3,12 +3,12 @@ Type: Package
 Title: GLM fitting and variable selection using RcppArmadillo.
 Version: 1.0
 Date: 2021-12-07
-Author: Jacob Seedorff
+Authors@R: person("Jacob", "Seedorff", , jwseedorff@uiowa.edu, role = c("aut", "cre"))
 Maintainer: <jwseedorff@uiowa.edu>
 URL: <https://github.com/JacobSeedorff21/BranchGLM>
 BugReports: <https://github.com/JacobSeedorff21/BranchGLM/issues>
 Description: Fits GLMS using RcppArmadillo, can use Fisher scoring, BFGS, or L-BFGS. Can also make use of parallelization to speed up fitting process via OpenMP. Also can perform best subset selection with an efficient branch and bound algorithm that allows best subset selection for more variables.
-License: What license is it under?
+License: Apache License (>= 2)
 Depends: R (>= 3.3.0)
 Imports: Rcpp (>= 1.0.7), RcppArmadillo (>= 0.11.0)
 LinkingTo: Rcpp, RcppArmadillo
