@@ -26,7 +26,7 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 **BranchGLM** can fit large regression models very quickly, next is a comparison 
 of runtimes with the built-in `glm()` function. 
 
-```{r, warning = FALSE, message = FALSE, fig.path="vignettes/"}
+```{r glm, warning = FALSE, message = FALSE, fig.path="README-"}
 
 library(BranchGLM)
 library(microbenchmark)

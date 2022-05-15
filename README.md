@@ -73,7 +73,7 @@ Times <- microbenchmark(BFGS = {BranchGLM(y ~ ., data = df, family = "binomial",
 autoplot(Times, log = FALSE)
 ```
 
-![](vignettes/unnamed-chunk-2-1.png)<!-- -->
+![](README-glm-1.png)<!-- -->
 
 ## Variable selection
 
@@ -95,7 +95,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.31    0.00    0.32
+    ##    0.33    0.00    0.32
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -105,7 +105,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  190.06    0.14  190.36
+    ##  436.48    0.19  438.23
 
 ### Checking results
 
