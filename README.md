@@ -95,7 +95,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.24    0.00    0.23
+    ##    0.30    0.07    0.36
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -105,7 +105,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  133.13    0.03  133.23
+    ##  189.00    0.11  189.45
 
 ### Checking results
 
@@ -119,13 +119,3 @@ all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
 
 The branch and bound method can be many times faster than an exhaustive
 search and is still guaranteed to find the optimal model.
-
-## Binomial glm utility functions
-
--   **BranchGLM** also has some utility functions for binomial glms
-    -   `Table()` creates a confusion matrix based on the predicted
-        classes and observed classes
-    -   `ROC()` creates an ROC curve which can be plotted with `plot()`
-    -   `AUC()` and `Cindex()` calculate the area under the ROC curve
-    -   `MultipleROCCurves()` allows for the plotting of multiple ROC
-        curves on the same plot

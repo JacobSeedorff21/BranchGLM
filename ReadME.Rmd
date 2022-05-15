@@ -116,11 +116,3 @@ all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
 
 The branch and bound method can be many times faster than an exhaustive search and 
 is still guaranteed to find the optimal model.
-
-## Binomial glm utility functions
-
-- **BranchGLM** also has some utility functions for binomial glms
-  - `Table()` creates a confusion matrix based on the predicted classes and observed classes
-  - `ROC()` creates an ROC curve which can be plotted with `plot()`
-  - `AUC()` and `Cindex()` calculate the area under the ROC curve
-  - `MultipleROCCurves()` allows for the plotting of multiple ROC curves on the same plot
