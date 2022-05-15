@@ -8,7 +8,7 @@ NumericMatrix MakeTable(NumericVector preds, NumericVector y, double cutoff){
   
   NumericMatrix values(2, 2);
   
-  for(unsigned int i = 0; i < y.size(); i++){
+  for(unsigned int i = 0; i < (unsigned int) y.size(); i++){
     if(preds(i) >= cutoff){
       if(y(i) == 0){
         values(0, 1)++;
@@ -37,7 +37,7 @@ NumericMatrix MakeTableFactor(CharacterVector preds, CharacterVector y,
   
   NumericMatrix values(2, 2);
   
-  for(unsigned int i = 0; i < y.size(); i++){
+  for(unsigned int i = 0; i < (unsigned int) y.size(); i++){
     if(preds(i) == levels(1)){
       if(y(i) == levels(0)){
         values(0, 1)++;
@@ -66,7 +66,7 @@ NumericMatrix MakeTableFactor2(NumericVector preds, CharacterVector y,
   
   NumericMatrix values(2, 2);
   
-  for(unsigned int i = 0; i < y.size(); i++){
+  for(unsigned int i = 0; i < (unsigned int) y.size(); i++){
     if(preds(i) >= cutoff){
       if(y(i) == levels(0)){
         values(0, 1)++;
@@ -96,9 +96,9 @@ double CindexCpp(NumericVector preds, NumericVector y){
   double Concordant = 0;
   double Total = 0;
   
-  for(unsigned int i = 0; i < y.size(); i++){
+  for(unsigned int i = 0; i < (unsigned int) y.size(); i++){
     if(y(i) == 0){
-      for(unsigned int j = i; j < y.size(); j++){
+      for(unsigned int j = i; j < (unsigned int) y.size(); j++){
         if(y(j) == 1){
           Total++;
           if(preds(i) < preds(j)){
@@ -111,7 +111,7 @@ double CindexCpp(NumericVector preds, NumericVector y){
       }
     }
     else{
-      for(unsigned int j = i; j < y.size(); j++){
+      for(unsigned int j = i; j < (unsigned int) y.size(); j++){
         if(y(j) == 0){
           Total++;
           if(preds(i) > preds(j)){
@@ -134,7 +134,7 @@ double CindexTrap(NumericVector Sens, NumericVector Spec){
   
   double Area = 0;
   
-  for(unsigned int i = 1; i < Sens.size(); i++){
+  for(unsigned int i = 1; i < (unsigned int) Sens.size(); i++){
     Area += ((Sens(i - 1) + Sens(i)) / 2) * (Spec(i) - Spec(i - 1));
   }
   return(Area);
@@ -154,7 +154,7 @@ DataFrame ROCCpp(NumericVector preds, NumericVector y, NumericVector Cutoffs){
   double TP = TotP;
   unsigned int j = 0;
   
-  for(unsigned int i = 0; i < Cutoffs.size(); i++){
+  for(unsigned int i = 0; i < (unsigned int) Cutoffs.size(); i++){
     while(j < y.size() && preds(j) == Cutoffs(i)){
       if(y(j) == 1){
         TP--;

@@ -9,8 +9,8 @@ using namespace Rcpp;
 double LogFact(const arma::vec* y){
   double sum = 0;
   double Max = max(*y);
-  NumericVector logs(Max + 1, 0);
-  for(unsigned int i = 2; i < logs.size();i++){
+  arma::uvec logs(Max + 1, arma::fill::zeros);
+  for(unsigned int i = 2; i < logs.n_elem;i++){
     logs(i) = logs(i - 1) + log(i);
   }
   for(unsigned int j = 0; j < y->n_elem; j++){
@@ -32,7 +32,7 @@ void CheckBounds(arma::vec* mu, std::string Dist){
       return(val);
     });
   }
-  else if(Dist == "poisson" || Dist == "gamma"){
+  else if(Dist == "poisson"){
     mu->transform([](double val){
       if(val <= 0){val = FLT_EPSILON;}
       return(val);
