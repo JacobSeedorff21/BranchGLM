@@ -1,2 +1,10 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+README.Rmd
+README.md
+ToDO.txt
+^.*\.Rhistory$
+^\.git$
+^cran-comments\.md$
+^README-glm-1.png
+^LICENSE\.md$
