@@ -155,7 +155,7 @@ DataFrame ROCCpp(NumericVector preds, NumericVector y, NumericVector Cutoffs){
   unsigned int j = 0;
   
   for(unsigned int i = 0; i < (unsigned int) Cutoffs.size(); i++){
-    while(j < y.size() && preds(j) == Cutoffs(i)){
+    while(j < (unsigned int) y.size() && preds(j) == Cutoffs(i)){
       if(y(j) == 1){
         TP--;
       }
