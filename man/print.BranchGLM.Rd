@@ -4,14 +4,16 @@
 \alias{print.BranchGLM}
 \title{Print Method for BranchGLM}
 \usage{
-\method{print}{BranchGLM}(fit, coefdigits = 4, digits = 0)
+\method{print}{BranchGLM}(x, coefdigits = 4, digits = 0, ...)
 }
 \arguments{
-\item{fit}{A BranchGLM model object.}
+\item{x}{a \code{BranchGLM} model object.}
 
-\item{coefdigits}{Number of digits to display for coefficients table.}
+\item{coefdigits}{number of digits to display for coefficients table.}
 
-\item{digits}{Number of digits to display for information after table.}
+\item{digits}{number of digits to display for information after table.}
+
+\item{...}{further arguments passed to or from other methods.}
 }
 \description{
 Print Method for BranchGLM

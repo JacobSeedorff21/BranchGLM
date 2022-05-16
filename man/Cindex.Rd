@@ -8,35 +8,34 @@
 \alias{Cindex.BranchGLMROC}
 \title{Cindex/AUC}
 \usage{
-Cindex(x, ...)
+Cindex(object, ...)
 
-AUC(x, ...)
+AUC(object, ...)
 
-\method{Cindex}{numeric}(preds, y)
+\method{Cindex}{numeric}(object, y, ...)
 
-\method{Cindex}{BranchGLM}(fit)
+\method{Cindex}{BranchGLM}(object, ...)
 
-\method{Cindex}{BranchGLMROC}(ROC)
+\method{Cindex}{BranchGLMROC}(object, ...)
 }
 \arguments{
-\item{preds}{A numeric vector of predictions between 0 and 1.}
+\item{object}{a \code{BranchGLM} object, a \code{BranchGLMROC} object, or a numeric vector.}
+
+\item{...}{further arguments passed to other methods.}
 
 \item{y}{Observed values, can be a numeric vector of 0s and 1s, a two-level 
 factor vector, or a logical vector.}
-
-\item{fit}{A BranchGLM object.}
-
-\item{ROC}{A BranchGLMROC object.}
 }
 \value{
-The c-index or AUC.
+The c-index/AUC.
 }
 \description{
-Calculates c-index.
+Calculates c-index/AUC.
 }
 \details{
-Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object.
-Uses Mann-Whitney U to calculate it otherwise.
+Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object and
+uses Mann-Whitney U to calculate it otherwise. The trapezoidal rule method is less accurate, 
+so the two methods may give different results.
 }
 \examples{
 Data <- ToothGrowth

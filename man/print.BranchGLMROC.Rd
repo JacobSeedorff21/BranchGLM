@@ -4,13 +4,12 @@
 \alias{print.BranchGLMROC}
 \title{Print Method for BranchGLMROC}
 \usage{
-\method{print}{BranchGLMROC}(ROC)
+\method{print}{BranchGLMROC}(x, ...)
 }
 \arguments{
-\item{ROC}{BranchGLMROC object.}
-}
-\value{
-a BranchGLMROC object.
+\item{x}{a \code{BranchGLMROC} object.}
+
+\item{...}{further arguments passed to other methods.}
 }
 \description{
 Print Method for BranchGLMROC

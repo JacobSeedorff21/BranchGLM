@@ -15,22 +15,27 @@ MultipleROCCurves(
 )
 }
 \arguments{
-\item{...}{any number of BranchGLMROC objects.}
+\item{...}{any number of \code{BranchGLMROC} objects.}
 
-\item{legendpos}{where to place legend.}
+\item{legendpos}{a keyword to describe where to place the legend, such as "bottomright".
+The default is "bottomright"}
 
-\item{title}{title for plot.}
+\item{title}{title for the plot.}
 
-\item{colors}{vector of colors to be used on ROC curves.}
+\item{colors}{vector of colors to be used on the ROC curves.}
 
-\item{names}{vector of names used to create legend for ROC curves.}
+\item{names}{vector of names used to create a legend for the ROC curves.}
 
-\item{lty}{vector of linetypes used to create ROC curves or a 
+\item{lty}{vector of linetypes used to create the ROC curves or a 
 single linetype to be used for all ROC curves.}
 
-\item{lwd}{vector of linewidths used to create ROC curves or a 
-single linewidth to be used for all ROC curves.
-#' @examples 
+\item{lwd}{vector of linewidths used to create the ROC curves or a 
+single linewidth to be used for all ROC curves.}
+}
+\description{
+Plotting Multiple ROC Curves
+}
+\examples{
 Data <- ToothGrowth
 
 ### Logistic ROC
@@ -48,8 +53,6 @@ CloglogROC <- ROC(CloglogFit)
 ### Plotting ROC curves
 
 MultipleROCCurves(LogisticROC, ProbitROC, CloglogROC, 
-                  names = c("Logistic ROC", "Probit ROC", "Cloglog ROC"))}
-}
-\description{
-Plotting Multiple ROC Curves
+                  names = c("Logistic ROC", "Probit ROC", "Cloglog ROC"))
+
 }

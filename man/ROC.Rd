@@ -6,19 +6,19 @@
 \alias{ROC.BranchGLM}
 \title{ROC Curve}
 \usage{
-ROC(x, ...)
+ROC(object, ...)
 
-\method{ROC}{numeric}(preds, y)
+\method{ROC}{numeric}(object, y, ...)
 
-\method{ROC}{BranchGLM}(fit)
+\method{ROC}{BranchGLM}(object, ...)
 }
 \arguments{
-\item{preds}{A numeric vector of predictions between 0 and 1.}
+\item{object}{a \code{BranchGLM} object or a numeric vector.}
 
-\item{y}{Observed values, can be a numeric vector of 0s and 1s, a two-level 
+\item{...}{further arguments passed to other methods.}
+
+\item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level 
 factor vector, or a logical vector.}
-
-\item{fit}{A \code{BranchGLM} object.}
 }
 \value{
 A \code{BranchGLMROC} object which can be plotted with \code{plot()}. The AUC can also 

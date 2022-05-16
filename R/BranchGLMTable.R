@@ -1,9 +1,9 @@
 #' Confusion Matrix
-#' @param preds a numeric vector of predictions between 0 and 1 or a two-level factor vector.
+#' @param object a \code{BranchGLM} object or a numeric vector.
+#' @param ... further arguments passed to other methods.
 #' @param y observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
-#' a logical vector. Must be a two-level factor vector if preds is also a two-level factor vector.
+#' a logical vector. 
 #' @param cutoff cutoff for predicted values, default is 0.5.
-#' @param fit a \code{BranchGLM} object.
 #' @name Table
 #' @return a \code{BranchGLMTable} object.
 #' @description Creates confusion matrix and calculates related measures.
@@ -13,22 +13,22 @@
 #' Table(Fit)
 #' @export
 
-Table <- function(x, ...) {
+Table <- function(object, ...) {
   UseMethod("Table")
 }
 
 #' @rdname Table
 #' @export
 
-Table.numeric <- function(preds, y, cutoff = .5){
+Table.numeric <- function(object, y, cutoff = .5, ...){
   if((!is.numeric(y)) && (!is.factor(y)) && (!is.logical(y))){
     stop("y must be a numeric, two-level factor, or logical vector")
-  }else if(length(y) !=  length(preds)){
-    stop("Length of y must be the same as the length of preds")
-  }else if((any(preds > 1) || any(preds < 0))){
-    stop("preds must be between 0 and 1")
-  }else if(any(is.na(preds)) || any(is.na(y))){
-    stop("preds and y must not have any missing values")
+  }else if(length(y) !=  length(object)){
+    stop("Length of y must be the same as the length of object")
+  }else if((any(object > 1) || any(object < 0))){
+    stop("object must be between 0 and 1")
+  }else if(any(is.na(object)) || any(is.na(y))){
+    stop("object and y must not have any missing values")
   }else if(is.factor(y) && nlevels(y) != 2){
     stop("If y is a factor vector it must have exactly two levels")
   }else if(is.numeric(y) && any((y != 1) & (y != 0))){
@@ -36,7 +36,7 @@ Table.numeric <- function(preds, y, cutoff = .5){
   }
   if(is.numeric(y)){
     
-    Table <- MakeTable(preds, y, cutoff)
+    Table <- MakeTable(object, y, cutoff)
     
     List <- list("Table" = Table, 
                  "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
@@ -44,10 +44,9 @@ Table.numeric <- function(preds, y, cutoff = .5){
                  "Specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
                  "PPV" = Table[2, 2] / (Table[2, 2] + Table[1, 2]),
                  "Levels" = c(0, 1))
-    
   }else if(is.factor(y)){
     
-    Table <- MakeTableFactor2(preds, as.character(y), levels(y), cutoff)
+    Table <- MakeTableFactor2(object, as.character(y), levels(y), cutoff)
     
     List <- list("Table" = Table, 
                  "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
@@ -58,7 +57,7 @@ Table.numeric <- function(preds, y, cutoff = .5){
     
   }else{
     
-    Table <- MakeTable(preds, y * 1, cutoff)
+    Table <- MakeTable(object, y * 1, cutoff)
     
     List <- list("Table" = Table, 
                  "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
@@ -74,65 +73,39 @@ Table.numeric <- function(preds, y, cutoff = .5){
 #' @rdname Table
 #' @export
 
-Table.factor <- function(preds, y){
-  if(!is.factor(y)){
-    stop("y must be a factor vector")
-  }else if(length(y) !=  length(preds)){
-    stop("Length of y must be the same as the length of preds")
-  }else if((nlevels(y) != 2) || (nlevels(preds) != 2) || 
-           any(levels(preds)!= levels(y))){
-    stop("preds and y must be factors with exactly 2 levels and must 
-         share the same levels")
-  }
-  
-  Table <- MakeTableFactor(as.character(preds), as.character(y), levels(preds))
-  
-  List <- list("Table" = Table, 
-               "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
-               "Sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
-               "Specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
-               "PPV" = Table[2, 2] / (Table[2, 2] + Table[1, 2]),
-               "Levels" = levels(y))
-  
-  return(structure(List, class = "BranchGLMTable"))
-  
-}
-
-#' @rdname Table
-#' @export
-
-Table.BranchGLM <- function(fit, cutoff = .5){
-  if(fit$family != "binomial"){
+Table.BranchGLM <- function(object, cutoff = .5, ...){
+  if(object$family != "binomial"){
     stop("This method is only valid for BranchGLM models in the binomial family")
   }
   
-  preds <- predict(fit, type = "response")
+  preds <- predict(object, type = "response")
   
-  Table <- MakeTable(preds, fit$y, cutoff)
+  Table <- MakeTable(preds, object$y, cutoff)
   
   List <- list("Table" = Table, 
                "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
                "Sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
                "Specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
                "PPV" = Table[2, 2] / (Table[2, 2] + Table[1, 2]),
-               "Levels" = fit$ylevel)
+               "Levels" = object$ylevel)
   
   return(structure(List, class = "BranchGLMTable"))
   
 }
 
 #' Print Method for BranchGLMTable
-#' @param Table A BranchGLMTable object.
-#' @param digits Number of digits to display.
+#' @param x a \code{BranchGLMTable} object.
+#' @param digits number of digits to display.
+#' @param ... further arguments passed to other methods.
 #' @export
 
-print.BranchGLMTable <- function(Table, digits = 4){
-  Numbers <- apply(Table$Table, 2, FUN = function(x){max(nchar(x))})
+print.BranchGLMTable <- function(x, digits = 4, ...){
+  Numbers <- apply(x$Table, 2, FUN = function(x){max(nchar(x))})
   
   Numbers <- pmax(Numbers, c(4, 4)) |>
-             pmax(nchar(Table$Levels))
+             pmax(nchar(x$Levels))
   
-  LeftSpace <- 10 + max(nchar(Table$Levels))
+  LeftSpace <- 10 + max(nchar(x$Levels))
   
   cat("Confusion matrix:\n")
   
@@ -141,31 +114,31 @@ print.BranchGLMTable <- function(Table, digits = 4){
   
   cat(paste0(paste0(rep(" ", LeftSpace + Numbers[1] - 4), collapse = ""), 
       "Predicted\n",
-      paste0(rep(" ", LeftSpace + floor((Numbers[1] - nchar(Table$Levels[1])) / 2)), 
+      paste0(rep(" ", LeftSpace + floor((Numbers[1] - nchar(x$Levels[1])) / 2)), 
              collapse = ""), 
-      Table$Levels[1],
-      paste0(rep(" ", ceiling((Numbers[1] - nchar(Table$Levels[1])) / 2) + 1 + 
-                      floor((Numbers[2] - nchar(Table$Levels[2])) / 2)), 
-                 collapse = ""), Table$Levels[2], "\n\n", 
-      paste0(rep(" ", 9), collapse = ""), Table$Levels[1], 
-      paste0(rep(" ", 1 + max(nchar(Table$Levels)) - nchar(Table$Levels[1]) + 
-                        floor((Numbers[1] - nchar(Table$Table[1, 1])) / 2)), 
+      x$Levels[1],
+      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$Levels[1])) / 2) + 1 + 
+                      floor((Numbers[2] - nchar(x$Levels[2])) / 2)), 
+                 collapse = ""), x$Levels[2], "\n\n", 
+      paste0(rep(" ", 9), collapse = ""), x$Levels[1], 
+      paste0(rep(" ", 1 + max(nchar(x$Levels)) - nchar(x$Levels[1]) + 
+                        floor((Numbers[1] - nchar(x$Table[1, 1])) / 2)), 
                collapse = ""), 
-      Table$Table[1, 1], 
-      paste0(rep(" ", ceiling((Numbers[1] - nchar(Table$Table[1, 1])) / 2) + 1 + 
-                      floor((Numbers[2] - nchar(Table$Table[1, 2])) / 2)), 
+      x$Table[1, 1], 
+      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$Table[1, 1])) / 2) + 1 + 
+                      floor((Numbers[2] - nchar(x$Table[1, 2])) / 2)), 
              collapse = ""),
-      Table$Table[1, 2], 
+      x$Table[1, 2], 
       "\n", "Observed\n",
-      paste0(rep(" ", 9), collapse = ""), Table$Levels[2], 
-      paste0(rep(" ", 1 + max(nchar(Table$Levels)) - nchar(Table$Levels[2]) + 
-                   floor((Numbers[1] - nchar(Table$Table[2, 1])) / 2)), 
+      paste0(rep(" ", 9), collapse = ""), x$Levels[2], 
+      paste0(rep(" ", 1 + max(nchar(x$Levels)) - nchar(x$Levels[2]) + 
+                   floor((Numbers[1] - nchar(x$Table[2, 1])) / 2)), 
              collapse = ""), 
-      Table$Table[2, 1], 
-      paste0(rep(" ", ceiling((Numbers[1] - nchar(Table$Table[2, 1])) / 2) + 1 + 
-                      floor((Numbers[2] - nchar(Table$Table[2, 2])) / 2)), 
+      x$Table[2, 1], 
+      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$Table[2, 1])) / 2) + 1 + 
+                      floor((Numbers[2] - nchar(x$Table[2, 2])) / 2)), 
              collapse = ""),
-      Table$Table[2, 2], "\n\n"))
+      x$Table[2, 2], "\n\n"))
   
   cat(paste0(rep("-", LeftSpace + sum(Numbers) + 2), collapse = ""))
   cat("\n")
@@ -175,26 +148,26 @@ print.BranchGLMTable <- function(Table, digits = 4){
   cat(paste0(rep("-", LeftSpace + sum(Numbers) + 2), collapse = ""))
   cat("\n")
   
-  cat("Accuracy: ", round(Table$Accuracy, digits = digits), "\n")
-  cat("Sensitivity: ", round(Table$Sensitivity, digits = digits), "\n")
-  cat("Specificity: ", round(Table$Specificity, digits = digits), "\n")
-  cat("PPV: ", round(Table$PPV, digits = digits), "\n")
+  cat("Accuracy: ", round(x$Accuracy, digits = digits), "\n")
+  cat("Sensitivity: ", round(x$Sensitivity, digits = digits), "\n")
+  cat("Specificity: ", round(x$Specificity, digits = digits), "\n")
+  cat("PPV: ", round(x$PPV, digits = digits), "\n")
   
-  invisible(Table)
+  invisible(x)
   
 }
 
 #' Cindex/AUC
-#' @param preds A numeric vector of predictions between 0 and 1.
+#' @param object a \code{BranchGLM} object, a \code{BranchGLMROC} object, or a numeric vector.
+#' @param ... further arguments passed to other methods.
 #' @param y Observed values, can be a numeric vector of 0s and 1s, a two-level 
 #' factor vector, or a logical vector.
-#' @param fit A BranchGLM object.
-#' @param ROC A BranchGLMROC object.
 #' @name Cindex
-#' @return The c-index or AUC.
-#' @description Calculates c-index.
-#' @details Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object.
-#' Uses Mann-Whitney U to calculate it otherwise.
+#' @return The c-index/AUC.
+#' @description Calculates c-index/AUC.
+#' @details Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object and
+#' uses Mann-Whitney U to calculate it otherwise. The trapezoidal rule method is less accurate, 
+#' so the two methods may give different results.
 #' @examples 
 #' Data <- ToothGrowth
 #' Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
@@ -202,7 +175,7 @@ print.BranchGLMTable <- function(Table, digits = 4){
 #' AUC(Fit)
 #' @export
 
-Cindex <- function(x, ...) {
+Cindex <- function(object, ...) {
   UseMethod("Cindex")
 }
 
@@ -214,30 +187,30 @@ AUC <- Cindex
 #' @rdname Cindex
 #' @export
 
-Cindex.numeric <- function(preds, y){
+Cindex.numeric <- function(object, y, ...){
   if((!is.numeric(y)) && (!is.factor(y)) && (!is.logical(y))){
     stop("y must be a numeric, two-level factor, or logical vector")
-  }else if(length(y) !=  length(preds)){
-    stop("Length of y must be the same as the length of preds")
-  }else if((any(preds > 1) || any(preds < 0))){
-    stop("preds must be between 0 and 1")
-  }else if(any(is.na(preds)) || any(is.na(y))){
-    stop("preds and y must not have any missing values")
+  }else if(length(y) !=  length(object)){
+    stop("Length of y must be the same as the length of object")
+  }else if((any(object > 1) || any(object < 0))){
+    stop("object must be between 0 and 1")
+  }else if(any(is.na(object)) || any(is.na(y))){
+    stop("object and y must not have any missing values")
   }else if(is.factor(y) && nlevels(y) != 2){
     stop("If y is a factor vector it must have exactly two levels")
   }else if(is.numeric(y) && any((y != 1) & (y != 0))){
     stop("If y is numeric it must only contain 0s and 1s.")
   }
   if(is.numeric(y)){
-    cindex <- CindexU(preds, y)
+    cindex <- CindexU(object, y)
   }
   else if(is.factor(y)){
     y <- (y == levels(y)[2])
-    cindex <- CindexU(preds, y)
+    cindex <- CindexU(object, y)
   }
   else{
     y <- y * 1
-    cindex <- CindexU(preds, y)
+    cindex <- CindexU(object, y)
   }
   cindex
 }
@@ -245,14 +218,14 @@ Cindex.numeric <- function(preds, y){
 #' @rdname Cindex
 #' @export
 
-Cindex.BranchGLM <- function(fit){
-  if(fit$family != "binomial"){
+Cindex.BranchGLM <- function(object, ...){
+  if(object$family != "binomial"){
     stop("This method is only valid for BranchGLM models in the binomial family")
   }
   
-  preds <- predict(fit, type = "response")
+  preds <- predict(object, type = "response")
   
-  cindex <- CindexU(preds, fit$y)
+  cindex <- CindexU(preds, object$y)
   
   cindex
 
@@ -262,9 +235,9 @@ Cindex.BranchGLM <- function(fit){
 #' @rdname Cindex
 #' @export
 
-Cindex.BranchGLMROC <- function(ROC){
-  cindex <- CindexTrap(ROC$Info$Sensitivity, 
-                       ROC$Info$Specificity)
+Cindex.BranchGLMROC <- function(object, ...){
+  cindex <- CindexTrap(object$Info$Sensitivity, 
+                       object$Info$Specificity)
   
   cindex
   
@@ -282,10 +255,10 @@ CindexU <- function(preds, y){
 
 
 #' ROC Curve
-#' @param preds A numeric vector of predictions between 0 and 1.
-#' @param y Observed values, can be a numeric vector of 0s and 1s, a two-level 
+#' @param object a \code{BranchGLM} object or a numeric vector.
+#' @param ... further arguments passed to other methods.
+#' @param y observed values, can be a numeric vector of 0s and 1s, a two-level 
 #' factor vector, or a logical vector. 
-#' @param fit A \code{BranchGLM} object.
 #' @name ROC
 #' @return A \code{BranchGLMROC} object which can be plotted with \code{plot()}. The AUC can also 
 #' be calculated using \code{AUC()}.
@@ -297,43 +270,43 @@ CindexU <- function(preds, y){
 #' plot(MyROC)
 #' @export
 
-ROC <- function(x, ...) {
+ROC <- function(object, ...) {
   UseMethod("ROC")
 }
 
 #' @rdname ROC
 #' @export
 
-ROC.numeric <- function(preds, y){
+ROC.numeric <- function(object, y, ...){
   if((!is.numeric(y)) && (!is.factor(y)) && (!is.logical(y))){
     stop("y must be a numeric, two-level factor, or logical vector")
-  }else if(length(y) !=  length(preds)){
-    stop("Length of y must be the same as the length of preds")
-  }else if((any(preds > 1) || any(preds < 0))){
-    stop("preds must be between 0 and 1")
-  }else if(any(is.na(preds)) || any(is.na(y))){
-    stop("preds and y must not have any missing values")
+  }else if(length(y) !=  length(object)){
+    stop("Length of y must be the same as the length of object")
+  }else if((any(object > 1) || any(object < 0))){
+    stop("object must be between 0 and 1")
+  }else if(any(is.na(object)) || any(is.na(y))){
+    stop("object and y must not have any missing values")
   }else if(is.factor(y) && nlevels(y) != 2){
     stop("If y is a factor vector it must have exactly two levels")
   }else if(is.numeric(y) && any((y != 1) & (y != 0))){
     stop("If y is numeric it must only contain 0s and 1s.")
   }
   if(is.numeric(y)){
-    SortOrder <- order(preds)
-    preds <- preds[SortOrder]
-    ROC <- ROCCpp(preds, y[SortOrder], unique(preds))
+    SortOrder <- order(object)
+    object <- object[SortOrder]
+    ROC <- ROCCpp(object, y[SortOrder], unique(object))
   }else if(is.factor(y)){
     y <- (y == levels(y)[2])
-    SortOrder <- order(preds)
-    preds <- preds[SortOrder]
-    ROC <- ROCCpp(preds, y[SortOrder], unique(preds))
+    SortOrder <- order(object)
+    object <- object[SortOrder]
+    ROC <- ROCCpp(object, y[SortOrder], unique(object))
   }else{
     y <- y * 1
-    SortOrder <- order(preds)
-    preds <- preds[SortOrder]
-    ROC <- ROCCpp(preds, y[SortOrder], unique(preds))
+    SortOrder <- order(object)
+    object <- object[SortOrder]
+    ROC <- ROCCpp(object, y[SortOrder], unique(object))
   }
-  ROC <- list("NumObs" = length(preds),
+  ROC <- list("NumObs" = length(object),
               "Info" = ROC)
   return(structure(ROC, class = "BranchGLMROC"))
 }
@@ -341,38 +314,38 @@ ROC.numeric <- function(preds, y){
 #' @rdname ROC
 #' @export
 
-ROC.BranchGLM <- function(fit){
-  if(fit$family != "binomial"){
+ROC.BranchGLM <- function(object, ...){
+  if(object$family != "binomial"){
     stop("This method is only valid for BranchGLM models in the binomial family")
   }
   
-  preds <- predict(fit, type = "response")
+  preds <- predict(object, type = "response")
   SortOrder <- order(preds)
   preds <- preds[SortOrder]
   
-  ROC <- ROCCpp(preds, fit$y[SortOrder], unique(preds))
+  ROC <- ROCCpp(preds, object$y[SortOrder], unique(preds))
   
   ROC <- list("NumObs" = length(preds),
               "Info" = ROC)
   return(structure(ROC, class = "BranchGLMROC"))
 }
 
-
 #' Print Method for BranchGLMROC
-#' @return a BranchGLMROC object.
-#' @param ROC BranchGLMROC object.
+#' @param x a \code{BranchGLMROC} object.
+#' @param ... further arguments passed to other methods.
 #' @export
-print.BranchGLMROC <- function(ROC){
+
+print.BranchGLMROC <- function(x, ...){
   cat(paste0("Number of observations used to make ROC curve: ", 
-             ROC$NumObs, "\n\nUse plot function to make plot of ROC curve \nCan also use AUC/Cindex function to get the AUC"))
+             x$NumObs, "\n\nUse plot function to make plot of ROC curve \nCan also use AUC/Cindex function to get the AUC"))
   
-  invisible(ROC)
+  invisible(x)
 }
 
 
 #' Plotting ROC Curve
 #' @description This plots a ROC curve.
-#' @param ROC a BranchGLMROC object.
+#' @param x a \code{BranchGLMROC} object.
 #' @param ... arguments passed to generic plot function.
 #' @examples
 #' Data <- ToothGrowth
@@ -380,23 +353,24 @@ print.BranchGLMROC <- function(ROC){
 #' MyROC <- ROC(Fit)
 #' plot(MyROC)
 #' @export
-plot.BranchGLMROC <- function(ROC, ...){
-  plot(1 - ROC$Info$Specificity, ROC$Info$Sensitivity, xlab = "1 - Specificity", 
+plot.BranchGLMROC <- function(x, ...){
+  plot(1 - x$Info$Specificity, x$Info$Sensitivity, xlab = "1 - Specificity", 
        ylab = "Sensitivity", type = "l",  ... )
   abline(0, 1, lty = "dotted")
 }
 
 #' Plotting Multiple ROC Curves
-#' @param ... any number of BranchGLMROC objects.
-#' @param legendpos where to place legend.
-#' @param title title for plot.
-#' @param colors vector of colors to be used on ROC curves.
-#' @param names vector of names used to create legend for ROC curves.
-#' @param lty vector of linetypes used to create ROC curves or a 
+#' @param ... any number of \code{BranchGLMROC} objects.
+#' @param legendpos a keyword to describe where to place the legend, such as "bottomright".
+#' The default is "bottomright"
+#' @param title title for the plot.
+#' @param colors vector of colors to be used on the ROC curves.
+#' @param names vector of names used to create a legend for the ROC curves.
+#' @param lty vector of linetypes used to create the ROC curves or a 
 #' single linetype to be used for all ROC curves.
-#' @param lwd vector of linewidths used to create ROC curves or a 
+#' @param lwd vector of linewidths used to create the ROC curves or a 
 #' single linewidth to be used for all ROC curves.
-#' #' @examples 
+#' @examples 
 #' Data <- ToothGrowth
 #' 
 #' ### Logistic ROC

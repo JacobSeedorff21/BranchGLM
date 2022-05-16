@@ -1,13 +1,13 @@
 #' Variable Selection for GLMs 
-#' @param formula a formula used to define upper model.
+#' @param object a formula or a \code{BranchGLM} object.
+#' @param ... further arguments passed to other methods.
 #' @param data a dataframe with the response and predictor variables.
 #' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson"
 #' @param link link used to link mean structure to linear predictors. One of, 
 #' "identity", "logit", "probit", "cloglog", or "log".
 #' @param offset offset vector, by default the zero vector is used.
-#' @param fit a BranchGLM object used to define the upper model.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". If method is not specified, 
-#' the method that was originally used to fit the BranchGLM model is used.
+#' the method that was originally used to fit the \code{BranchGLM} model is used.
 #' @param type one of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.
 #' @param metric metric used to choose model, the default is "AIC", but "BIC" is also available.
 #' @param keep vector of names to denote variables that must be in the model.
@@ -22,7 +22,8 @@
 #' @param maxit maximum number of iterations performed. The default for 
 #' Fisher scoring is 50 and for the other methods the default is 200.
 #' @param showprogress whether to show progress updates for branch and bound.
-#' @description \code{VariableSelection} performs forward selection, backward elimination, 
+#' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
+#' @description Performs forward selection, backward elimination, 
 #' and branch and bound selection for generalized linear models.
 #' @details The model in the formula or the formula from the fitted model is 
 #' treated as the upper model. The variables specified in keep along with an 
@@ -30,8 +31,10 @@
 #' included in the model formula it is kept in each model.
 #' 
 #' The branch and bound method makes use of an efficient branch and bound algorithm 
-#' to find the optimal model. This is will find the best model according the metric, but 
+#' to find the optimal model. This is will find the best model according to the metric, but 
 #' can be much faster than an exhaustive search.
+#' 
+#' Fisher scoring is recommended for branch and bound selection and forward selection.
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -60,21 +63,15 @@
 #' @name VariableSelection
 #' @export
 #' 
-VariableSelection <- function(x, ...) {
+VariableSelection <- function(object, ...) {
   UseMethod("VariableSelection")
 }
 
-#'@rdname VariableSelection
-#'@export
-
-VariableSelection.formula <- function(formula, data, family, link, offset = NULL,
-                                      method = "Fisher", type = "forward", metric = "AIC",
-                                      keep = NULL, maxsize = NULL,
-                                      grads = 10, parallel = FALSE, 
-                                      nthreads = 8, tol = 1e-4, maxit = NULL,
-                                      contrasts = NULL,
-                                      showprogress = TRUE){
-  
+VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
+                             method = "Fisher",
+                             grads = 10, parallel = FALSE, 
+                             nthreads = 8, tol = 1e-4, maxit = NULL,
+                             contrasts = NULL, ...){
   ### Creating pseudo BranchGLM object to put into VariableSelection.BranchGLM
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
@@ -98,7 +95,6 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
   mf[[1L]] <- as.name("model.frame")
   mf <- eval(mf, parent.frame())
   y <- model.response(mf, "any")
-  
   ## Checking y variable for each family
   if(family == "binomial"){
     if(is.factor(y) && (nlevels(y) == 2)){
@@ -146,13 +142,13 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
   
   df$data <- data
   
-  df$names <- attributes(terms(formula, data = data))$factors |>
+  df$names <- attributes(terms(df$formula, data = data))$factors |>
     colnames()
   
-  df$yname <- attributes(terms(formula, data = data))$variables[-1] |>
+  df$yname <- attributes(terms(df$formula, data = data))$variables[-1] |>
     as.character()
   
-  df$yname <- df$yname[attributes(terms(formula, data = data))$response]
+  df$yname <- df$yname[attributes(terms(df$formula, data = data))$response]
   
   df$missing <- nrow(data) - nrow(x)
   
@@ -166,7 +162,22 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
-  fit <- structure(df, class = "BranchGLM")
+  structure(df, class = "BranchGLM")
+}
+
+#'@rdname VariableSelection
+#'@export
+
+VariableSelection.formula <- function(object, data, family, link, offset = NULL,
+                                      method = "Fisher", type = "forward", metric = "AIC",
+                                      keep = NULL, maxsize = NULL,
+                                      grads = 10, parallel = FALSE, 
+                                      nthreads = 8, tol = 1e-4, maxit = NULL,
+                                      contrasts = NULL,
+                                      showprogress = TRUE, ...){
+  
+  fit <- VarFormulaHelper(object, data, family, link, offset, method, grads, 
+                          parallel, nthreads, tol, maxit, contrasts)
   
   ### Performing variable selection
   VariableSelection(fit, type = type, metric = metric, keep = keep, 
@@ -179,14 +190,14 @@ VariableSelection.formula <- function(formula, data, family, link, offset = NULL
 #'@rdname VariableSelection
 #'@export
 
-VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
+VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC",
                                         keep = NULL, maxsize = NULL, 
                                         method = NULL, grads = 10, parallel = FALSE, 
                                         nthreads = 8, tol = 1e-4, maxit = NULL,
-                                        showprogress = TRUE){
+                                        showprogress = TRUE, ...){
   ## Performing argument checks
   if(is.null(method)){
-    method <- fit$method
+    method <- object$method
   }
   if(length(parallel) > 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")
@@ -200,7 +211,7 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
   }else if(!(metric %in% c("AIC", "BIC"))){
     stop("metric must be one of 'AIC' or 'BIC'")
   }
-  indices <- attributes(fit$x)$assign
+  indices <- attributes(object$x)$assign
   
   ## Setting maxit
   if(is.null(maxit)){
@@ -214,7 +225,7 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
   }
   
   ## Checking for intercept
-  if(colnames(fit$x)[1] == "(Intercept)"){
+  if(colnames(object$x)[1] == "(Intercept)"){
     intercept <- TRUE
   }else{
     intercept <- FALSE
@@ -239,7 +250,7 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
     keep <- rep(1, length(counts))
     keep[1] <- -1
   }else{
-    CurNames <- attributes(terms(fit$formula, data = fit$data))$factors |>
+    CurNames <- attributes(terms(object$formula, data = object$data))$factors |>
       colnames()
     keep <- (CurNames %in% keep) * -1
     if(type == "backward"){
@@ -256,22 +267,22 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
     nthreads <- 1
   }
   if(type == "forward"){
-    df <- ForwardCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                     fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
+    df <- ForwardCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+                     object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                      metric)
     
   }else if(type == "backward"){
-    df <- BackwardCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                      fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
+    df <- BackwardCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+                      object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                       metric)
   }else if(type == "branch and bound"){
     if(parallel){
-      df <- ParBranchAndBoundCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                                        fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
+      df <- ParBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+                                        object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                                         metric, showprogress)
     }else{
-      df <- BranchAndBoundCpp(fit$x, fit$y, fit$offset, indices, counts, method, grads,
-                                      fit$link, fit$family, nthreads, tol, maxit, keep, maxsize, 
+      df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+                                      object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                                       metric, showprogress)
     }
   }else{
@@ -288,7 +299,7 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
     df$model <- df$model[-1] 
   }
   
-  tempnames <- paste0(fit$names[as.logical(df$model)], 
+  tempnames <- paste0(object$names[as.logical(df$model)], 
                       collapse = "+")
   
   if(nchar(tempnames) == 0 && intercept){
@@ -297,7 +308,7 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
     stop("Final model included no variables or intercept")
   }
   
-  df$fit$formula <- as.formula(paste0(fit$yname, " ~ ", tempnames))
+  df$fit$formula <- as.formula(paste0(object$yname, " ~ ", tempnames))
   
   if(!intercept){
     df$fit$formula <- deparse1(df$fit$formula) |>
@@ -305,37 +316,37 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
       as.formula()
   }
   
-  df$fit$x <- model.matrix(df$fit$formula, fit$data, fit$contrasts)
+  df$fit$x <- model.matrix(df$fit$formula, object$data, object$contrasts)
   
-  df$fit$y <- fit$y
+  df$fit$y <- object$y
   
   row.names(df$fit$coefficients) <- colnames(df$fit$x)
   
   df$fit$names <- attributes(terms(df$fit$formula, data = df$fit$x))$factors |>
     colnames()
   
-  df$fit$yname <- fit$yname
+  df$fit$yname <- object$yname
   
   df$fit$parallel <- (parallel != FALSE)
   
-  df$fit$missing <- fit$missing
+  df$fit$missing <- object$missing
   
-  df$fit$link <- fit$link
+  df$fit$link <- object$link
   
-  df$fit$contrasts <- fit$contrasts
+  df$fit$contrasts <- object$contrasts
   
-  df$fit$family <- fit$family
+  df$fit$family <- object$family
   
   df$fit$method <- method
   
-  if(fit$family == "binomial"){
-    df$fit$ylevel <- fit$ylevel
+  if(object$family == "binomial"){
+    df$fit$ylevel <- object$ylevel
   }
   if(type != "branch and bound"){
     FinalList <- list("finalmodel" = structure(df$fit, class = "BranchGLM"),
                       "variables" = df$model, 
                       "numchecked" = df$numchecked,
-                      "order" = fit$names[df$order],
+                      "order" = object$names[df$order],
                       "type" = type, 
                       "keep" = keep1,
                       "metric" = metric,
@@ -353,15 +364,16 @@ VariableSelection.BranchGLM <- function(fit, type = "forward", metric = "AIC",
   structure(FinalList, class = "BranchGLMVS")
 }
 
-#' @title Print Method for BranchGLMVS
-#' @param fit A BranchGLMVS model object.
-#' @param coefdigits Number of digits to display for coefficients table.
-#' @param digits Number of digits to display for information after table.
+#' Print Method for BranchGLMVS
+#' @param x a \code{BranchGLMVS} object.
+#' @param coefdigits number of digits to display for coefficients table.
+#' @param digits number of digits to display for information not in the table.
+#' @param ... further arguments passed to other methods.
 #' @export
 
-print.BranchGLMVS <- function(VS, coefdigits = 4, digits = 0){
+print.BranchGLMVS <- function(x, coefdigits = 4, digits = 0, ...){
   
-  fit <- VS$finalmodel
+  fit <- x$finalmodel
   
   coefs <- fit$coefficients
   
@@ -399,34 +411,34 @@ print.BranchGLMVS <- function(VS, coefdigits = 4, digits = 0){
   cat("Variable Selection Info:\n")
   cat(paste0(rep("-", spaces + sum(MoreSpaces)), collapse = ""))
   cat("\n")
-  if(VS$type != "backward"){
-    cat(paste0("Variables were selected using ", VS$type, " selection with ", VS$metric, "\n"))
+  if(x$type != "backward"){
+    cat(paste0("Variables were selected using ", x$type, " selection with ", x$metric, "\n"))
   }else{
-    cat(paste0("Variables were selected using ", VS$type, " elimination with ", VS$metric, "\n"))
+    cat(paste0("Variables were selected using ", x$type, " elimination with ", x$metric, "\n"))
   }
-  cat(paste0("The best value of ", VS$metric, " obtained was ", 
-             round(VS$bestmetric, digits = digits), "\n"))
-  cat(paste0("Number of models fit: ", VS$numchecked))
+  cat(paste0("The best value of ", x$metric, " obtained was ", 
+             round(x$bestmetric, digits = digits), "\n"))
+  cat(paste0("Number of models fit: ", x$numchecked))
   cat("\n")
-  if(!is.null(VS$keep)){
-    cat("Variables that were kept in each model: ", paste0(VS$keep, collapse = ", "))
+  if(!is.null(x$keep)){
+    cat("Variables that were kept in each model: ", paste0(x$keep, collapse = ", "))
   }
   cat("\n")
-  if(length(VS$order) == 0){
-    if(VS$type == "forward"){
+  if(length(x$order) == 0){
+    if(x$type == "forward"){
       cat("No variables were added to the model")
-    }else if(VS$type == "backward"){
+    }else if(x$type == "backward"){
       cat("No variables were removed from the model")
     }
-  }else if(VS$type == "forward" ){
+  }else if(x$type == "forward" ){
     cat("Order the variables were added to the model:\n")
-  }else if(VS$type == "backward" ){
+  }else if(x$type == "backward" ){
     cat("Order the variables were removed from the model:\n")
   }
   cat("\n")
-  if(length(VS$order) > 0){
-    for(i in 1:length(VS$order)){
-      cat(paste0(i, "). ", VS$order[i], "\n"))
+  if(length(x$order) > 0){
+    for(i in 1:length(x$order)){
+      cat(paste0(i, "). ", x$order[i], "\n"))
     }
   }
   cat(paste0(rep("-", spaces + sum(MoreSpaces)), collapse = ""))
@@ -436,5 +448,5 @@ print.BranchGLMVS <- function(VS, coefdigits = 4, digits = 0){
   cat("\n")
   print(fit, coefdigits = coefdigits, digits = digits)
   
-  invisible(VS)
+  invisible(x)
 }

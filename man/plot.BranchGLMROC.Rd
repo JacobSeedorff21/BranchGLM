@@ -4,10 +4,10 @@
 \alias{plot.BranchGLMROC}
 \title{Plotting ROC Curve}
 \usage{
-\method{plot}{BranchGLMROC}(ROC, ...)
+\method{plot}{BranchGLMROC}(x, ...)
 }
 \arguments{
-\item{ROC}{a BranchGLMROC object.}
+\item{x}{a \code{BranchGLMROC} object.}
 
 \item{...}{arguments passed to generic plot function.}
 }

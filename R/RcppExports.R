@@ -13,10 +13,6 @@ MakeTable <- function(preds, y, cutoff) {
     .Call(`_BranchGLM_MakeTable`, preds, y, cutoff)
 }
 
-MakeTableFactor <- function(preds, y, levels) {
-    .Call(`_BranchGLM_MakeTableFactor`, preds, y, levels)
-}
-
 MakeTableFactor2 <- function(preds, y, levels, cutoff) {
     .Call(`_BranchGLM_MakeTableFactor2`, preds, y, levels, cutoff)
 }

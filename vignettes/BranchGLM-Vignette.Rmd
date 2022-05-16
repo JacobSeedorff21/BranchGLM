@@ -20,11 +20,11 @@ knitr::opts_chunk$set(
 
 # Description
 
-**BranchGLM** is a package for fitting glms, performing variable selection, and 
-creating ROC curves. Most functions in this package make use of RcppArmadillo 
+**BranchGLM** is a package for fitting glms and performing variable selection. 
+Most functions in this package make use of RcppArmadillo 
 and some of them can also make use of openMP to perform parallel computations. 
 This vignette introduces the package, provides examples on how to use the 
-main functions in the package and also describes the methods employed by the 
+main functions in the package and also briefly describes the methods employed by the 
 functions.
 
 # Installation

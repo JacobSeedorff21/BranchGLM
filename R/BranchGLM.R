@@ -1,7 +1,7 @@
 #' Fits GLMs
 #' @param formula a formula for the model.
 #' @param data a dataframe that contains the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson"
+#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson".
 #' @param link link used to link mean structure to linear predictors. One of, 
 #' "identity", "logit", "probit", "cloglog", or "log".
 #' @param offset offset vector, by default the zero vector is used.
@@ -106,8 +106,8 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
       ylevel <- c(FALSE, TRUE)
       y <- y * 1
     }else{
-      stop("response variable for binomial regression must be numeric with only 
-      0s and 1s, a two-level factor, or a logical vector")
+      stop("response variable for binomial regression must be a numeric vector with only 
+      0s and 1s, a two-level factor vector, or a logical vector")
       }
   }else if(family == "poisson"){
       if(!is.numeric(y) || any(y < 0)){
@@ -179,73 +179,56 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
 }
 
 #' Extract Log-Likelihood
-#' @name logLik
-#' @param fit A BranchGLM or BranchGLMboot object.
-#' @description Gets log-likelihood from fitted model.
-#' @return Returns log-likelihood
-#' @examples
-#' Data <- iris
-#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
-#' logLik(Fit)
+#' @param object a \code{BranchGLM} model object.
+#' @param ... further arguments passed to or from other methods.
 #' @export
-#' 
-logLik.BranchGLM<- function(fit){
-  Fit$logLik
+
+logLik.BranchGLM<- function(object, ...){
+  object$logLik
 }
 
 #' Extract AIC
-#' @name AIC
-#' @param fit A BranchGLM or BranchGLMboot object.
-#' @description Gets AIC from fitted model.
-#' @return Returns AIC
-#' @examples
-#' Data <- iris
-#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
-#' AIC(Fit)
-#' BIC(Fit)
+#' @param object a \code{BranchGLM} model object.
+#' @param ... further arguments passed to or from other methods.
 #' @export
 
-AIC.BranchGLM <- function(fit){
-  Fit$AIC
+AIC.BranchGLM <- function(object, ...){
+  object$AIC
 }
 
-#' @rdname AIC
+#' Extract BIC
+#' @param object a \code{BranchGLM} model object.
+#' @param ... further arguments passed to or from other methods.
 #' @export
 
-BIC.BranchGLM <- function(fit){
-  k <- length(coef(fit))
-  if(fit$family == "gaussian"){
+BIC.BranchGLM <- function(object, ...){
+  k <- length(coef(object))
+  if(object$family == "gaussian"){
     k <- k + 1
   }
-  -2 * logLik(fit) + log(length(fit$y)) * k
+  -2 * logLik(object) + log(length(object$y)) * k
 }
 
-#' Extract Coefficient Estimates
-#' @name coef
-#' @param fit A BranchGLM or BranchGLMboot object.
-#' @description Extract coefficient estimates from BranchGLM or BranchGLMboot object.
-#' @return  Returns a named vector of the coefficient estimates.
-#' @examples
-#' Data <- iris
-#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
-#' coef(Fit)
+#' Extract Coefficients
+#' @param object a \code{BranchGLM} model object.
+#' @param ... further arguments passed to or from other methods.
 #' @export
 
-coef.BranchGLM <- function(fit){
-  coefs <- fit$coefficients[,1]
-  names(coefs) <- row.names(fit$coefficients)
+coef.BranchGLM <- function(object, ...){
+  coefs <- object$coefficients[,1]
+  names(coefs) <- row.names(object$coefficients)
   return(coefs)
 }
 
-#' Predict Method for BranchGLM Object
-#' @param fit A BranchGLM or BranchGLMboot object.
-#' @param newdata A dataframe, if not specified the data the model was fit on is used.
-#' @param type One of "linpreds" or "response", if not specified "response" is used.
-#' @param contrasts see contrasts.arg of model.matrix.default.
-#' @details Link corresponds to the linear predictors and response corresponds to the predicted probabilities.
-#' @description Gets predictions from BranchGLM model.
+#' Predict Method for BranchGLM Objects
+#' @param object a \code{BranchGLM} object.
+#' @param newdata a dataframe, if not specified the data the model was fit on is used.
+#' @param type one of "linpreds" or "response", if not specified "response" is used.
+#' @param ... further arguments passed to or from other methods.
+#' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
+#' @description Gets predictions from a \code{BranchGLM} object.
 #' @return A numeric vector of predictions.
-#' @name predict
+#' @rdname predict.BranchGLM
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -254,7 +237,7 @@ coef.BranchGLM <- function(fit){
 #' predict(Fit, newdata = iris[1:20,])
 #' @export
 
-predict.BranchGLM <- function(fit, newdata = NULL, type = "response"){
+predict.BranchGLM <- function(object, newdata = NULL, type = "response", ...){
   
   if(!is.null(newdata) && !is(newdata,"data.frame")){
     stop("newdata argument must be a dataframe or NULL")
@@ -268,18 +251,18 @@ predict.BranchGLM <- function(fit, newdata = NULL, type = "response"){
   
   if(is.null(newdata)){
     if(type == "linpreds"){
-      fit$linPreds
+      object$linPreds
     }else if(type == "response"){
-      fit$preds
+      object$preds
     }
   }else{
-    x <- model.matrix(fit$formula, newdata, fit$contrasts)
-    if(ncol(x) != length(fit$coefficients$Estimate)){
+    x <- model.matrix(object$formula, newdata, object$contrasts)
+    if(ncol(x) != length(object$coefficients$Estimate)){
       stop("could not find all predictor variables in newdata")
     }else if(type == "linpreds"){
-      x %*% coef(fit)
+      x %*% coef(object)
     }else if(type == "response"){
-      GetPreds(x %*% coef(fit), fit$link)
+      GetPreds(x %*% coef(object), object$link)
     }
   }
 }
@@ -308,45 +291,45 @@ GetPreds <- function(XBeta, Link){
   }
 }
 
-
-#' @title Print Method for BranchGLM
-#' @param fit A BranchGLM model object.
-#' @param coefdigits Number of digits to display for coefficients table.
-#' @param digits Number of digits to display for information after table.
+#' Print Method for BranchGLM
+#' @param x a \code{BranchGLM} model object.
+#' @param coefdigits number of digits to display for coefficients table.
+#' @param digits number of digits to display for information after table.
+#' @param ... further arguments passed to or from other methods.
 #' @export
 
-print.BranchGLM <- function(fit, coefdigits = 4, digits = 0){
+print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
   
-  cat(paste0("Results from ", fit$family, " regression with ", fit$link, 
-             " link function \nUsing the formula ", deparse1(fit$formula), "\n\n"))
+  cat(paste0("Results from ", x$family, " regression with ", x$link, 
+             " link function \nUsing the formula ", deparse1(x$formula), "\n\n"))
   
-  printCoefmat(fit$coefficients, signif.stars = TRUE, P.values = TRUE, 
+  printCoefmat(x$coefficients, signif.stars = TRUE, P.values = TRUE, 
                has.Pvalue = TRUE)
   
-  cat(paste0("\nDispersion parameter taken to be ", round(fit$dispersion, coefdigits)))
-  cat(paste0("\n", nrow(fit$x), " observations used to fit model\n(", fit$missing, 
+  cat(paste0("\nDispersion parameter taken to be ", round(x$dispersion, coefdigits)))
+  cat(paste0("\n", nrow(x$x), " observations used to fit model\n(", x$missing, 
              " observations removed due to missingness)\n"))
-  cat(paste0("\nResidual Deviance: ", round(fit$resDev, digits = digits), " on ",
-             nrow(fit$x) - nrow(fit$coefficients), " degrees of freedom"))
-  cat(paste0("\nAIC: ", round(fit$AIC, digits = digits)))
+  cat(paste0("\nResidual Deviance: ", round(x$resDev, digits = digits), " on ",
+             nrow(x$x) - nrow(x$coefficients), " degrees of freedom"))
+  cat(paste0("\nAIC: ", round(x$AIC, digits = digits)))
   
-  if(fit$method == "Fisher"){
+  if(x$method == "Fisher"){
     method = "Fisher scoring"
-  }else if(fit$method == "LBFGS"){
-      method = "L-BFGS"
-      }else{method = "BFGS"}
-  if(fit$iterations == 1){
+  }else if(x$method == "LBFGS"){
+    method = "L-BFGS"
+  }else{method = "BFGS"}
+  if(x$iterations == 1){
     cat(paste0("\nAlgorithm converged in 1 iteration using ", method, "\n"))
-  }else if(fit$iterations > 1){
-    cat(paste0("\nAlgorithm converged in ", fit$iterations, " iterations using ", method, "\n"))
+  }else if(x$iterations > 1){
+    cat(paste0("\nAlgorithm converged in ", x$iterations, " iterations using ", method, "\n"))
   }else{
     cat("\nAlgorithm failed to converge")
   }
   
-  if(fit$parallel){
+  if(x$parallel){
     cat("Parallel computation was used to speed up model fitting process")
   }
-  invisible(fit)
+  invisible(x)
 }
 
 ### TODO: Implement LRT CI using secant method 

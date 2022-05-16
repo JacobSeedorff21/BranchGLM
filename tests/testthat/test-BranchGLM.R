@@ -69,18 +69,48 @@ test_that("binomial regression and stuff works", {
   
   expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
   
-  ## Checking binomial utility functions
-  ### Table
+  # Checking binomial utility functions
+  ## Table
+  ### BranchGLM
   LogitTable <- Table(LogitFit)
   expect_equal(LogitTable$Table, matrix(c(17, 7, 13, 23), ncol = 2))
   
+  ### Numeric preds
+  preds <- predict(LogitFit)
+  
+  #### With factor y
+  expect_error(Table(preds, Data$supp), NA)
+  
+  #### with numeric y
+  expect_error(Table(preds, as.numeric(Data$supp) - 1), NA)
+  
+  #### with boolean y
+  expect_error(Table(preds, Data$supp == "VC"), NA)
+  
   ### ROC
+  #### BranchGLM and factor y
   LogitROC <- ROC(LogitFit)
-  LogitROC2 <- ROC(predict(LogitFit), Data$supp)
+  LogitROC2 <- ROC(preds, Data$supp)
   expect_equal(LogitROC$Info, LogitROC2$Info)
   
+  #### numeric y and boolean y
+  expect_equal(ROC(preds, as.numeric(Data$supp) - 1)$Info, ROC(preds, Data$supp == "VC")$Info)
+  
   ### AUC
+  #### BranchGLM
   expect_equal(AUC(LogitFit), 0.71277778)
+  
+  #### BranchGLMROC
+  expect_error(AUC(LogitROC), NA)
+  
+  #### factor y
+  expect_equal(AUC(preds, Data$supp), 0.71277778)
+  
+  #### numeric y
+  expect_equal(AUC(preds, as.numeric(Data$supp) - 1), 0.71277778)
+  
+  #### boolean y
+  expect_equal(AUC(preds, Data$supp == "VC"), 0.71277778)
 })
 
 ### Testing for fisher info errors

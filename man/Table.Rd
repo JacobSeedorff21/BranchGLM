@@ -3,27 +3,24 @@
 \name{Table}
 \alias{Table}
 \alias{Table.numeric}
-\alias{Table.factor}
 \alias{Table.BranchGLM}
 \title{Confusion Matrix}
 \usage{
-Table(x, ...)
+Table(object, ...)
 
-\method{Table}{numeric}(preds, y, cutoff = 0.5)
+\method{Table}{numeric}(object, y, cutoff = 0.5, ...)
 
-\method{Table}{factor}(preds, y)
-
-\method{Table}{BranchGLM}(fit, cutoff = 0.5)
+\method{Table}{BranchGLM}(object, cutoff = 0.5, ...)
 }
 \arguments{
-\item{preds}{a numeric vector of predictions between 0 and 1 or a two-level factor vector.}
+\item{object}{a \code{BranchGLM} object or a numeric vector.}
+
+\item{...}{further arguments passed to other methods.}
 
 \item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
-a logical vector. Must be a two-level factor vector if preds is also a two-level factor vector.}
+a logical vector.}
 
 \item{cutoff}{cutoff for predicted values, default is 0.5.}
-
-\item{fit}{a \code{BranchGLM} object.}
 }
 \value{
 a \code{BranchGLMTable} object.

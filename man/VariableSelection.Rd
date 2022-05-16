@@ -6,10 +6,10 @@
 \alias{VariableSelection.BranchGLM}
 \title{Variable Selection for GLMs}
 \usage{
-VariableSelection(x, ...)
+VariableSelection(object, ...)
 
 \method{VariableSelection}{formula}(
-  formula,
+  object,
   data,
   family,
   link,
@@ -25,11 +25,12 @@ VariableSelection(x, ...)
   tol = 1e-04,
   maxit = NULL,
   contrasts = NULL,
-  showprogress = TRUE
+  showprogress = TRUE,
+  ...
 )
 
 \method{VariableSelection}{BranchGLM}(
-  fit,
+  object,
   type = "forward",
   metric = "AIC",
   keep = NULL,
@@ -40,11 +41,14 @@ VariableSelection(x, ...)
   nthreads = 8,
   tol = 1e-04,
   maxit = NULL,
-  showprogress = TRUE
+  showprogress = TRUE,
+  ...
 )
 }
 \arguments{
-\item{formula}{a formula used to define upper model.}
+\item{object}{a formula or a \code{BranchGLM} object.}
+
+\item{...}{further arguments passed to other methods.}
 
 \item{data}{a dataframe with the response and predictor variables.}
 
@@ -56,7 +60,7 @@ VariableSelection(x, ...)
 \item{offset}{offset vector, by default the zero vector is used.}
 
 \item{method}{one of "Fisher", "BFGS", or "LBFGS". If method is not specified, 
-the method that was originally used to fit the BranchGLM model is used.}
+the method that was originally used to fit the \code{BranchGLM} model is used.}
 
 \item{type}{one of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.}
 
@@ -80,9 +84,9 @@ Only available for branch and bound selection.}
 \item{maxit}{maximum number of iterations performed. The default for 
 Fisher scoring is 50 and for the other methods the default is 200.}
 
-\item{showprogress}{whether to show progress updates for branch and bound.}
+\item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
-\item{fit}{a BranchGLM object used to define the upper model.}
+\item{showprogress}{whether to show progress updates for branch and bound.}
 }
 \value{
 A \code{BranchGLMVS} object with the following components
@@ -96,7 +100,7 @@ A \code{BranchGLMVS} object with the following components
 \item{\code{bestmetric}}{ the best metric found in the search}
 }
 \description{
-\code{VariableSelection} performs forward selection, backward elimination, 
+Performs forward selection, backward elimination, 
 and branch and bound selection for generalized linear models.
 }
 \details{
@@ -106,8 +110,10 @@ intercept (if included in formula) is the lower model. When an intercept is
 included in the model formula it is kept in each model.
 
 The branch and bound method makes use of an efficient branch and bound algorithm 
-to find the optimal model. This is will find the best model according the metric, but 
+to find the optimal model. This is will find the best model according to the metric, but 
 can be much faster than an exhaustive search.
+
+Fisher scoring is recommended for branch and bound selection and forward selection.
 }
 \examples{
 Data <- iris

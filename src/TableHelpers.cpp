@@ -28,35 +28,6 @@ NumericMatrix MakeTable(NumericVector preds, NumericVector y, double cutoff){
   return(values);
 }
 
-// Creates confusion matrix for factor preds and y
-
-// [[Rcpp::export]]
-
-NumericMatrix MakeTableFactor(CharacterVector preds, CharacterVector y, 
-                                  CharacterVector levels){
-  
-  NumericMatrix values(2, 2);
-  
-  for(unsigned int i = 0; i < (unsigned int) y.size(); i++){
-    if(preds(i) == levels(1)){
-      if(y(i) == levels(0)){
-        values(0, 1)++;
-      }
-      else{
-        values(1, 1)++;
-      }
-      
-    }
-    else{
-      if(y(i) == levels(0)){
-        values(0, 0)++;
-      }
-      else{values(1, 0)++;}
-    }
-  }
-  return(values);
-}
-
 // Creates confusion matrix for numeric preds and factor y
 
 // [[Rcpp::export]]

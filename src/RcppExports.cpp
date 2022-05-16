@@ -70,19 +70,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// MakeTableFactor
-NumericMatrix MakeTableFactor(CharacterVector preds, CharacterVector y, CharacterVector levels);
-RcppExport SEXP _BranchGLM_MakeTableFactor(SEXP predsSEXP, SEXP ySEXP, SEXP levelsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< CharacterVector >::type preds(predsSEXP);
-    Rcpp::traits::input_parameter< CharacterVector >::type y(ySEXP);
-    Rcpp::traits::input_parameter< CharacterVector >::type levels(levelsSEXP);
-    rcpp_result_gen = Rcpp::wrap(MakeTableFactor(preds, y, levels));
-    return rcpp_result_gen;
-END_RCPP
-}
 // MakeTableFactor2
 NumericMatrix MakeTableFactor2(NumericVector preds, CharacterVector y, CharacterVector levels, double cutoff);
 RcppExport SEXP _BranchGLM_MakeTableFactor2(SEXP predsSEXP, SEXP ySEXP, SEXP levelsSEXP, SEXP cutoffSEXP) {
@@ -227,7 +214,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BranchGLM_BranchGLMfit", (DL_FUNC) &_BranchGLM_BranchGLMfit, 10},
     {"_BranchGLM_ParBranchAndBoundCpp", (DL_FUNC) &_BranchGLM_ParBranchAndBoundCpp, 16},
     {"_BranchGLM_MakeTable", (DL_FUNC) &_BranchGLM_MakeTable, 3},
-    {"_BranchGLM_MakeTableFactor", (DL_FUNC) &_BranchGLM_MakeTableFactor, 3},
     {"_BranchGLM_MakeTableFactor2", (DL_FUNC) &_BranchGLM_MakeTableFactor2, 4},
     {"_BranchGLM_CindexCpp", (DL_FUNC) &_BranchGLM_CindexCpp, 2},
     {"_BranchGLM_CindexTrap", (DL_FUNC) &_BranchGLM_CindexTrap, 2},

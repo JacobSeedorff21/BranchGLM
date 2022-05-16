@@ -4,14 +4,16 @@
 \alias{print.BranchGLMVS}
 \title{Print Method for BranchGLMVS}
 \usage{
-\method{print}{BranchGLMVS}(VS, coefdigits = 4, digits = 0)
+\method{print}{BranchGLMVS}(x, coefdigits = 4, digits = 0, ...)
 }
 \arguments{
-\item{coefdigits}{Number of digits to display for coefficients table.}
+\item{x}{a \code{BranchGLMVS} object.}
 
-\item{digits}{Number of digits to display for information after table.}
+\item{coefdigits}{number of digits to display for coefficients table.}
 
-\item{fit}{A BranchGLMVS model object.}
+\item{digits}{number of digits to display for information not in the table.}
+
+\item{...}{further arguments passed to other methods.}
 }
 \description{
 Print Method for BranchGLMVS

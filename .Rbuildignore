@@ -2,9 +2,10 @@
 ^\.Rproj\.user$
 README.Rmd
 README.md
-ToDO.txt
 ^.*\.Rhistory$
 ^\.git$
 ^cran-comments\.md$
-^README-glm-1.png
+^cran-comments\.Rmd$
+^README-glm-1.png$
 ^LICENSE\.md$
+^ToDo.txt$

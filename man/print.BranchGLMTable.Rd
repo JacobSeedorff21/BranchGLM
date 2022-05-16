@@ -4,12 +4,14 @@
 \alias{print.BranchGLMTable}
 \title{Print Method for BranchGLMTable}
 \usage{
-\method{print}{BranchGLMTable}(Table, digits = 4)
+\method{print}{BranchGLMTable}(x, digits = 4, ...)
 }
 \arguments{
-\item{Table}{A BranchGLMTable object.}
+\item{x}{a \code{BranchGLMTable} object.}
 
-\item{digits}{Number of digits to display.}
+\item{digits}{number of digits to display.}
+
+\item{...}{further arguments passed to other methods.}
 }
 \description{
 Print Method for BranchGLMTable
