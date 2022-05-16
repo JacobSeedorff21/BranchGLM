@@ -4,3 +4,5 @@ ToDo.txt
 .Rhistory
 ReadME_files/
 cran-comments\.Rmd
+src/*.o
+src/*.dll
