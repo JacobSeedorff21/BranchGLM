@@ -191,8 +191,6 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   IntegerVector order(CurModel.n_elem, -1);
   arma::ivec Order(order.begin(), order.size(), false, true);
   
-  omp_set_num_threads(nthreads);
-  
   for(unsigned int i = 0; i < steps; i++){
     
     bool flag = true;
@@ -216,8 +214,6 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                                 Named("model") = keep,
                                 Named("numchecked") = numchecked,
                                 Named("bestmetric") = BestMetric);
-  
-  omp_set_num_threads(1);
   
   return(FinalList);
 }
@@ -275,9 +271,6 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   IntegerVector order(CurModel.n_elem, -1);
   arma::ivec Order(order.begin(), order.size(), false, true);
   
-  
-  omp_set_num_threads(nthreads);
-  
   for(unsigned int i = 0; i < steps; i++){
     
     bool flag = true;
@@ -302,8 +295,6 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                                 Named("model") = keep,
                                 Named("numchecked") = numchecked,
                                 Named("bestmetric") = BestMetric);
-  
-  omp_set_num_threads(1);
   
   return(FinalList);
 }
@@ -487,7 +478,6 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                             metric);
   unsigned int numchecked = 1;
   unsigned int size = 0;
-  omp_set_num_threads(nthreads);
   
   for(unsigned int j = 0; j < CurModel.n_elem; j++){
     if(CurModel.at(j) == 0){
@@ -558,8 +548,6 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                                 Named("model") = keep,
                                 Named("numchecked") = numchecked,
                                 Named("bestmetric") = BestMetric);
-  
-  omp_set_num_threads(1);
   
   return(FinalList);
 }

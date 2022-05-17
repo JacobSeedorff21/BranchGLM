@@ -3,6 +3,9 @@
 #include "ParBranchGLMHelpers.h"
 #include "BranchGLMHelpers.h"
 #include "VariableSelection.h"
+#ifdef _OPENMP
+# include <omp.h>
+#endif
 using namespace Rcpp;
 
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -184,7 +187,9 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
                                tol, maxit, metric);
   unsigned int numchecked = 1;
   unsigned int size = 0;
+#ifdef _OPENMP
   omp_set_num_threads(nthreads);
+#endif
   
   // Getting size of model space to check
   
@@ -277,7 +282,9 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
                                 Named("numchecked") = numchecked,
                                 Named("bestmetric") = BestMetric);
   
+#ifdef _OPENMP
   omp_set_num_threads(1);
+#endif
   
   return(FinalList);
 }

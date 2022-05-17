@@ -1,5 +1,8 @@
 #include <RcppArmadillo.h>
 #include <cmath>
+#ifdef _OPENMP
+# include <omp.h>
+#endif
 using namespace Rcpp;
 
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -543,7 +546,9 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::vec Y(y.begin(), y.size(), false, true); 
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
   double Iter;
+#ifdef _OPENMP
   omp_set_num_threads(nthreads);
+#endif
   
   if(method == "BFGS"){
     Iter = BFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
@@ -613,7 +618,9 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   }
   
   
+#ifdef _OPENMP
   omp_set_num_threads(1);
+#endif
   
   return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
                             Named("SE") = sqrt(dispersion) * SE,
@@ -635,7 +642,9 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   arma::vec beta(X->n_cols, arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
   double Iter;
+#ifdef _OPENMP
   omp_set_num_threads(nthreads);
+#endif
   
   if(method == "BFGS"){
     Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
@@ -706,7 +715,9 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   }
   
   
+#ifdef _OPENMP
   omp_set_num_threads(1);
+#endif
   
   return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
                             Named("SE") = sqrt(dispersion) * SE,

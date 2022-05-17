@@ -484,7 +484,6 @@ List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec*
   arma::vec beta(X->n_cols, arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
   double Iter;
-  omp_set_num_threads(nthreads);
   
   if(method == "BFGS"){
     Iter = ParBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);

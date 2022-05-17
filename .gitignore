@@ -6,3 +6,5 @@ ReadME_files/
 cran-comments\.Rmd
 src/*.o
 src/*.dll
+src/.Rhistory
+R/.Rhistory
