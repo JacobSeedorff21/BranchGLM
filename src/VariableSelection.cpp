@@ -3,8 +3,6 @@
 #include "BranchGLMHelpers.h"
 using namespace Rcpp;
 
-// [[Rcpp::depends(RcppArmadillo)]]
-
 // Function used to get number of models given a certain maxsize and the number 
 // of variables
 // [[Rcpp::export]]

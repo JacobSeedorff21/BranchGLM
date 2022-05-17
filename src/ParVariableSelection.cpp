@@ -8,8 +8,6 @@
 #endif
 using namespace Rcpp;
 
-// [[Rcpp::depends(RcppArmadillo)]]
-
 double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                        std::string method, 
                        int m, std::string Link, std::string Dist,

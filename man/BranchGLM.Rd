@@ -72,7 +72,7 @@ A \code{BranchGLM} object which is a list with the following components
 }
 \description{
 Fits generalized linear models via RcppArmadillo. Also has the 
-ability to fit the models with parallelization via openMP.
+ability to fit the models with parallelization via OpenMP.
 }
 \details{
 Can use BFGS, L-BFGS, or Fisher scoring to fit the GLM. BFGS and L-BFGS are 

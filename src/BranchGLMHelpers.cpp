@@ -5,8 +5,6 @@
 #endif
 using namespace Rcpp;
 
-// [[Rcpp::depends(RcppArmadillo)]]
-
 // Calculating sum of logs of factorials 
 
 double LogFact(const arma::vec* y){

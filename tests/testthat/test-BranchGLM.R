@@ -13,7 +13,7 @@ test_that("linear regression works", {
   LinearVS <- VariableSelection(LinearFit, type = "branch and bound")
   LinearVS2 <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
                                  link = "identity", type = "branch and bound", 
-                                 parallel = TRUE)
+                                 parallel = TRUE, nthreads = 1)
   
   expect_equal(LinearVS$finalmodel$coefficients, LinearVS2$finalmodel$coefficients)
   
@@ -21,7 +21,7 @@ test_that("linear regression works", {
   LinearForward <- VariableSelection(LinearFit, type = "forward")
   LinearForward2 <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
                                  link = "identity", type = "forward", 
-                                 parallel = TRUE)
+                                 parallel = TRUE, nthreads = 1)
   
   expect_equal(LinearForward$finalmodel$coefficients, LinearForward2$finalmodel$coefficients)
   
@@ -29,7 +29,7 @@ test_that("linear regression works", {
   LinearBackward <- VariableSelection(LinearFit, type = "backward")
   LinearBackward2 <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
                                  link = "identity", type = "backward", 
-                                 parallel = TRUE)
+                                 parallel = TRUE, nthreads = 1)
   
   expect_equal(LinearBackward$finalmodel$coefficients, LinearBackward2$finalmodel$coefficients)
   
@@ -49,7 +49,7 @@ test_that("binomial regression and stuff works", {
   LogitVS <- VariableSelection(LogitFit, type = "branch and bound")
   LogitVS2 <- VariableSelection(supp ~ ., data = Data, family = "binomial", 
                                  link = "logit", type = "branch and bound", 
-                                 parallel = TRUE)
+                                 parallel = TRUE, nthreads = 1)
   
   expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
   
@@ -57,7 +57,7 @@ test_that("binomial regression and stuff works", {
   LogitVS <- VariableSelection(LogitFit, type = "forward")
   LogitVS2 <- VariableSelection(supp ~ ., data = Data, family = "binomial", 
                                 link = "logit", type = "forward",
-                                parallel = TRUE)
+                                parallel = TRUE, nthreads = 1)
   
   expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
   
@@ -65,7 +65,7 @@ test_that("binomial regression and stuff works", {
   LogitVS <- VariableSelection(LogitFit, type = "backward", metric = "BIC")
   LogitVS2 <- VariableSelection(supp ~ ., data = Data, family = "binomial", 
                                 link = "logit", type = "backward", metric = "BIC", 
-                                parallel = TRUE)
+                                parallel = TRUE, nthreads = 1)
   
   expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
   
@@ -129,22 +129,16 @@ test_that("non-invertible info works", {
   expect_error(BranchGLM(V1 ~ ., data = Data, family = "gaussian", link = "identity") |>
                  suppressWarnings())
   expect_error(BranchGLM(V1 ~ ., data = Data, family = "gaussian", link = "identity",
-                         parallel = TRUE) |>
+                         parallel = TRUE, nthreads = 1) |>
                  suppressWarnings())
   ### Testing backward selection
   expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity",
                                  type = "backward") |>
                  suppressWarnings())
-  expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity",
-                         parallel = TRUE, type = "backward") |>
-                 suppressWarnings())
   
   ### Testing forward selection for no error
   expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity", type = "forward") |>
                 suppressWarnings(), NA)
-  expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity",
-                                 parallel = TRUE, type = "forward") |>
-                 suppressWarnings(), NA)
 })
 
 ### Residual deviance tests

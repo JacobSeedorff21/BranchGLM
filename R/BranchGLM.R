@@ -36,7 +36,7 @@
 #' \item{\code{family}}{ family used to model the data}
 #' \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
 #' @description Fits generalized linear models via RcppArmadillo. Also has the 
-#' ability to fit the models with parallelization via openMP.
+#' ability to fit the models with parallelization via OpenMP.
 #' @details Can use BFGS, L-BFGS, or Fisher scoring to fit the GLM. BFGS and L-BFGS are 
 #' typically faster than Fisher scoring when there are at least 50 covariates 
 #' and Fisher scoring is typically best when there are fewer than 20 covariates.

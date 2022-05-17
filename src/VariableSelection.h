@@ -30,8 +30,10 @@ public:
   }
   void finalprint(){
     double next_print = 100 * (float)cur_size / (float)max_size;
-    Rcout << "Checked " << next_print << "% of all possible models"  << std::endl;
-    Rcout << "Found best model"  << std::endl << std::endl;
+if(display_progress){    
+	Rcout << "Checked " << next_print << "% of all possible models"  << std::endl;
+    	Rcout << "Found best model"  << std::endl << std::endl;
+    }
   }
 };
 

@@ -2,8 +2,6 @@
 #include <cmath>
 using namespace Rcpp;
 
-// [[Rcpp::depends(RcppArmadillo)]]
-
 
 // Calculating sum of logs of factorials 
 
