@@ -27,10 +27,10 @@ AUC(object, ...)
 factor vector, or a logical vector.}
 }
 \value{
-The c-index/AUC.
+A number corresponding to the c-index/AUC.
 }
 \description{
-Calculates c-index/AUC.
+Calculates the c-index/AUC.
 }
 \details{
 Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object and

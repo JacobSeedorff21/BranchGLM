@@ -82,14 +82,14 @@ Only available for branch and bound selection.}
 \item{tol}{tolerance used to determine model convergence.}
 
 \item{maxit}{maximum number of iterations performed. The default for 
-Fisher scoring is 50 and for the other methods the default is 200.}
+Fisher's scoring is 50 and for the other methods the default is 200.}
 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
 \item{showprogress}{whether to show progress updates for branch and bound.}
 }
 \value{
-A \code{BranchGLMVS} object with the following components
+A \code{BranchGLMVS} object which is a list with the following components
 \item{\code{finalmodel}}{ the final \code{BranchGLM} model selected}
 \item{\code{variables}}{ a vector corresponding to the selected variables}
 \item{\code{numchecked}}{ number of models fit}
@@ -111,9 +111,13 @@ included in the model formula it is kept in each model.
 
 The branch and bound method makes use of an efficient branch and bound algorithm 
 to find the optimal model. This is will find the best model according to the metric, but 
-can be much faster than an exhaustive search.
+can be much faster than an exhaustive search. The amount of speedup attained by 
+using the branch and bound method as opposed to an exhaustive search depends on 
+the specific problem. Sometimes it may not be able to prune much and must 
+fit most of the models and sometimes it may be able to prune off many of the models.
 
-Fisher scoring is recommended for branch and bound selection and forward selection.
+Fisher's scoring is recommended for branch and bound selection and forward selection.
+All observations that have any missing values in the upper model are ignored.
 }
 \examples{
 Data <- iris

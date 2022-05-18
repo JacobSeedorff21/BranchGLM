@@ -20,10 +20,16 @@ Table(object, ...)
 \item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
 a logical vector.}
 
-\item{cutoff}{cutoff for predicted values, default is 0.5.}
+\item{cutoff}{cutoff for predicted values, the default is 0.5.}
 }
 \value{
-a \code{BranchGLMTable} object.
+A \code{BranchGLMTable} object which is a list with the following components
+\item{\code{table}}{ a matrix corresponding to the confusion matrix}
+\item{\code{accuracy}}{ a number corresponding to the accuracy}
+\item{\code{sensitivity}}{ a number corresponding to the sensitivity}
+\item{\code{specificity}}{ a number corresponding to the specificity}
+\item{\code{PPV}}{ a number corresponding to the positive predictive value}
+\item{\code{levels}}{ a vector corresponding to the levels of the response variable}
 }
 \description{
 Creates confusion matrix and calculates related measures.

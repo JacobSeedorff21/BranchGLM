@@ -11,6 +11,9 @@
 
 \item{...}{further arguments passed to other methods.}
 }
+\value{
+The supplied \code{BranchGLMROC} object.
+}
 \description{
 Print Method for BranchGLMROC
 }

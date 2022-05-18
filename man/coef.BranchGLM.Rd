@@ -7,9 +7,12 @@
 \method{coef}{BranchGLM}(object, ...)
 }
 \arguments{
-\item{object}{a \code{BranchGLM} model object.}
+\item{object}{a \code{BranchGLM} object.}
 
 \item{...}{further arguments passed to or from other methods.}
+}
+\value{
+A named vector with the corresponding coefficient estimates.
 }
 \description{
 Extract Coefficients

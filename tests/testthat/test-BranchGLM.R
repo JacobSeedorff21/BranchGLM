@@ -73,7 +73,7 @@ test_that("binomial regression and stuff works", {
   ## Table
   ### BranchGLM
   LogitTable <- Table(LogitFit)
-  expect_equal(LogitTable$Table, matrix(c(17, 7, 13, 23), ncol = 2))
+  expect_equal(LogitTable$table, matrix(c(17, 7, 13, 23), ncol = 2))
   
   ### Numeric preds
   preds <- predict(LogitFit)
@@ -141,9 +141,9 @@ test_that("non-invertible info works", {
                 suppressWarnings(), NA)
 })
 
-### Residual deviance tests
+### Log-likelihood tests
 ### Toothgrowth regression tests
-test_that("residual deviance works", {
+test_that("log-likelihoods work", {
   library(BranchGLM)
   Data <- ToothGrowth
   
@@ -153,19 +153,19 @@ test_that("residual deviance works", {
                         link = "log")
   GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
   
-  expect_equal(PoissonFit$resdev, GLMFit$residual.deviance)
+  expect_equal(logLik(PoissonFit), logLik(GLMFit))
   
   ## Logistic
   LogitFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", 
                         link = "logit")
-  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
+  GLMFit <- glm(supp ~ ., data = Data, family = binomial)
   
-  expect_equal(LogitFit$resdev, GLMFit$residual.deviance)
+  expect_equal(logLik(LogitFit), logLik(GLMFit))
   
   ## Linear
   LinearFit <- BranchGLM(as.numeric(supp) ~ ., data = Data, family = "gaussian", 
                         link = "identity")
-  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
+  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = gaussian)
   
-  expect_equal(LinearFit$resdev, GLMFit$residual.deviance)
+  expect_equal(logLik(LinearFit), logLik(GLMFit))
 })

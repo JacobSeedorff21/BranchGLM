@@ -11,7 +11,7 @@
 #' @param nthreads number of threads used with OpenMP, only used if parallel = TRUE.
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
-#' Fisher scoring is 50 and for the other methods the default is 200.
+#' Fisher's scoring is 50 and for the other methods the default is 200.
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
 #' @return A \code{BranchGLM} object which is a list with the following components
 #' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
@@ -35,14 +35,14 @@
 #' \item{\code{offset}}{ offset vector}
 #' \item{\code{family}}{ family used to model the data}
 #' \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
-#' @description Fits generalized linear models via RcppArmadillo. Also has the 
-#' ability to fit the models with parallelization via OpenMP.
-#' @details Can use BFGS, L-BFGS, or Fisher scoring to fit the GLM. BFGS and L-BFGS are 
-#' typically faster than Fisher scoring when there are at least 50 covariates 
-#' and Fisher scoring is typically best when there are fewer than 20 covariates.
+#' @description Fits generalized linear models via 'RcppArmadillo'. Also has the 
+#' ability to fit the models with parallelization via 'OpenMP'.
+#' @details Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
+#' typically faster than Fisher's scoring when there are at least 50 covariates 
+#' and Fisher's scoring is typically best when there are fewer than 20 covariates.
 #' This function does not currently support the use of weights. 
 #' 
-#' The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
+#' The models are fit in C++ by using 'Rcpp' and 'RcppArmadillo'. In order to help 
 #' convergence, each of the methods makes use of a backtracking line-search using 
 #' the armijo-goldstein condition to find an adequate step size. There are also 
 #' two conditions used to control convergence, the first is whether there is a 
@@ -52,6 +52,7 @@
 #' converge, then \code{iterations} will be -1.
 #' 
 #' The likelihood equations are solved directly, i.e. no matrix decomposition is used.
+#' All observations with any missing values are ignored.
 #' @examples
 #' Data <- iris
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -179,39 +180,29 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
 }
 
 #' Extract Log-Likelihood
-#' @param object a \code{BranchGLM} model object.
+#' @param object a \code{BranchGLM} object.
 #' @param ... further arguments passed to or from other methods.
+#' @return An object of class \code{logLik} which is a number corresponding to 
+#' the log-likelihood with the following attributes: "df" (degrees of freedom) 
+#' and "nobs" (number of observations).
 #' @export
 
-logLik.BranchGLM<- function(object, ...){
-  object$logLik
-}
-
-#' Extract AIC
-#' @param object a \code{BranchGLM} model object.
-#' @param ... further arguments passed to or from other methods.
-#' @export
-
-AIC.BranchGLM <- function(object, ...){
-  object$AIC
-}
-
-#' Extract BIC
-#' @param object a \code{BranchGLM} model object.
-#' @param ... further arguments passed to or from other methods.
-#' @export
-
-BIC.BranchGLM <- function(object, ...){
-  k <- length(coef(object))
+logLik.BranchGLM <- function(object, ...){
+  df <- length(coef(object))
   if(object$family == "gaussian"){
-    k <- k + 1
+    df <- df + 1
   }
-  -2 * logLik(object) + log(length(object$y)) * k
+  val <- object$logLik
+  attr(val, "nobs") <- length(object$y) 
+  attr(val, "df") <- df
+  class(val) <- "logLik"
+  return(val)
 }
 
 #' Extract Coefficients
-#' @param object a \code{BranchGLM} model object.
+#' @param object a \code{BranchGLM} object.
 #' @param ... further arguments passed to or from other methods.
+#' @return A named vector with the corresponding coefficient estimates.
 #' @export
 
 coef.BranchGLM <- function(object, ...){
@@ -228,7 +219,6 @@ coef.BranchGLM <- function(object, ...){
 #' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
 #' @description Gets predictions from a \code{BranchGLM} object.
 #' @return A numeric vector of predictions.
-#' @rdname predict.BranchGLM
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -292,10 +282,11 @@ GetPreds <- function(XBeta, Link){
 }
 
 #' Print Method for BranchGLM
-#' @param x a \code{BranchGLM} model object.
+#' @param x a \code{BranchGLM} object.
 #' @param coefdigits number of digits to display for coefficients table.
 #' @param digits number of digits to display for information after table.
 #' @param ... further arguments passed to or from other methods.
+#' @return The supplied \code{BranchGLM} object.
 #' @export
 
 print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
@@ -314,7 +305,7 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
   cat(paste0("\nAIC: ", round(x$AIC, digits = digits)))
   
   if(x$method == "Fisher"){
-    method = "Fisher scoring"
+    method = "Fisher's scoring"
   }else if(x$method == "LBFGS"){
     method = "L-BFGS"
   }else{method = "BFGS"}

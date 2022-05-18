@@ -20,7 +20,7 @@
 #' @param nthreads number of threads used with OpenMP, only used if parallel is TRUE.
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
-#' Fisher scoring is 50 and for the other methods the default is 200.
+#' Fisher's scoring is 50 and for the other methods the default is 200.
 #' @param showprogress whether to show progress updates for branch and bound.
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
 #' @description Performs forward selection, backward elimination, 
@@ -32,9 +32,13 @@
 #' 
 #' The branch and bound method makes use of an efficient branch and bound algorithm 
 #' to find the optimal model. This is will find the best model according to the metric, but 
-#' can be much faster than an exhaustive search.
+#' can be much faster than an exhaustive search. The amount of speedup attained by 
+#' using the branch and bound method as opposed to an exhaustive search depends on 
+#' the specific problem. Sometimes it may not be able to prune much and must 
+#' fit most of the models and sometimes it may be able to prune off many of the models.
 #' 
-#' Fisher scoring is recommended for branch and bound selection and forward selection.
+#' Fisher's scoring is recommended for branch and bound selection and forward selection.
+#' All observations that have any missing values in the upper model are ignored.
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -51,7 +55,7 @@
 #' 
 #' ### Using the keep argument
 #' VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", metric = "BIC")
-#' @return A \code{BranchGLMVS} object with the following components
+#' @return A \code{BranchGLMVS} object which is a list with the following components
 #' \item{\code{finalmodel}}{ the final \code{BranchGLM} model selected}
 #' \item{\code{variables}}{ a vector corresponding to the selected variables}
 #' \item{\code{numchecked}}{ number of models fit}
@@ -369,6 +373,7 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
 #' @param coefdigits number of digits to display for coefficients table.
 #' @param digits number of digits to display for information not in the table.
 #' @param ... further arguments passed to other methods.
+#' @return The supplied \code{BranchGLMVS} object.
 #' @export
 
 print.BranchGLMVS <- function(x, coefdigits = 4, digits = 0, ...){

@@ -3,9 +3,15 @@
 #' @param ... further arguments passed to other methods.
 #' @param y observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
 #' a logical vector. 
-#' @param cutoff cutoff for predicted values, default is 0.5.
+#' @param cutoff cutoff for predicted values, the default is 0.5.
 #' @name Table
-#' @return a \code{BranchGLMTable} object.
+#' @return A \code{BranchGLMTable} object which is a list with the following components
+#' \item{\code{table}}{ a matrix corresponding to the confusion matrix}
+#' \item{\code{accuracy}}{ a number corresponding to the accuracy}
+#' \item{\code{sensitivity}}{ a number corresponding to the sensitivity}
+#' \item{\code{specificity}}{ a number corresponding to the specificity}
+#' \item{\code{PPV}}{ a number corresponding to the positive predictive value}
+#' \item{\code{levels}}{ a vector corresponding to the levels of the response variable}
 #' @description Creates confusion matrix and calculates related measures.
 #' @examples 
 #' Data <- ToothGrowth
@@ -48,23 +54,23 @@ Table.numeric <- function(object, y, cutoff = .5, ...){
     
     Table <- MakeTableFactor2(object, as.character(y), levels(y), cutoff)
     
-    List <- list("Table" = Table, 
-                 "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
-                 "Sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
-                 "Specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
+    List <- list("table" = Table, 
+                 "accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
+                 "sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
+                 "specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
                  "PPV" = Table[2, 2] / (Table[2, 2] + Table[1, 2]),
-                 "Levels" = levels(y))
+                 "levels" = levels(y))
     
   }else{
     
     Table <- MakeTable(object, y * 1, cutoff)
     
-    List <- list("Table" = Table, 
-                 "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
-                 "Sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
-                 "Specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
+    List <- list("table" = Table, 
+                 "accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
+                 "sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
+                 "specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
                  "PPV" = Table[2, 2] / (Table[2, 2] + Table[1, 2]),
-                 "Levels" = c(FALSE, TRUE))
+                 "levels" = c(FALSE, TRUE))
     
   }
   return(structure(List, class = "BranchGLMTable"))
@@ -82,12 +88,12 @@ Table.BranchGLM <- function(object, cutoff = .5, ...){
   
   Table <- MakeTable(preds, object$y, cutoff)
   
-  List <- list("Table" = Table, 
-               "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
-               "Sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
-               "Specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
+  List <- list("table" = Table, 
+               "accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
+               "sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
+               "specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
                "PPV" = Table[2, 2] / (Table[2, 2] + Table[1, 2]),
-               "Levels" = object$ylevel)
+               "levels" = object$ylevel)
   
   return(structure(List, class = "BranchGLMTable"))
   
@@ -97,15 +103,16 @@ Table.BranchGLM <- function(object, cutoff = .5, ...){
 #' @param x a \code{BranchGLMTable} object.
 #' @param digits number of digits to display.
 #' @param ... further arguments passed to other methods.
+#' @return The supplied \code{BranchGLMTable} object.
 #' @export
 
 print.BranchGLMTable <- function(x, digits = 4, ...){
-  Numbers <- apply(x$Table, 2, FUN = function(x){max(nchar(x))})
+  Numbers <- apply(x$table, 2, FUN = function(x){max(nchar(x))})
   
   Numbers <- pmax(Numbers, c(4, 4)) |>
-             pmax(nchar(x$Levels))
+             pmax(nchar(x$levels))
   
-  LeftSpace <- 10 + max(nchar(x$Levels))
+  LeftSpace <- 10 + max(nchar(x$levels))
   
   cat("Confusion matrix:\n")
   
@@ -114,31 +121,31 @@ print.BranchGLMTable <- function(x, digits = 4, ...){
   
   cat(paste0(paste0(rep(" ", LeftSpace + Numbers[1] - 4), collapse = ""), 
       "Predicted\n",
-      paste0(rep(" ", LeftSpace + floor((Numbers[1] - nchar(x$Levels[1])) / 2)), 
+      paste0(rep(" ", LeftSpace + floor((Numbers[1] - nchar(x$levels[1])) / 2)), 
              collapse = ""), 
-      x$Levels[1],
-      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$Levels[1])) / 2) + 1 + 
-                      floor((Numbers[2] - nchar(x$Levels[2])) / 2)), 
-                 collapse = ""), x$Levels[2], "\n\n", 
-      paste0(rep(" ", 9), collapse = ""), x$Levels[1], 
-      paste0(rep(" ", 1 + max(nchar(x$Levels)) - nchar(x$Levels[1]) + 
-                        floor((Numbers[1] - nchar(x$Table[1, 1])) / 2)), 
+      x$levels[1],
+      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$levels[1])) / 2) + 1 + 
+                      floor((Numbers[2] - nchar(x$levels[2])) / 2)), 
+                 collapse = ""), x$levels[2], "\n\n", 
+      paste0(rep(" ", 9), collapse = ""), x$levels[1], 
+      paste0(rep(" ", 1 + max(nchar(x$levels)) - nchar(x$levels[1]) + 
+                        floor((Numbers[1] - nchar(x$table[1, 1])) / 2)), 
                collapse = ""), 
-      x$Table[1, 1], 
-      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$Table[1, 1])) / 2) + 1 + 
-                      floor((Numbers[2] - nchar(x$Table[1, 2])) / 2)), 
+      x$table[1, 1], 
+      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$table[1, 1])) / 2) + 1 + 
+                      floor((Numbers[2] - nchar(x$table[1, 2])) / 2)), 
              collapse = ""),
-      x$Table[1, 2], 
+      x$table[1, 2], 
       "\n", "Observed\n",
-      paste0(rep(" ", 9), collapse = ""), x$Levels[2], 
-      paste0(rep(" ", 1 + max(nchar(x$Levels)) - nchar(x$Levels[2]) + 
-                   floor((Numbers[1] - nchar(x$Table[2, 1])) / 2)), 
+      paste0(rep(" ", 9), collapse = ""), x$levels[2], 
+      paste0(rep(" ", 1 + max(nchar(x$levels)) - nchar(x$levels[2]) + 
+                   floor((Numbers[1] - nchar(x$table[2, 1])) / 2)), 
              collapse = ""), 
-      x$Table[2, 1], 
-      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$Table[2, 1])) / 2) + 1 + 
-                      floor((Numbers[2] - nchar(x$Table[2, 2])) / 2)), 
+      x$table[2, 1], 
+      paste0(rep(" ", ceiling((Numbers[1] - nchar(x$table[2, 1])) / 2) + 1 + 
+                      floor((Numbers[2] - nchar(x$table[2, 2])) / 2)), 
              collapse = ""),
-      x$Table[2, 2], "\n\n"))
+      x$table[2, 2], "\n\n"))
   
   cat(paste0(rep("-", LeftSpace + sum(Numbers) + 2), collapse = ""))
   cat("\n")
@@ -148,9 +155,9 @@ print.BranchGLMTable <- function(x, digits = 4, ...){
   cat(paste0(rep("-", LeftSpace + sum(Numbers) + 2), collapse = ""))
   cat("\n")
   
-  cat("Accuracy: ", round(x$Accuracy, digits = digits), "\n")
-  cat("Sensitivity: ", round(x$Sensitivity, digits = digits), "\n")
-  cat("Specificity: ", round(x$Specificity, digits = digits), "\n")
+  cat("Accuracy: ", round(x$accuracy, digits = digits), "\n")
+  cat("Sensitivity: ", round(x$sensitivity, digits = digits), "\n")
+  cat("Specificity: ", round(x$specificity, digits = digits), "\n")
   cat("PPV: ", round(x$PPV, digits = digits), "\n")
   
   invisible(x)
@@ -163,8 +170,8 @@ print.BranchGLMTable <- function(x, digits = 4, ...){
 #' @param y Observed values, can be a numeric vector of 0s and 1s, a two-level 
 #' factor vector, or a logical vector.
 #' @name Cindex
-#' @return The c-index/AUC.
-#' @description Calculates c-index/AUC.
+#' @return A number corresponding to the c-index/AUC.
+#' @description Calculates the c-index/AUC.
 #' @details Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object and
 #' uses Mann-Whitney U to calculate it otherwise. The trapezoidal rule method is less accurate, 
 #' so the two methods may give different results.
@@ -333,6 +340,7 @@ ROC.BranchGLM <- function(object, ...){
 #' Print Method for BranchGLMROC
 #' @param x a \code{BranchGLMROC} object.
 #' @param ... further arguments passed to other methods.
+#' @return The supplied \code{BranchGLMROC} object.
 #' @export
 
 print.BranchGLMROC <- function(x, ...){
@@ -347,6 +355,7 @@ print.BranchGLMROC <- function(x, ...){
 #' @description This plots a ROC curve.
 #' @param x a \code{BranchGLMROC} object.
 #' @param ... arguments passed to generic plot function.
+#' @return No return value, called to create the plot.
 #' @examples
 #' Data <- ToothGrowth
 #' Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
@@ -370,6 +379,7 @@ plot.BranchGLMROC <- function(x, ...){
 #' single linetype to be used for all ROC curves.
 #' @param lwd vector of linewidths used to create the ROC curves or a 
 #' single linewidth to be used for all ROC curves.
+#' @return No return value, called to create the plot.
 #' @examples 
 #' Data <- ToothGrowth
 #' 

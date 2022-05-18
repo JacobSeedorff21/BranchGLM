@@ -32,6 +32,9 @@ single linetype to be used for all ROC curves.}
 \item{lwd}{vector of linewidths used to create the ROC curves or a 
 single linewidth to be used for all ROC curves.}
 }
+\value{
+No return value, called to create the plot.
+}
 \description{
 Plotting Multiple ROC Curves
 }

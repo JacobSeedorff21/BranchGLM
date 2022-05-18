@@ -7,13 +7,16 @@
 \method{print}{BranchGLM}(x, coefdigits = 4, digits = 0, ...)
 }
 \arguments{
-\item{x}{a \code{BranchGLM} model object.}
+\item{x}{a \code{BranchGLM} object.}
 
 \item{coefdigits}{number of digits to display for coefficients table.}
 
 \item{digits}{number of digits to display for information after table.}
 
 \item{...}{further arguments passed to or from other methods.}
+}
+\value{
+The supplied \code{BranchGLM} object.
 }
 \description{
 Print Method for BranchGLM

@@ -42,7 +42,7 @@ BranchGLM(
 \item{tol}{tolerance used to determine model convergence.}
 
 \item{maxit}{maximum number of iterations performed. The default for 
-Fisher scoring is 50 and for the other methods the default is 200.}
+Fisher's scoring is 50 and for the other methods the default is 200.}
 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 }
@@ -71,16 +71,16 @@ A \code{BranchGLM} object which is a list with the following components
 \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
 }
 \description{
-Fits generalized linear models via RcppArmadillo. Also has the 
-ability to fit the models with parallelization via OpenMP.
+Fits generalized linear models via 'RcppArmadillo'. Also has the 
+ability to fit the models with parallelization via 'OpenMP'.
 }
 \details{
-Can use BFGS, L-BFGS, or Fisher scoring to fit the GLM. BFGS and L-BFGS are 
-typically faster than Fisher scoring when there are at least 50 covariates 
-and Fisher scoring is typically best when there are fewer than 20 covariates.
+Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
+typically faster than Fisher's scoring when there are at least 50 covariates 
+and Fisher's scoring is typically best when there are fewer than 20 covariates.
 This function does not currently support the use of weights. 
 
-The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
+The models are fit in C++ by using 'Rcpp' and 'RcppArmadillo'. In order to help 
 convergence, each of the methods makes use of a backtracking line-search using 
 the armijo-goldstein condition to find an adequate step size. There are also 
 two conditions used to control convergence, the first is whether there is a 
@@ -90,6 +90,7 @@ each of the elements of the beta vector changes by a sufficient amount. The
 converge, then \code{iterations} will be -1.
 
 The likelihood equations are solved directly, i.e. no matrix decomposition is used.
+All observations with any missing values are ignored.
 }
 \examples{
 Data <- iris

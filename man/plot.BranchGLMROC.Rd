@@ -11,6 +11,9 @@
 
 \item{...}{arguments passed to generic plot function.}
 }
+\value{
+No return value, called to create the plot.
+}
 \description{
 This plots a ROC curve.
 }

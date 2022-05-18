@@ -10,7 +10,7 @@ using namespace Rcpp;
 double LogFact(const arma::vec* y){
   double sum = 0;
   double Max = max(*y);
-  arma::uvec logs(Max + 1, arma::fill::zeros);
+  arma::vec logs(Max + 1, arma::fill::zeros);
   for(unsigned int i = 2; i < logs.n_elem;i++){
     logs(i) = logs(i - 1) + log(i);
   }
@@ -210,7 +210,7 @@ double LogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist
     arma::vec theta = -1 / *Y;
     LogLik = -arma::dot(*Y, theta) + arma::accu(log(-theta));
   }else{
-    LogLik = 0 ;
+    LogLik = 0;
   }
   
   return(LogLik);
@@ -569,7 +569,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   double dispersion = 1;
   
   if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(Y - mu, 2)) / (X.n_rows - X.n_cols);
+    dispersion = arma::accu(pow(Y - mu, 2)) / (X.n_rows);
   }
   Info = FisherInfoCpp(&X, &Deriv, &Var);
   arma::mat InfoInv = Info;
@@ -606,7 +606,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   NumericVector linPreds1 = NumericVector(linPreds.begin(), linPreds.end());
   
   if(Dist == "gaussian"){
-    double temp = X.n_rows/2 * log(2*M_PI*dispersion);
+    double temp = Y.n_elem/2 * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
     AIC = -2 * LogLik + 2 * (X.n_cols + 1);
   }
@@ -614,7 +614,6 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     LogLik -=  LogFact(&Y);
     AIC = -2 * LogLik + 2 * (X.n_cols);
   }
-  
   
 #ifdef _OPENMP
   omp_set_num_threads(1);

@@ -15,6 +15,9 @@
 
 \item{...}{further arguments passed to other methods.}
 }
+\value{
+The supplied \code{BranchGLMVS} object.
+}
 \description{
 Print Method for BranchGLMVS
 }
