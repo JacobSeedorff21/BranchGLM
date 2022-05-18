@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-This is a first submission.
+This is a resubmission that fixes documentation issues.
