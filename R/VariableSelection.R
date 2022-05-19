@@ -2,22 +2,24 @@
 #' @param object a formula or a \code{BranchGLM} object.
 #' @param ... further arguments passed to other methods.
 #' @param data a dataframe with the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson"
+#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson".
 #' @param link link used to link mean structure to linear predictors. One of, 
 #' "identity", "logit", "probit", "cloglog", or "log".
 #' @param offset offset vector, by default the zero vector is used.
-#' @param method one of "Fisher", "BFGS", or "LBFGS". If method is not specified, 
-#' the method that was originally used to fit the \code{BranchGLM} model is used.
-#' @param type one of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.
+#' @param method one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
+#' for forward selection and branch and bound selection since they will typically 
+#' fit many models with a small number of covariates.
+#' @param type one of "forward", "backward", or "branch and bound" to indicate 
+#' which type of variable selection to perform.
 #' @param metric metric used to choose model, the default is "AIC", but "BIC" is also available.
 #' @param keep vector of names to denote variables that must be in the model.
 #' @param maxsize maximum number of variables to consider in a single model, the 
 #' default is the total number of variables.
 #' This number adds onto any variables specified in keep. 
-#' @param grads number of gradients to use to approximate inverse information with, only for LBFGS.
+#' @param grads number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.
 #' @param parallel one of TRUE or FALSE to indicate if parallelization should be used.
 #' Only available for branch and bound selection.
-#' @param nthreads number of threads used with OpenMP, only used if parallel is TRUE.
+#' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
 #' Fisher's scoring is 50 and for the other methods the default is 200.
@@ -84,7 +86,7 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
     stop("data must be a data frame")
   }
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
-    warning("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
+    stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
   if(!family %in% c("gaussian", "binomial", "poisson")){
     stop("family must be one of 'gaussian', 'binomial', or 'poisson'")
@@ -196,15 +198,15 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
 
 VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC",
                                         keep = NULL, maxsize = NULL, 
-                                        method = NULL, grads = 10, parallel = FALSE, 
+                                        method = "Fisher", grads = 10, parallel = FALSE, 
                                         nthreads = 8, tol = 1e-4, maxit = NULL,
                                         showprogress = TRUE, ...){
   ## Performing argument checks
-  if(is.null(method)){
-    method <- object$method
-  }
   if(length(parallel) > 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")
+  }
+  if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
+    stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
   if((length(nthreads) > 1) || (!is.numeric(nthreads))||(nthreads <= 0)){
     warning("Please select a positive integer for nthreads, using nthreads = 8")

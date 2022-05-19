@@ -123,7 +123,7 @@ double MetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Off
   arma::vec mu = LinkCpp(X, &beta, Offset, Link, Dist);
   
   if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows - X->n_cols);
+    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows);
   }
   
   double LogLik = -LogLikelihoodCpp(X, Y, &mu, Dist);
@@ -351,7 +351,7 @@ double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   arma::vec mu = LinkCpp(&xTemp, &beta, Offset, Link, Dist);
   
   if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (xTemp.n_rows - xTemp.n_cols);
+    dispersion = arma::accu(pow(*Y - mu, 2)) / (xTemp.n_rows);
   }
   
   double LogLik = -LogLikelihoodCpp(&xTemp, Y, &mu, Dist);

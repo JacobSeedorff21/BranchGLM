@@ -5,10 +5,12 @@
 #' @param link link used to link mean structure to linear predictors. One of, 
 #' "identity", "logit", "probit", "cloglog", or "log".
 #' @param offset offset vector, by default the zero vector is used.
-#' @param method one of "Fisher", "BFGS", or "LBFGS".
-#' @param grads number of gradients to use to approximate information with, only for LBFGS.
+#' @param method one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
+#' quasi-newton methods which are typically faster than Fisher's scoring when
+#' there are many covariates (at least 30).
+#' @param grads number of gradients used to approximate information with, only for \code{method = "LBFGS"}.
 #' @param parallel whether or not to make use of parallelization via OpenMP.
-#' @param nthreads number of threads used with OpenMP, only used if parallel = TRUE.
+#' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
 #' Fisher's scoring is 50 and for the other methods the default is 200.
@@ -35,14 +37,14 @@
 #' \item{\code{offset}}{ offset vector}
 #' \item{\code{family}}{ family used to model the data}
 #' \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
-#' @description Fits generalized linear models via 'RcppArmadillo'. Also has the 
-#' ability to fit the models with parallelization via 'OpenMP'.
+#' @description Fits generalized linear models via RcppArmadillo. Also has the 
+#' ability to fit the models with parallelization via OpenMP.
 #' @details Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
-#' typically faster than Fisher's scoring when there are at least 50 covariates 
-#' and Fisher's scoring is typically best when there are fewer than 20 covariates.
+#' typically faster than Fisher's scoring when there are at least 30 covariates 
+#' and Fisher's scoring is typically best when there are fewer than 30 covariates.
 #' This function does not currently support the use of weights. 
 #' 
-#' The models are fit in C++ by using 'Rcpp' and 'RcppArmadillo'. In order to help 
+#' The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
 #' convergence, each of the methods makes use of a backtracking line-search using 
 #' the armijo-goldstein condition to find an adequate step size. There are also 
 #' two conditions used to control convergence, the first is whether there is a 
@@ -69,7 +71,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     stop("data must be a data frame")
   }
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
-    warning("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
+    stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
   if(!family %in% c("gaussian", "binomial", "poisson")){
     stop("family must be one of 'gaussian', 'binomial', or 'poisson'")

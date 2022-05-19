@@ -32,7 +32,7 @@ double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* 
   arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
   
   if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows - X->n_cols);
+    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows);
   }
   
   double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
@@ -79,7 +79,7 @@ double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offs
   arma::vec mu = ParLinkCpp(&xTemp, &beta, Offset, Link, Dist);
   
   if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (xTemp.n_rows - xTemp.n_cols);
+    dispersion = arma::accu(pow(*Y - mu, 2)) / (xTemp.n_rows);
   }
   
   double LogLik = -ParLogLikelihoodCpp(&xTemp, Y, &mu, Dist);

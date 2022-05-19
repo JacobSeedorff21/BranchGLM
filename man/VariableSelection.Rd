@@ -35,7 +35,7 @@ VariableSelection(object, ...)
   metric = "AIC",
   keep = NULL,
   maxsize = NULL,
-  method = NULL,
+  method = "Fisher",
   grads = 10,
   parallel = FALSE,
   nthreads = 8,
@@ -52,17 +52,19 @@ VariableSelection(object, ...)
 
 \item{data}{a dataframe with the response and predictor variables.}
 
-\item{family}{distribution used to model the data, one of "gaussian", "binomial", or "poisson"}
+\item{family}{distribution used to model the data, one of "gaussian", "binomial", or "poisson".}
 
 \item{link}{link used to link mean structure to linear predictors. One of, 
 "identity", "logit", "probit", "cloglog", or "log".}
 
 \item{offset}{offset vector, by default the zero vector is used.}
 
-\item{method}{one of "Fisher", "BFGS", or "LBFGS". If method is not specified, 
-the method that was originally used to fit the \code{BranchGLM} model is used.}
+\item{method}{one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
+for forward selection and branch and bound selection since they will typically 
+fit many models with a small number of covariates.}
 
-\item{type}{one of "forward", "backward", or "branch and bound" to indicate which type of variable selection to perform.}
+\item{type}{one of "forward", "backward", or "branch and bound" to indicate 
+which type of variable selection to perform.}
 
 \item{metric}{metric used to choose model, the default is "AIC", but "BIC" is also available.}
 
@@ -72,12 +74,12 @@ the method that was originally used to fit the \code{BranchGLM} model is used.}
 default is the total number of variables.
 This number adds onto any variables specified in keep.}
 
-\item{grads}{number of gradients to use to approximate inverse information with, only for LBFGS.}
+\item{grads}{number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.}
 
 \item{parallel}{one of TRUE or FALSE to indicate if parallelization should be used.
 Only available for branch and bound selection.}
 
-\item{nthreads}{number of threads used with OpenMP, only used if parallel is TRUE.}
+\item{nthreads}{number of threads used with OpenMP, only used if \code{parallel = TRUE}.}
 
 \item{tol}{tolerance used to determine model convergence.}
 

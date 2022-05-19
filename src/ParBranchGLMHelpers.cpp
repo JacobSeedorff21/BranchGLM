@@ -503,7 +503,7 @@ List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec*
   double dispersion = 1;
   
   if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows - X->n_cols);
+    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows);
   }
   Info = ParFisherInfoCpp(X, &Deriv, &Var);
   arma::mat InfoInv = Info;
@@ -540,7 +540,7 @@ List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec*
   NumericVector linPreds1 = NumericVector(linPreds.begin(), linPreds.end());
   
   if(Dist == "gaussian"){
-    double temp = X->n_rows/2 * log(2*M_PI*dispersion);
+    double temp = Y->n_elem/2 * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
     AIC = -2 * LogLik + 2 * (X->n_cols + 1);
   }

@@ -32,7 +32,7 @@ test_that("linear regression works", {
                                  parallel = TRUE, nthreads = 1)
   
   expect_equal(LinearBackward$finalmodel$coefficients, LinearBackward2$finalmodel$coefficients)
-  
+  expect_equal(LinearBackward$finalmodel$AIC, AIC(LinearBackward$finalmodel))  
 })
 
 ### Toothgrowth regression tests

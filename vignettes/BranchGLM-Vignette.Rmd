@@ -137,8 +137,8 @@ VariableSelection(carsFit, type = "backward")
 
 - Branch and bound is much slower than the other methods, but it is guaranteed to find the best model.
 - The branch and bound method can be much faster than an exhaustive search and can also be made many times faster if parallel computation is used.
-- One way to judge how much faster the branch and bound algorithm is compared to an exhaustive search is to look at the ratio of the number of models checked against the total number of possible models.
-  - If this ratio is close to 1, then it is performing poorly and has to check almost every model, if it is close to 0, then it is performing well and ruled out many models without having to check them.
+- One way to judge how much faster the branch and bound algorithm is compared to an exhaustive search is to look at the ratio of the number of models fit against the total number of possible models.
+  - If this ratio is close to 1, then it is performing poorly and has to fit almost every model, if it is close to 0, then it is performing well and ruled out many models without having to fit them.
 
 ### Branch and bound example
 
@@ -156,7 +156,7 @@ FormulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gaussian",
                                link = "identity", type = "branch and bound",
                                showprogress = FALSE)
 
-### One way to judge how well the branch and bound performs is 
+### Number of models fit divided by the number of possible models
 
 FormulaVS$numchecked / 2^(length(FormulaVS$variables))
 

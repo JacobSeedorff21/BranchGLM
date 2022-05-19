@@ -31,13 +31,15 @@ BranchGLM(
 
 \item{offset}{offset vector, by default the zero vector is used.}
 
-\item{method}{one of "Fisher", "BFGS", or "LBFGS".}
+\item{method}{one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
+quasi-newton methods which are typically faster than Fisher's scoring when
+there are many covariates (at least 30).}
 
-\item{grads}{number of gradients to use to approximate information with, only for LBFGS.}
+\item{grads}{number of gradients used to approximate information with, only for \code{method = "LBFGS"}.}
 
 \item{parallel}{whether or not to make use of parallelization via OpenMP.}
 
-\item{nthreads}{number of threads used with OpenMP, only used if parallel = TRUE.}
+\item{nthreads}{number of threads used with OpenMP, only used if \code{parallel = TRUE}.}
 
 \item{tol}{tolerance used to determine model convergence.}
 
@@ -71,16 +73,16 @@ A \code{BranchGLM} object which is a list with the following components
 \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
 }
 \description{
-Fits generalized linear models via 'RcppArmadillo'. Also has the 
-ability to fit the models with parallelization via 'OpenMP'.
+Fits generalized linear models via RcppArmadillo. Also has the 
+ability to fit the models with parallelization via OpenMP.
 }
 \details{
 Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
-typically faster than Fisher's scoring when there are at least 50 covariates 
-and Fisher's scoring is typically best when there are fewer than 20 covariates.
+typically faster than Fisher's scoring when there are at least 30 covariates 
+and Fisher's scoring is typically best when there are fewer than 30 covariates.
 This function does not currently support the use of weights. 
 
-The models are fit in C++ by using 'Rcpp' and 'RcppArmadillo'. In order to help 
+The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
 convergence, each of the methods makes use of a backtracking line-search using 
 the armijo-goldstein condition to find an adequate step size. There are also 
 two conditions used to control convergence, the first is whether there is a 
