@@ -140,32 +140,3 @@ test_that("non-invertible info works", {
   expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity", type = "forward") |>
                 suppressWarnings(), NA)
 })
-
-### Log-likelihood tests
-### Toothgrowth regression tests
-test_that("log-likelihoods work", {
-  library(BranchGLM)
-  Data <- ToothGrowth
-  
-  ## Residual deviance tests
-  ### Poisson
-  PoissonFit <- BranchGLM(as.numeric(supp) ~ ., data = Data, family = "poisson", 
-                        link = "log")
-  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = poisson)
-  
-  expect_equal(logLik(PoissonFit), logLik(GLMFit))
-  
-  ## Logistic
-  LogitFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", 
-                        link = "logit")
-  GLMFit <- glm(supp ~ ., data = Data, family = binomial)
-  
-  expect_equal(logLik(LogitFit), logLik(GLMFit))
-  
-  ## Linear
-  LinearFit <- BranchGLM(as.numeric(supp) ~ ., data = Data, family = "gaussian", 
-                        link = "identity")
-  GLMFit <- glm(as.numeric(supp) ~ ., data = Data, family = gaussian)
-  
-  expect_equal(logLik(LinearFit), logLik(GLMFit))
-})
