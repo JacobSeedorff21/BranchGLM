@@ -316,7 +316,7 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
   }else if(x$iterations > 1){
     cat(paste0("\nAlgorithm converged in ", x$iterations, " iterations using ", method, "\n"))
   }else{
-    cat("\nAlgorithm failed to converge")
+    cat("\nAlgorithm failed to converge\n")
   }
   
   if(x$parallel){
