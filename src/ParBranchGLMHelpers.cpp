@@ -475,89 +475,30 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   return(k);
 }
 
-List ParBranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
-                   std::string method,  unsigned int m, std::string Link, std::string Dist,
-                   unsigned int nthreads, double tol, int maxit){
+int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
+                   const arma::vec* offset){
   
-  arma::vec beta(X->n_cols, arma::fill::zeros);
-  arma::mat Info(beta.n_elem, beta.n_elem);
-  double Iter;
+  arma::mat FinalMat(x->n_cols, x->n_cols);
   
-  if(method == "BFGS"){
-    Iter = ParBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
+  // Finding X'X
+  for(unsigned int i = 0; i < x->n_cols; i++){
     
-  }
-  else if(method == "LBFGS"){
-    Iter = ParLBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
-  }
-  else{
-    Iter = ParFisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
+    FinalMat(i, i) = arma::dot(x->col(i), x->col(i));
+    
+    for(unsigned int j = i + 1; j < x->n_cols; j++){
+      
+      FinalMat(i, j) = arma::dot(x->col(j), x->col(i));
+      FinalMat(j, i) = FinalMat(i, j);
+    } 
   }
   
-  arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
-  arma::vec Deriv = ParDerivativeCpp(X, &beta, Offset, &mu, Link, Dist);
-  arma::vec Var = ParVariance(&mu, Dist);
-  
-  // Calculating information
-  
-  double dispersion = 1;
-  
-  if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows);
-  }
-  Info = ParFisherInfoCpp(X, &Deriv, &Var);
-  arma::mat InfoInv = Info;
-  if(!arma::inv_sympd(InfoInv, Info)){
+  // calculating inverse of X'X
+  arma::mat InvXX(x->n_cols, x->n_cols);
+  if(!arma::inv_sympd(InvXX, FinalMat)){
     stop("Fisher info not invertible");
   }
-  // Calculating standard errors
   
-  const arma::vec SE1 = arma::diagvec(InfoInv);
-  
-  NumericVector SE = NumericVector(SE1.begin(), SE1.end());
-  
-  SE = sqrt(SE);
-  
-  // Calculating z-values
-  
-  NumericVector z = NumericVector(beta.begin(), beta.end()) / SE;
-  
-  // Calculating p-values
-  
-  NumericVector p = 2 * pnorm(abs(z), 0, 1, false, false);
-  
-  // Returning results
-  
-  double satLogLik = ParLogLikelihoodSat(X, Y, Dist);
-  double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
-  double resDev = -2 * (LogLik - satLogLik);
-  double AIC = -2 * LogLik + 2 * X->n_cols;
-  
-  NumericVector beta1 = NumericVector(beta.begin(), beta.end());
-  
-  arma::vec linPreds = *X * beta;
-  
-  NumericVector linPreds1 = NumericVector(linPreds.begin(), linPreds.end());
-  
-  if(Dist == "gaussian"){
-    double temp = Y->n_elem/2 * log(2*M_PI*dispersion);
-    LogLik = LogLik / dispersion - temp;
-    AIC = -2 * LogLik + 2 * (X->n_cols + 1);
-  }
-  else if(Dist == "poisson"){
-    LogLik -=  ParLogFact(Y);
-    AIC = -2 * LogLik + 2 * (X->n_cols);
-  }
-  
-  return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
-                            Named("SE") = sqrt(dispersion) * SE,
-                            Named("z") = z, 
-                            Named("p-values") = p),
-                            Named("iterations") = Iter,
-                            Named("dispersion") = dispersion,
-                            Named("logLik") =  LogLik,
-                            Named("resDev") = resDev,
-                            Named("AIC") = AIC,
-                            Named("preds") = NumericVector(mu.begin(), mu.end()),
-                            Named("linPreds") = linPreds1);
-}
+  // Calculating beta, dispersion parameter, and beta variances
+  *beta = InvXX * x->t() * (*y - *offset);
+  return(1);
+} 

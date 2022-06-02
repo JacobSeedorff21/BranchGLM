@@ -15,7 +15,9 @@ double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* 
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
   int Iter;
-  if(method == "BFGS"){
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = ParLinRegCppShort(&beta, X, Y, Offset);
+  }else if(method == "BFGS"){
     Iter = ParBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
     
   }
@@ -61,7 +63,9 @@ double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offs
   
   arma::vec beta(xTemp.n_cols, arma::fill::zeros);
   
-  if(method == "BFGS"){
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = ParLinRegCppShort(&beta, &xTemp, Y, Offset);
+  }else if(method == "BFGS"){
     Iter = ParBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit);
     
   }

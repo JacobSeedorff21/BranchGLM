@@ -54,4 +54,7 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
                 unsigned int nthreads, double tol, int maxit);
 
+int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
+              const arma::vec* offset);
+
 #endif

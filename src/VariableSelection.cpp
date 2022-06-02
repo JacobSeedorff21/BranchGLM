@@ -106,9 +106,10 @@ double MetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Off
   int Iter;
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
-  if(method == "BFGS"){
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = LinRegCppShort(&beta, X, Y, Offset);
+  }else if(method == "BFGS"){
     Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
-    
   }
   else if(method == "LBFGS"){
     Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
@@ -333,7 +334,9 @@ double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   arma::mat xTemp = GetMatrix(X, &UpperModel, indices);
   arma::vec beta(xTemp.n_cols, arma::fill::zeros);
   
-  if(method == "BFGS"){
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = LinRegCppShort(&beta, &xTemp, Y, Offset);
+  }else if(method == "BFGS"){
     Iter = BFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit);
     
   }

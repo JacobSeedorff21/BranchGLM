@@ -575,18 +575,34 @@ int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
   return(1);
 } 
 
-int LinRegCpp1(arma::vec* beta, const arma::mat* x, const arma::mat* y){
+int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
+              const arma::vec* offset){
   
-  // Solving for beta
-  arma::mat Q;
-  arma::mat R;
-  if(!arma::qr_econ(Q, R, *x)){
-    warning("QR decomposition failed");
-    return(-2);
+  arma::mat FinalMat(x->n_cols, x->n_cols);
+  
+  // Finding X'X
+#pragma omp parallel for schedule(dynamic, 1)
+  for(unsigned int i = 0; i < x->n_cols; i++){
+    
+    FinalMat(i, i) = arma::dot(x->col(i), x->col(i));
+    
+    for(unsigned int j = i + 1; j < x->n_cols; j++){
+      
+      FinalMat(i, j) = arma::dot(x->col(j), x->col(i));
+      FinalMat(j, i) = FinalMat(i, j);
+    } 
   }
-  *beta = arma::solve(trimatu(R), Q.t() * *y);
+  
+  // calculating inverse of X'X
+  arma::mat InvXX(x->n_cols, x->n_cols);
+  if(!arma::inv_sympd(InvXX, FinalMat)){
+    stop("Fisher info not invertible");
+  }
+  
+  // Calculating beta, dispersion parameter, and beta variances
+  *beta = InvXX * x->t() * (*y - *offset);
   return(1);
-}
+} 
 
 // [[Rcpp::export]]
 List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
@@ -712,9 +728,6 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   // Initializing doubles
   double Iter;
   double dispersion = 1;
-#ifdef _OPENMP
-  omp_set_num_threads(nthreads);
-#endif
   
   // Fitting model
   if(Dist == "gaussian" && Link == "identity"){
@@ -789,10 +802,6 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
     LogLik -=  LogFact(Y);
     AIC = -2 * LogLik + 2 * (X->n_cols);
   }
-  
-#ifdef _OPENMP
-  omp_set_num_threads(1);
-#endif
   
   return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
                             Named("SE") = sqrt(dispersion) * SE,

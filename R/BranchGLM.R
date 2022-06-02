@@ -45,8 +45,8 @@
 #' @description Fits generalized linear models via RcppArmadillo. Also has the 
 #' ability to fit the models with parallelization via OpenMP.
 #' @details Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
-#' typically faster than Fisher's scoring when there are at least 30 covariates 
-#' and Fisher's scoring is typically best when there are fewer than 30 covariates.
+#' typically faster than Fisher's scoring when there are at least 50 covariates 
+#' and Fisher's scoring is typically best when there are fewer than 50 covariates.
 #' This function does not currently support the use of weights. 
 #' 
 #' The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
@@ -315,18 +315,21 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
   cat(paste0("\nResidual Deviance: ", round(x$resDev, digits = digits), " on ",
              x$numobs - nrow(x$coefficients), " degrees of freedom"))
   cat(paste0("\nAIC: ", round(x$AIC, digits = digits)))
-  
-  if(x$method == "Fisher"){
-    method = "Fisher's scoring"
-  }else if(x$method == "LBFGS"){
-    method = "L-BFGS"
-  }else{method = "BFGS"}
-  if(x$iterations == 1){
-    cat(paste0("\nAlgorithm converged in 1 iteration using ", method, "\n"))
-  }else if(x$iterations > 1){
-    cat(paste0("\nAlgorithm converged in ", x$iterations, " iterations using ", method, "\n"))
+  if(x$family != "gaussian" || x$link != "identity"){
+    if(x$method == "Fisher"){
+      method = "Fisher's scoring"
+    }else if(x$method == "LBFGS"){
+      method = "L-BFGS"
+    }else{method = "BFGS"}
+    if(x$iterations == 1){
+      cat(paste0("\nAlgorithm converged in 1 iteration using ", method, "\n"))
+    }else if(x$iterations > 1){
+      cat(paste0("\nAlgorithm converged in ", x$iterations, " iterations using ", method, "\n"))
+    }else{
+      cat("\nAlgorithm failed to converge\n")
+    }
   }else{
-    cat("\nAlgorithm failed to converge\n")
+    cat("\n")
   }
   
   if(x$parallel){
