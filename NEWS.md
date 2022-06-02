@@ -1,7 +1,7 @@
 BranchGLM News
 ================
 
-# BranchGLM 1.1.0
+# BranchGLM 1.0.1
 
 -   Adding NEWS.md
 -   Minimized repeated work for linear regression, so it should now be

@@ -7,7 +7,7 @@
 #' @param offset offset vector, by default the zero vector is used.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
 #' quasi-newton methods which are typically faster than Fisher's scoring when
-#' there are many covariates (at least 30).
+#' there are many covariates (at least 50).
 #' @param grads number of gradients used to approximate information with, only for \code{method = "LBFGS"}.
 #' @param parallel whether or not to make use of parallelization via OpenMP.
 #' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
@@ -59,7 +59,8 @@
 #' converge, then \code{iterations} will be -1.
 #' 
 #' The likelihood equations are solved directly, i.e. no matrix decomposition is used.
-#' All observations with any missing values are ignored.
+#' All observations with any missing values are ignored. The \code{method} argument 
+#' is ignored for linear regression and the OLS solution is used.
 #' @examples
 #' Data <- iris
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")

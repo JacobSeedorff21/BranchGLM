@@ -495,7 +495,7 @@ int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
   // calculating inverse of X'X
   arma::mat InvXX(x->n_cols, x->n_cols);
   if(!arma::inv_sympd(InvXX, FinalMat)){
-    stop("Fisher info not invertible");
+    return(-2);
   }
   
   // Calculating beta, dispersion parameter, and beta variances

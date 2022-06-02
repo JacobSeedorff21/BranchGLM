@@ -35,7 +35,7 @@ BranchGLM(
 
 \item{method}{one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
 quasi-newton methods which are typically faster than Fisher's scoring when
-there are many covariates (at least 30).}
+there are many covariates (at least 50).}
 
 \item{grads}{number of gradients used to approximate information with, only for \code{method = "LBFGS"}.}
 
@@ -87,8 +87,8 @@ ability to fit the models with parallelization via OpenMP.
 }
 \details{
 Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
-typically faster than Fisher's scoring when there are at least 30 covariates 
-and Fisher's scoring is typically best when there are fewer than 30 covariates.
+typically faster than Fisher's scoring when there are at least 50 covariates 
+and Fisher's scoring is typically best when there are fewer than 50 covariates.
 This function does not currently support the use of weights. 
 
 The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
@@ -101,7 +101,8 @@ each of the elements of the beta vector changes by a sufficient amount. The
 converge, then \code{iterations} will be -1.
 
 The likelihood equations are solved directly, i.e. no matrix decomposition is used.
-All observations with any missing values are ignored.
+All observations with any missing values are ignored. The \code{method} argument 
+is ignored for linear regression and the OLS solution is used.
 }
 \examples{
 Data <- iris
