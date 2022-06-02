@@ -310,10 +310,10 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
                has.Pvalue = TRUE)
   
   cat(paste0("\nDispersion parameter taken to be ", round(x$dispersion, coefdigits)))
-  cat(paste0("\n", nrow(x$numobs), " observations used to fit model\n(", x$missing, 
+  cat(paste0("\n", x$numobs, " observations used to fit model\n(", x$missing, 
              " observations removed due to missingness)\n"))
   cat(paste0("\nResidual Deviance: ", round(x$resDev, digits = digits), " on ",
-             nrow(x$numobs) - nrow(x$coefficients), " degrees of freedom"))
+             x$numobs - nrow(x$coefficients), " degrees of freedom"))
   cat(paste0("\nAIC: ", round(x$AIC, digits = digits)))
   
   if(x$method == "Fisher"){

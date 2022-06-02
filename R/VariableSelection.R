@@ -331,18 +331,20 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
       as.formula()
   }
   
-  df$fit$x <- model.matrix(df$fit$formula, object$data, object$contrasts)
+  x <- model.matrix(df$fit$formula, object$data, object$contrasts)
+  
+  df$fit$numobs <- nrow(x)
   
   df$fit$y <- object$y
   
-  row.names(df$fit$coefficients) <- colnames(df$fit$x)
+  row.names(df$fit$coefficients) <- colnames(x)
   
-  df$fit$names <- attributes(terms(df$fit$formula, data = df$fit$x))$factors |>
+  df$fit$names <- attributes(terms(df$fit$formula, data = x))$factors |>
     colnames()
   
   df$fit$yname <- object$yname
   
-  df$fit$parallel <- (parallel != FALSE)
+  df$fit$parallel <- parallel
   
   df$fit$missing <- object$missing
   

@@ -16,7 +16,9 @@ BranchGLM(
   nthreads = 8,
   tol = 1e-04,
   maxit = NULL,
-  contrasts = NULL
+  contrasts = NULL,
+  keepData = TRUE,
+  keepY = TRUE
 )
 }
 \arguments{
@@ -47,6 +49,12 @@ there are many covariates (at least 30).}
 Fisher's scoring is 50 and for the other methods the default is 200.}
 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
+
+\item{keepData}{Whether or not to store a copy of data and design matrix, the default 
+is TRUE. If this is false, then this cannot be used inside of \code{VariableSelection}.}
+
+\item{keepY}{Whether or not to store a copy of y, the default is TRUE. If 
+this is FALSE, then the binomial GLM helper functions may not work.}
 }
 \value{
 A \code{BranchGLM} object which is a list with the following components
@@ -60,9 +68,10 @@ A \code{BranchGLM} object which is a list with the following components
 \item{\code{linpreds}}{ linear predictors from the fitted model}
 \item{\code{formula}}{ formula used to fit the model}
 \item{\code{method}}{ iterative method used to fit the model}
-\item{\code{y}}{ y vector used in the model}
-\item{\code{x}}{ design matrix used to fit the model}
-\item{\code{data}}{ original dataframe supplied to the function}
+\item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
+\item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
+\item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
+\item{\code{numobs}}{ number of observations in the design matrix}
 \item{\code{names}}{ names of the variables}
 \item{\code{yname}}{ name of y variable}
 \item{\code{parallel}}{ whether parallelization was employed to speed up model fitting process}
