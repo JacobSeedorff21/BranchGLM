@@ -204,6 +204,12 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
                                         method = "Fisher", grads = 10, parallel = FALSE, 
                                         nthreads = 8, tol = 1e-4, maxit = NULL,
                                         showprogress = TRUE, ...){
+  
+  ## Checking if supplied BranchGLM object has x and data
+  if(is.null(object$data) || is.null(object$x)){
+    stop("the supplied model must have a data and an x component")
+  }
+    
   ## Performing argument checks
   if(length(parallel) > 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")

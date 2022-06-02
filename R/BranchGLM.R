@@ -14,6 +14,10 @@
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
 #' Fisher's scoring is 50 and for the other methods the default is 200.
+#' @param keepData Whether or not to store a copy of data and design matrix, the default 
+#' is TRUE. If this is false, then this cannot be used inside of \code{VariableSelection}.
+#' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
+#' this is FALSE, then the binomial GLM helper functions may not work.
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
 #' @return A \code{BranchGLM} object which is a list with the following components
 #' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
@@ -26,9 +30,10 @@
 #' \item{\code{linpreds}}{ linear predictors from the fitted model}
 #' \item{\code{formula}}{ formula used to fit the model}
 #' \item{\code{method}}{ iterative method used to fit the model}
-#' \item{\code{y}}{ y vector used in the model}
-#' \item{\code{x}}{ design matrix used to fit the model}
-#' \item{\code{data}}{ original dataframe supplied to the function}
+#' \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
+#' \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
+#' \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
+#' \item{\code{numobs}}{ number of observations in the design matrix}
 #' \item{\code{names}}{ names of the variables}
 #' \item{\code{yname}}{ name of y variable}
 #' \item{\code{parallel}}{ whether parallelization was employed to speed up model fitting process}
@@ -60,9 +65,10 @@
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 #' @export
 
-BranchGLM <- function(formula, data, family, link, offset = NULL, 
+BranchGLM1 <- function(formula, data, family, link, offset = NULL, 
                     method = "Fisher", grads = 10, parallel = FALSE, nthreads = 8, 
-                    tol = 1e-4, maxit = NULL, contrasts = NULL){
+                    tol = 1e-4, maxit = NULL, contrasts = NULL, keepData = TRUE,
+                    keepY = TRUE){
   
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
@@ -150,12 +156,16 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   
   df$method <- method
   
-  df$y <- y
+  if(keepY){
+    df$y <- y
+  }
   
-  df$x <- x
+  df$numobs <- nrow(x)
   
-  df$data <- data
-  
+  if(keepData){
+    df$data <- data
+    df$x <- x
+  }
   df$names <- attributes(terms(formula, data = data))$factors |>
               colnames()
   
@@ -300,10 +310,10 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
                has.Pvalue = TRUE)
   
   cat(paste0("\nDispersion parameter taken to be ", round(x$dispersion, coefdigits)))
-  cat(paste0("\n", nrow(x$x), " observations used to fit model\n(", x$missing, 
+  cat(paste0("\n", nrow(x$numobs), " observations used to fit model\n(", x$missing, 
              " observations removed due to missingness)\n"))
   cat(paste0("\nResidual Deviance: ", round(x$resDev, digits = digits), " on ",
-             nrow(x$x) - nrow(x$coefficients), " degrees of freedom"))
+             nrow(x$numobs) - nrow(x$coefficients), " degrees of freedom"))
   cat(paste0("\nAIC: ", round(x$AIC, digits = digits)))
   
   if(x$method == "Fisher"){

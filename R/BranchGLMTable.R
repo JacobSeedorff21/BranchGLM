@@ -80,6 +80,9 @@ Table.numeric <- function(object, y, cutoff = .5, ...){
 #' @export
 
 Table.BranchGLM <- function(object, cutoff = .5, ...){
+  if(is.null(object$y)){
+    stop("supplied BranchGLM object must have a y component")
+  }
   if(object$family != "binomial"){
     stop("This method is only valid for BranchGLM models in the binomial family")
   }
@@ -226,6 +229,9 @@ Cindex.numeric <- function(object, y, ...){
 #' @export
 
 Cindex.BranchGLM <- function(object, ...){
+  if(is.null(object$y)){
+    stop("supplied BranchGLM object must have a y component")
+  }
   if(object$family != "binomial"){
     stop("This method is only valid for BranchGLM models in the binomial family")
   }
@@ -322,6 +328,9 @@ ROC.numeric <- function(object, y, ...){
 #' @export
 
 ROC.BranchGLM <- function(object, ...){
+  if(is.null(object$y)){
+    stop("supplied BranchGLM object must have a y component")
+  }
   if(object$family != "binomial"){
     stop("This method is only valid for BranchGLM models in the binomial family")
   }
