@@ -9,3 +9,4 @@ src/*.dll
 src/.Rhistory
 R/.Rhistory
 CRAN-SUBMISSION
+NEWS.RMD
