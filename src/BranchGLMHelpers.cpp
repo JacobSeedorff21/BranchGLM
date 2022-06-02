@@ -5,8 +5,7 @@
 #endif
 using namespace Rcpp;
 
-// Calculating sum of logs of factorials 
-
+// Calculating sum of logs of factorials, this is used for poisson likelihood
 double LogFact(const arma::vec* y){
   double sum = 0;
   double Max = max(*y);
@@ -24,7 +23,6 @@ double LogFact(const arma::vec* y){
 }
 
 // Checking bounds
-
 void CheckBounds(arma::vec* mu, std::string Dist){
   if(Dist == "binomial"){
     mu->transform([](double val){
@@ -42,10 +40,10 @@ void CheckBounds(arma::vec* mu, std::string Dist){
 }
 
 // Defining Link functions
-
 arma::vec LinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset, 
                   std::string Link, std::string Dist){
   
+  // Calculating linear predictors
   arma::vec XBeta = (*X * *beta) + *Offset;
   arma::vec mu(XBeta.n_elem);
   
@@ -85,8 +83,7 @@ arma::vec LinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
   return(mu);
 }
 
-// Defining Derivative functions
-
+// Defining Derivative functions for each link function
 arma::vec DerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
                         arma::vec* mu, std::string Link, std::string Dist){
   
@@ -123,8 +120,7 @@ arma::vec DerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Of
   return(Deriv);
 }
 
-// Defining Link functions
-
+// Defining Variance functions for each family
 arma::vec Variance(arma::vec* mu, std::string Dist){
   
   arma::vec Var(mu->n_elem);
@@ -160,8 +156,7 @@ arma::vec Variance(arma::vec* mu, std::string Dist){
   
 }
 
-// Defining log likelihood for pointer armadillo vector beta
-
+// Defining log likelihood function
 double LogLikelihoodCpp(const arma::mat* X, const arma::vec* Y, 
                         arma::vec* mu, std::string Dist){
   
@@ -192,7 +187,6 @@ double LogLikelihoodCpp(const arma::mat* X, const arma::vec* Y,
 }
 
 // Defining log likelihood for saturated model
-
 double LogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist){
   
   double LogLik = 0;
@@ -216,16 +210,19 @@ double LogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist
   return(LogLik);
 }
 
-// Defining score with pointers
-
+// Defining score function
 arma::vec ScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
                    arma::vec* Var, arma::vec* mu){
   
+  // Initializing vector to store results
   arma::vec FinalVec(X->n_cols);
+  
+  //Calculating weights and difference in observed and expected
   arma::vec w = *Deriv / *Var;
   arma::vec diff = *Y - *mu;
   w.replace(arma::datum::nan, 0);
   
+  // Calculating score
 #pragma omp parallel for
   for(unsigned int i = 0; i < X->n_cols; i++){
     
@@ -235,16 +232,19 @@ arma::vec ScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
   return FinalVec;
 }
 
-// Defining fisher information with pointer
-
+// Defining fisher information function
 arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv, 
                         arma::vec* Var){
   
+  // Initializing matrix to store results
   arma::mat FinalMat(X->n_cols, X->n_cols);
+  
+  // Calculating weight vector, this is the diagonal of the W matrix
   arma::vec w = pow(*Deriv, 2) / *Var;
   w.replace(arma::datum::nan, 0);
   checkUserInterrupt();
   
+  // Calculating fisher information
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int i = 0; i < X->n_cols; i++){
     
@@ -261,8 +261,7 @@ arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   return FinalMat;
 }
 
-// Defining fisher information with pointer
-
+// Defining fisher information test function
 arma::mat FisherInfoCppNew(const arma::mat* X, arma::vec* Deriv, 
                         arma::vec* Var){
   
@@ -290,8 +289,7 @@ arma::mat FisherInfoCppNew(const arma::mat* X, arma::vec* Deriv,
   return FinalMat;
 }
 
-// Creating LBFGS helper function
-
+// LBFGS helper function
 arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y, 
                          int* k, int* m, 
                          arma::vec* r, arma::vec* alpha, const arma::mat* Info){
@@ -314,17 +312,18 @@ arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
     return *r;
   }
   
+  // Returns this if no gradients have been evaluated yet
   return *Info * *g1;
 }
 
-// Creating LBFGS for logistic regression
+// LBFGS
 int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                    const arma::vec* Y, const arma::vec* Offset,
                    std::string Link, std::string Dist, 
                    double tol, int maxit, int m = 5, 
                    double C1 = pow(10, -4)){
   
-  int k = 0;
+  // Initializing vectors and matrices 
   arma::vec mu = LinkCpp(X, beta, Offset, Link, Dist);
   arma::vec Deriv = DerivativeCpp(X, beta, Offset, &mu, Link, Dist);
   arma::vec Var = Variance(&mu, Dist);
@@ -340,11 +339,15 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     warning("Fisher information not invertible");
     return(-2);
   }
+  
+  // Initializing int and doubles
+  int k = 0;
   double f0;
   double f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
   double t;
   double alpha;
   
+  // Fitting the model
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
     if(k == maxit){ 
@@ -355,6 +358,8 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     alpha = 1;
     g0 = g1;
     f0 = f1;
+    
+    // Calculating p (search direction) based on L-BFGS approximation to inverse info
     p = -LBFGSHelperCpp(&g1, &s, &y, &k, &m, &r, &alphavec, &Info);
     t = -C1 * arma::dot(g0, p);
     *beta += alpha * p;
@@ -362,7 +367,6 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     
     // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    
     while((f0 < f1 + alpha * t) && (alpha > C1)){
       alpha /= 2;
       *beta -= alpha * p;
@@ -370,8 +374,9 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
       f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     }
     
+    // Checking for convergence or nan/inf
     if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)){
+      if(std::isinf(f1) || beta->has_nan()){
         warning("LBFGS failed to converge");
         k = -2;
       }
@@ -389,14 +394,13 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 }
 
 
-// Creating BFGS for logistic regression
-
+// BFGS
 int BFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                   const arma::vec* Y, const arma::vec* Offset,
                   std::string Link, std::string Dist,
                   double tol, int maxit, double C1 = pow(10, -4)){
   
-  int k = 0;
+  // Initializing vectors and matrices
   arma::vec mu = LinkCpp(X, beta, Offset, Link, Dist);
   arma::vec Deriv = DerivativeCpp(X, beta, Offset, &mu, Link, Dist);
   arma::vec Var = Variance(&mu, Dist);
@@ -410,12 +414,16 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     warning("Fisher information not invertible");
     return(-2);
   }
+  
+  // Initializing int and doubles
+  int k = 0;
   double f0;
   double f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
   double rho;
   double alpha;
   double t;
   
+  // Fitting the model
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
     if(k == maxit){ 
@@ -443,8 +451,9 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     
     k++;
     
+    // Checking for convergence or nan/inf
     if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)){
+      if(std::isinf(f1)|| beta->has_nan()){
         warning("BFGS failed to converge");
         k = -1;
       }
@@ -458,7 +467,6 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     rho = 1/arma::dot(s, y);
     
     // Calculating next approximate inverse hessian
-    
     H1 = (arma::diagmat(arma::ones(beta->n_elem)) - rho * s * y.t()) * H1 * 
       (arma::diagmat(arma::ones(beta->n_elem)) - rho * y * s.t()) + rho * s * s.t();
   }
@@ -466,7 +474,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 }
 
 
-// Creating Fisher Scoring for logistic regression
+// Fisher's scoring
 
 int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                                const arma::vec* Y, const arma::vec* Offset,
@@ -474,18 +482,22 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
                                double tol, int maxit,  
                                double C1 = pow(10, -4)){
   
-  int k = 0;
+  // Initializing vector and matrices
   arma::vec mu = LinkCpp(X, beta, Offset, Link, Dist);
   arma::vec Deriv = DerivativeCpp(X, beta, Offset, &mu, Link, Dist);
   arma::vec Var = Variance(&mu, Dist);
   arma::vec g1 = ScoreCpp(X, Y, &Deriv, &Var, &mu);
   arma::vec p(beta->n_elem);
   arma::mat H1 = FisherInfoCpp(X, &Deriv, &Var);
+  
+  // Initializing int and doubles
+  int k = 0;
   double f0;
   double f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
   double alpha;
   double t;
   
+  // Fitting the model
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
     alpha = 1;
@@ -516,8 +528,9 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     }
     k++;
     
+    //Checking for convergence or nan/inf
     if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)){
+      if(std::isinf(f1)|| beta->has_nan()){
         warning("Fisher Scoring failed to converge");
         k = -1;
       }
@@ -531,6 +544,49 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   return(k);
 }
 
+int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
+              const arma::vec* offset, arma::vec* SE1, double* dispersion){
+  
+  arma::mat FinalMat(x->n_cols, x->n_cols);
+  
+  // Finding X'X
+#pragma omp parallel for schedule(dynamic, 1)
+  for(unsigned int i = 0; i < x->n_cols; i++){
+    
+    FinalMat(i, i) = arma::dot(x->col(i), x->col(i));
+    
+    for(unsigned int j = i + 1; j < x->n_cols; j++){
+      
+      FinalMat(i, j) = arma::dot(x->col(j), x->col(i));
+      FinalMat(j, i) = FinalMat(i, j);
+    } 
+  }
+  
+  // calculating inverse of X'X
+  arma::mat InvXX(x->n_cols, x->n_cols);
+  if(!arma::inv_sympd(InvXX, FinalMat)){
+    stop("Fisher info not invertible");
+  }
+  
+  // Calculating beta, dispersion parameter, and beta variances
+  *beta = InvXX * x->t() * (*y - *offset);
+  *dispersion = arma::accu(pow(*y - *x * *beta - *offset, 2)) / (x->n_rows);
+  *SE1 = arma::diagvec(InvXX);
+  return(1);
+} 
+
+int LinRegCpp1(arma::vec* beta, const arma::mat* x, const arma::mat* y){
+  
+  // Solving for beta
+  arma::mat Q;
+  arma::mat R;
+  if(!arma::qr_econ(Q, R, *x)){
+    warning("QR decomposition failed");
+    return(-2);
+  }
+  *beta = arma::solve(trimatu(R), Q.t() * *y);
+  return(1);
+}
 
 // [[Rcpp::export]]
 List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
@@ -538,17 +594,25 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                      std::string Dist,
                      unsigned int nthreads, double tol, int maxit){
   
+  // Initializing vectors and matrices
   arma::vec beta(x.cols(), arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
+  arma::vec SE1(beta.n_elem);
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true); 
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  
+  // Initializing doubles
   double Iter;
+  double dispersion = 1;
 #ifdef _OPENMP
   omp_set_num_threads(nthreads);
 #endif
   
-  if(method == "BFGS"){
+  // Fitting model
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = LinRegCpp(&beta, &X, &Y, &Offset, &SE1, &dispersion);
+  }else if(method == "BFGS"){
     Iter = BFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
   else if(method == "LBFGS"){
@@ -557,43 +621,47 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   else{
     Iter = FisherScoringGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
+  
+  // Checking for non-invertible fisher info error
   if(Iter == -2){
     stop("Algorithm failed to converge because the fisher info was not invertible");
   }
+
+  // Calculating means
   arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
-  arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
-  arma::vec Var = Variance(&mu, Dist);
   
-  // Calculating information
-  
-  double dispersion = 1;
-  
-  if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(Y - mu, 2)) / (X.n_rows);
-  }
-  Info = FisherInfoCpp(&X, &Deriv, &Var);
-  arma::mat InfoInv = Info;
-  if(!arma::inv_sympd(InfoInv, Info)){
-    stop("Fisher info not invertible");
-  }
-  // Calculating standard errors
+  // Calculating variances for betas for non-linear regression
+  if(Dist != "gaussian" || Link != "identity"){
     
-  const arma::vec SE1 = arma::diagvec(InfoInv);
+    // Calculating derivatives, and variances to be used for info
+    arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
+    arma::vec Var = Variance(&mu, Dist);
     
+    // Calculating info and initaliazing inverse info
+    Info = FisherInfoCpp(&X, &Deriv, &Var);
+    arma::mat InfoInv = Info;
+    
+    // Calculating inverse info and returning error if not invertible
+    if(!arma::inv_sympd(InfoInv, Info)){
+      stop("Fisher info not invertible");
+    }
+    
+    // Calculating variances which are later converted to SEs
+    SE1 = arma::diagvec(InfoInv);
+  }
+
   NumericVector SE = NumericVector(SE1.begin(), SE1.end());
-    
+  
+  // Converting variances to SEs
   SE = sqrt(SE);
   
   // Calculating z-values
-  
   NumericVector z = NumericVector(beta.begin(), beta.end()) / SE;
   
   // Calculating p-values
-  
   NumericVector p = 2 * pnorm(abs(z), 0, 1, false, false);
   
   // Returning results
-  
   double satLogLik = LogLikelihoodSat(&X, &Y, Dist);
   double LogLik = -LogLikelihoodCpp(&X, &Y, &mu, Dist);
   double resDev = -2 * (LogLik - satLogLik);
@@ -601,7 +669,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   
   NumericVector beta1 = NumericVector(beta.begin(), beta.end());
   
-  arma::vec linPreds = X * beta;
+  arma::vec linPreds = X * beta + Offset;
   
   NumericVector linPreds1 = NumericVector(linPreds.begin(), linPreds.end());
   
@@ -636,16 +704,23 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
                 unsigned int nthreads, double tol, int maxit){
   
+  
+  // Initializing vectors and matrices
   arma::vec beta(X->n_cols, arma::fill::zeros);
   arma::mat Info(beta.n_elem, beta.n_elem);
+  arma::vec SE1(beta.n_elem);
+  // Initializing doubles
   double Iter;
+  double dispersion = 1;
 #ifdef _OPENMP
   omp_set_num_threads(nthreads);
 #endif
   
-  if(method == "BFGS"){
+  // Fitting model
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = LinRegCpp(&beta, X, Y, Offset, &SE1, &dispersion);
+  }else if(method == "BFGS"){
     Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
-    
   }
   else if(method == "LBFGS"){
     Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
@@ -653,43 +728,47 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   else{
     Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
   }
+  
+  // Checking for non-invertible fisher info error
   if(Iter == -2){
-    stop("Algorithm failed because the fisher info was not invertible");
+    stop("Algorithm failed to converge because the fisher info was not invertible");
   }
+  
+  // Calculating means
   arma::vec mu = LinkCpp(X, &beta, Offset, Link, Dist);
-  arma::vec Deriv = DerivativeCpp(X, &beta, Offset, &mu, Link, Dist);
-  arma::vec Var = Variance(&mu, Dist);
   
-  // Calculating information
-  
-  double dispersion = 1;
-  
-  if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows);
+  // Calculating variances for betas for non-linear regression
+  if(Dist != "gaussian" || Link != "identity"){
+    
+    // Calculating derivatives, and variances to be used for info
+    arma::vec Deriv = DerivativeCpp(X, &beta, Offset, &mu, Link, Dist);
+    arma::vec Var = Variance(&mu, Dist);
+    
+    // Calculating info and initaliazing inverse info
+    Info = FisherInfoCpp(X, &Deriv, &Var);
+    arma::mat InfoInv = Info;
+    
+    // Calculating inverse info and returning error if not invertible
+    if(!arma::inv_sympd(InfoInv, Info)){
+      stop("Fisher info not invertible");
+    }
+    
+    // Calculating variances which are later converted to SEs
+    SE1 = arma::diagvec(InfoInv);
   }
-  Info = FisherInfoCpp(X, &Deriv, &Var);
-  arma::mat InfoInv = Info;
-  if(!arma::inv_sympd(InfoInv, Info)){
-    stop("Fisher info not invertible");
-  }
-  // Calculating standard errors
-  
-  const arma::vec SE1 = arma::diagvec(InfoInv);
   
   NumericVector SE = NumericVector(SE1.begin(), SE1.end());
   
+  // Converting variances to SEs
   SE = sqrt(SE);
   
   // Calculating z-values
-  
   NumericVector z = NumericVector(beta.begin(), beta.end()) / SE;
   
   // Calculating p-values
-  
   NumericVector p = 2 * pnorm(abs(z), 0, 1, false, false);
   
   // Returning results
-  
   double satLogLik = LogLikelihoodSat(X, Y, Dist);
   double LogLik = -LogLikelihoodCpp(X, Y, &mu, Dist);
   double resDev = -2 * (LogLik - satLogLik);
@@ -697,7 +776,7 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   
   NumericVector beta1 = NumericVector(beta.begin(), beta.end());
   
-  arma::vec linPreds = *X * beta;
+  arma::vec linPreds = *X * beta + *Offset;
   
   NumericVector linPreds1 = NumericVector(linPreds.begin(), linPreds.end());
   
@@ -710,7 +789,6 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
     LogLik -=  LogFact(Y);
     AIC = -2 * LogLik + 2 * (X->n_cols);
   }
-  
   
 #ifdef _OPENMP
   omp_set_num_threads(1);
