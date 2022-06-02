@@ -10,3 +10,6 @@ README.md
 ^LICENSE\.md$
 ^ToDo.txt$
 ^CRAN-SUBMISSION$
+TestingPackage.R
+NEWS.RMD
+NEWS.MD
