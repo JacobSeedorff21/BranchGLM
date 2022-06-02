@@ -65,7 +65,7 @@
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 #' @export
 
-BranchGLM1 <- function(formula, data, family, link, offset = NULL, 
+BranchGLM <- function(formula, data, family, link, offset = NULL, 
                     method = "Fisher", grads = 10, parallel = FALSE, nthreads = 8, 
                     tol = 1e-4, maxit = NULL, contrasts = NULL, keepData = TRUE,
                     keepY = TRUE){
