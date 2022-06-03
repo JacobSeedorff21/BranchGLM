@@ -19,13 +19,63 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 
 ## Fitting glms
 
-**BranchGLM** can fit large regression models very quickly, next is a
-comparison of runtimes with the built-in `glm()` function.
+### Linear regression
+
+**BranchGLM** can fit large linear regression models very quickly, next
+is a comparison of runtimes with the built-in `lm()` function.
 
 ``` r
 library(BranchGLM)
 library(microbenchmark)
 library(ggplot2)
+set.seed(99601)
+
+NormalSimul <- function(n, d, Bprob = .5){
+  
+  x <- MASS::mvrnorm(n, mu = rep(1, d), Sigma = diag(.5, nrow = d, ncol = d) + 
+                 matrix(.5, ncol = d, nrow = d))
+  
+  beta <- rnorm(d + 1, mean = 0, sd = 5) 
+  
+  beta[sample(2:length(beta), floor((length(beta) - 1) * Bprob))] = 0
+  
+  y <- x %*% beta[-1] + beta[1] + rnorm(n, sd = 3)
+  
+  df <- cbind(y, x) |> 
+    as.data.frame()
+  
+  df$y <- df$V1
+  
+  df$V1 <- NULL
+  
+  df
+}
+### Big simulation
+
+df <- NormalSimul(100000, 250)
+
+Times <- microbenchmark("BranchGLM" = {BranchGLM(y ~ ., data = df, 
+                                                        family = "gaussian",
+                                                   link = "identity")},
+                        "Parallel BranchGLM" = {BranchGLM(y ~ ., data = df, 
+                                                        family = "gaussian",
+                                                   link = "identity",
+                                                   parallel = TRUE)},
+                        "lm" = {lm(y ~ ., data = df)},
+                        times = 100)
+
+autoplot(Times, log = FALSE)
+```
+
+![](README-linear-1.png)<!-- -->
+
+### Logistic regression
+
+**BranchGLM** can also fit large logistic regression models very
+quickly, next is a comparison of runtimes with the built-in `glm()`
+function.
+
+``` r
 set.seed(78771)
 
 LogisticSimul <- function(n, d, Bprob = .5, sd = 1){
@@ -50,34 +100,34 @@ LogisticSimul <- function(n, d, Bprob = .5, sd = 1){
 
 df <- LogisticSimul(10000, 50)
 
-Times <- microbenchmark(BFGS = {BranchGLM(y ~ ., data = df, family = "binomial",
+Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "BFGS")}, 
-                        LBFGS = {BranchGLM(y ~ ., data = df, family = "binomial",
+                        "LBFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "LBFGS")},
-                        Fisher = {BranchGLM(y ~ ., data = df, family = "binomial",
+                        "Fisher" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "Fisher")},
-                        ParallelBFGS = {BranchGLM(y ~ ., data = df, family = "binomial",
+                        "Parallel BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "BFGS",
                                                    parallel = TRUE)}, 
-                        ParallelLBFGS = {BranchGLM(y ~ ., data = df, 
+                        "Parallel L-BFGS" = {BranchGLM(y ~ ., data = df, 
                                                        family = "binomial",
                                                    link = "logit", method = "LBFGS",
                                                    parallel = TRUE)},
-                        ParallelFisher = {BranchGLM(y ~ ., data = df, 
+                        "Parallel Fisher" = {BranchGLM(y ~ ., data = df, 
                                                         family = "binomial",
                                                    link = "logit", method = "Fisher",
                                                    parallel = TRUE)},
-                        glm = {glm(y ~ ., data = df, family = "binomial")},
+                        "glm" = {glm(y ~ ., data = df, family = "binomial")},
                         times = 100)
 
 autoplot(Times, log = FALSE)
 ```
 
-![](README-glm-1.png)<!-- -->
+![](README-logistic-1.png)<!-- -->
 
 ## Variable selection
 
-**BranchGLM** can also perform best subsets selection very quickly, here
+**BranchGLM** can also perform best subset selection very quickly, here
 is a comparison of runtimes with the `bestglm()` function from the
 **bestglm** package.
 
@@ -95,7 +145,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.28    0.00    0.28
+    ##    0.37    0.05    0.42
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -105,7 +155,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  149.36    0.36  149.89
+    ##  214.33    0.97  215.64
 
 ### Checking results
 
