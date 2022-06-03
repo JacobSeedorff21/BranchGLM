@@ -189,6 +189,9 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
+  if(family == "gaussian" && link == "identity"){
+    colnames(df$coefficients)[3] <- "t"
+  }
   structure(df, class = "BranchGLM")
 }
 
