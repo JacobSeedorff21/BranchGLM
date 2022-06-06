@@ -14,7 +14,7 @@
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
 #' Fisher's scoring is 50 and for the other methods the default is 200.
-#' @param init inital values for the betas, if not specified then they are automatically 
+#' @param init initial values for the betas, if not specified then they are automatically 
 #' selected.
 #' @param keepData Whether or not to store a copy of data and design matrix, the default 
 #' is TRUE. If this is false, then this cannot be used inside of \code{VariableSelection}.

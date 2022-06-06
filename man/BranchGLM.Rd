@@ -49,7 +49,7 @@ there are many covariates (at least 50).}
 \item{maxit}{maximum number of iterations performed. The default for 
 Fisher's scoring is 50 and for the other methods the default is 200.}
 
-\item{init}{inital values for the betas, if not specified then they are automatically 
+\item{init}{initial values for the betas, if not specified then they are automatically 
 selected.}
 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
