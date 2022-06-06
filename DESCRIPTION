@@ -7,7 +7,7 @@ Authors@R: person("Jacob", "Seedorff", , "jwseedorff@uiowa.edu", role = c("aut",
 Maintainer: Jacob Seedorff <jwseedorff@uiowa.edu>
 URL: https://github.com/JacobSeedorff21/BranchGLM
 BugReports: https://github.com/JacobSeedorff21/BranchGLM/issues
-Description: BranchGLM is a package the parforms efficient and scalable glm best 
+Description: BranchGLM is a package the performs efficient and scalable glm best 
 	subset selection using a novel implementation of a branch and bound algorithm.
 	To speed up the model fitting process, the package utilizes a range of optimization
 	methods implemented in 'RcppArmadillo' and parallel computation using 'OpenMP'.
