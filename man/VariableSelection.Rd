@@ -76,8 +76,7 @@ This number adds onto any variables specified in keep.}
 
 \item{grads}{number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.}
 
-\item{parallel}{one of TRUE or FALSE to indicate if parallelization should be used.
-Only available for branch and bound selection.}
+\item{parallel}{one of TRUE or FALSE to indicate if parallelization should be used}
 
 \item{nthreads}{number of threads used with OpenMP, only used if \code{parallel = TRUE}.}
 

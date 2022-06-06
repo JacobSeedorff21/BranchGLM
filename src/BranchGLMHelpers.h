@@ -52,9 +52,16 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 
 List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
-                unsigned int nthreads, double tol, int maxit);
+                unsigned int nthreads, double tol, int maxit, bool GetInit = true);
 
 int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
               const arma::vec* offset);
+
+double GetDispersion(const arma::mat* X, const arma::vec* Y, 
+                     arma::vec* mu, double LogLik, std::string Dist, 
+                     double tol);
+
+void getInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
+             const arma::vec* Offset, std::string Dist, std::string Link);
 
 #endif

@@ -17,8 +17,7 @@
 #' default is the total number of variables.
 #' This number adds onto any variables specified in keep. 
 #' @param grads number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.
-#' @param parallel one of TRUE or FALSE to indicate if parallelization should be used.
-#' Only available for branch and bound selection.
+#' @param parallel one of TRUE or FALSE to indicate if parallelization should be used
 #' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
@@ -81,6 +80,7 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
                              grads = 10, parallel = FALSE, 
                              nthreads = 8, tol = 1e-4, maxit = NULL,
                              contrasts = NULL, ...){
+  
   ### Creating pseudo BranchGLM object to put into VariableSelection.BranchGLM
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
@@ -91,11 +91,11 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
     stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
-  if(!family %in% c("gaussian", "binomial", "poisson")){
-    stop("family must be one of 'gaussian', 'binomial', or 'poisson'")
+  if(!family %in% c("gaussian", "binomial", "poisson", "gamma")){
+    stop("family must be one of 'gaussian', 'binomial', 'gamma', or 'poisson'")
   }
-  if(!link %in% c("logit", "probit", "cloglog", "log", "identity")){
-    stop("link must be one of 'logit', 'probit', 'cloglog', 'log', or 'identity'")
+  if(!link %in% c("logit", "probit", "cloglog", "log", "identity", "inverse", "sqrt")){
+    stop("link must be one of 'logit', 'probit', 'cloglog', 'log', 'inverse', 'sqrt', or 'identity'")
   }
   mf <- match.call(expand.dots = FALSE)
   m <- match(c("formula", "data"), names(mf), 0L)
@@ -104,9 +104,12 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
   mf[[1L]] <- as.name("model.frame")
   mf <- eval(mf, parent.frame())
   y <- model.response(mf, "any")
-  ## Checking y variable for each family
+  
+  ## Checking y variable and link function for each family
   if(family == "binomial"){
-    if(is.factor(y) && (nlevels(y) == 2)){
+    if(!(link %in% c("cloglog", "log", "logit", "probit"))){
+      stop("valid link functions for binomial regression are 'cloglog', 'log', 'logit', and 'probit'")
+    }else if(is.factor(y) && (nlevels(y) == 2)){
       ylevel <- levels(y)
       y <- as.numeric(y == ylevel[2])
     }else if(is.numeric(y) && all(y %in% c(0, 1))){
@@ -119,14 +122,25 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
       0s and 1s, a two-level factor, or a logical vector")
     }
   }else if(family == "poisson"){
-    if(!is.numeric(y) || any(y < 0)){
+    if(!(link %in% c("identity", "log", "sqrt"))){
+      stop("valid link functions for poisson regression are 'identity', 'log', and 'sqrt'")
+    }else if(!is.numeric(y) || any(y < 0)){
       stop("response variable for poisson regression must be a numeric vector of non-negative integers")
     }else if(any(as.integer(y)!= y)){
       stop("response variable for poisson regression must be a numeric vector of non-negative integers")
     }
   }else if(family == "gaussian"){
-    if(!is.numeric(y)){
+    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
+      stop("valid link functions for gaussian regression are 'identity', 'inverse', 'log', and 'sqrt'")
+    }else if(!is.numeric(y)){
       stop("response variable for gaussian regression must be numeric")
+    }
+  }else if(family == "gamma"){
+    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
+      stop("valid link functions for gamma regression are 'identity', 'inverse', 'log', and 'sqrt'")
+    }
+    if(!is.numeric(y) || any(y <= 0)){
+      stop("response variable for gamma regression must be positive")
     }
   }
   
@@ -291,15 +305,9 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
                       object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                       metric)
   }else if(type == "branch and bound"){
-    if(parallel){
-      df <- ParBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
-                                        object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
-                                        metric, showprogress)
-    }else{
-      df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+    df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
                                       object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                                       metric, showprogress)
-    }
   }else{
     stop("type must be one of 'forward', 'backward', or 'branch and bound'")
   }

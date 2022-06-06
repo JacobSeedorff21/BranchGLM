@@ -66,13 +66,13 @@ arma::vec ParLinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offse
     }
   }
   else if(Link == "inverse"){
-    mu = 1 / (XBeta);
+    mu = -1 / (XBeta);
   }
   else if(Link == "identity"){
     mu = XBeta;
   }
-  else{
-    mu = sqrt(XBeta);
+  else if(Link == "sqrt"){
+    mu = pow(XBeta, 2);
   }
   
   ParCheckBounds(&mu, Dist);
@@ -104,13 +104,13 @@ arma::vec ParDerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec*
     }
   }
   else if(Link == "inverse"){
-    Deriv = -pow(*mu, 2);
+    Deriv = pow(*mu, 2);
   }
   else if(Link == "identity"){
     Deriv.fill(1);
   }
-  else{
-    Deriv = 1 / (2 * *mu);
+  else if(Link == "sqrt"){
+    Deriv = 2 * sqrt(*mu);
   }
   
   return(Deriv);
@@ -169,7 +169,7 @@ double ParLogLikelihoodCpp(const arma::mat* X, const arma::vec* Y,
     }
   }else if(Dist == "gamma"){
     arma::vec theta = -1 / *mu;
-    LogLik = arma::dot(*Y, theta) - arma::accu(log(-theta));
+    LogLik = -arma::dot(*Y, theta) - arma::accu(log(-theta));
   }else{
     for(unsigned int i = 0; i < Y->n_elem; i++){
       LogLik += pow(Y->at(i) - mu->at(i), 2) /2;
@@ -195,7 +195,7 @@ double ParLogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string D
     LogLik = 0;
   }else if(Dist == "gamma"){
     arma::vec theta = -1 / *Y;
-    LogLik = -arma::dot(*Y, theta) + arma::accu(log(-theta));
+    LogLik = arma::dot(*Y, theta) + arma::accu(log(-theta));
   }else{
     LogLik = 0 ;
   }
@@ -272,7 +272,7 @@ arma::vec ParLBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
   return *Info * *g1;
 }
 
-// Creating LBFGS for logistic regression
+// Creating LBFGS for GLMs for parallel functions
 int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                       const arma::vec* Y, const arma::vec* Offset,
                       std::string Link, std::string Dist, 
@@ -341,8 +341,7 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 }
 
 
-// Creating BFGS for logistic regression
-
+// Creating BFGS for GLMs for parallel functions
 int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                      const arma::vec* Y, const arma::vec* Offset,
                      std::string Link, std::string Dist,
@@ -414,8 +413,7 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 }
 
 
-// Creating Fisher Scoring for logistic regression
-
+// Creating Fisher Scoring for GLMs for parallel functions
 int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                              const arma::vec* Y, const arma::vec* Offset,
                              std::string Link, std::string Dist,
@@ -501,4 +499,20 @@ int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
   // Calculating beta, dispersion parameter, and beta variances
   *beta = InvXX * x->t() * (*y - *offset);
   return(1);
-} 
+}
+
+// Gets initial values for gamma and gaussian regression with log/inverse/sqrt link with 
+// transformed y linear regression
+void PargetInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
+             const arma::vec* Offset, std::string Dist, std::string Link){
+  if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
+    const arma::vec NewY = log(*Y);
+    ParLinRegCppShort(beta, X, &NewY, Offset);
+  }else if(Link == "inverse" && (Dist == "gamma" || Dist == "gaussian")){
+    const arma::vec NewY = -1 / (*Y);
+    ParLinRegCppShort(beta, X, &NewY, Offset);
+  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian")){
+    const arma::vec NewY = sqrt(*Y);
+    ParLinRegCppShort(beta, X, &NewY, Offset);
+  }
+}

@@ -14,6 +14,8 @@
 #' @param tol tolerance used to determine model convergence.
 #' @param maxit maximum number of iterations performed. The default for 
 #' Fisher's scoring is 50 and for the other methods the default is 200.
+#' @param init inital values for the betas, if not specified then they are automatically 
+#' selected.
 #' @param keepData Whether or not to store a copy of data and design matrix, the default 
 #' is TRUE. If this is false, then this cannot be used inside of \code{VariableSelection}.
 #' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
@@ -61,6 +63,9 @@
 #' The likelihood equations are solved directly, i.e. no matrix decomposition is used.
 #' All observations with any missing values are ignored. The \code{method} argument 
 #' is ignored for linear regression and the OLS solution is used.
+#' 
+#' The dispersion parameter for gamma regression is estimated via maximum likelihood, 
+#' very similar to the \code{gamma.dispersion} function from the MASS package.
 #' @examples
 #' Data <- iris
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -68,7 +73,8 @@
 
 BranchGLM <- function(formula, data, family, link, offset = NULL, 
                     method = "Fisher", grads = 10, parallel = FALSE, nthreads = 8, 
-                    tol = 1e-4, maxit = NULL, contrasts = NULL, keepData = TRUE,
+                    tol = 1e-4, maxit = NULL, init = NULL, 
+                    contrasts = NULL, keepData = TRUE,
                     keepY = TRUE){
   
   if(!is(formula, "formula")){
@@ -80,11 +86,11 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
     stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
-  if(!family %in% c("gaussian", "binomial", "poisson")){
-    stop("family must be one of 'gaussian', 'binomial', or 'poisson'")
+  if(!family %in% c("gaussian", "binomial", "poisson", "gamma")){
+    stop("family must be one of 'gaussian', 'binomial', 'gamma', or 'poisson'")
   }
-  if(!link %in% c("logit", "probit", "cloglog", "log", "identity")){
-    stop("link must be one of 'logit', 'probit', 'cloglog', 'log', or 'identity'")
+  if(!link %in% c("logit", "probit", "cloglog", "log", "identity", "inverse", "sqrt")){
+    stop("link must be one of 'logit', 'probit', 'cloglog', 'log', 'inverse', 'sqrt', or 'identity'")
   }
   mf <- match.call(expand.dots = FALSE)
   m <- match(c("formula", "data"), names(mf), 0L)
@@ -105,9 +111,11 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     stop("maxit must be a non-negative integer")
   }
   
-  ## Checking y variable for each family
+  ## Checking y variable and link function for each family
   if(family == "binomial"){
-    if(is.factor(y) && (nlevels(y) == 2)){
+    if(!(link %in% c("cloglog", "log", "logit", "probit"))){
+      stop("valid link functions for binomial regression are 'cloglog', 'log', 'logit', and 'probit'")
+    }else if(is.factor(y) && (nlevels(y) == 2)){
       ylevel <- levels(y)
       y <- as.numeric(y == ylevel[2])
     }else if(is.numeric(y) && all(y %in% c(0, 1))){
@@ -116,18 +124,28 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
       ylevel <- c(FALSE, TRUE)
       y <- y * 1
     }else{
-      stop("response variable for binomial regression must be a numeric vector with only 
-      0s and 1s, a two-level factor vector, or a logical vector")
-      }
+      stop("response variable for binomial regression must be numeric with only 
+      0s and 1s, a two-level factor, or a logical vector")
+    }
   }else if(family == "poisson"){
-      if(!is.numeric(y) || any(y < 0)){
-        stop("response variable for poisson regression must be a numeric vector of non-negative integers")
-      }else if(any(as.integer(y)!= y)){
-        stop("response variable for poisson regression must be a numeric vector of non-negative integers")
+    if(!(link %in% c("identity", "log", "sqrt"))){
+      stop("valid link functions for poisson regression are 'identity', 'log', and 'sqrt'")
+    }else if(!is.numeric(y) || any(y < 0)){
+      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
+    }else if(any(as.integer(y)!= y)){
+      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
     }
   }else if(family == "gaussian"){
-    if(!is.numeric(y)){
+    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
+      stop("valid link functions for gaussian regression are 'identity', 'inverse', 'log', and 'sqrt'")
+    }else if(!is.numeric(y)){
       stop("response variable for gaussian regression must be numeric")
+    }
+  }else if(family == "gamma"){
+    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
+      stop("valid link functions for gamma regression are 'identity', 'inverse', 'log', and 'sqrt'")
+    }else if(!is.numeric(y) || any(y <= 0)){
+      stop("response variable for gamma regression must be positive")
     }
   }
   
@@ -141,14 +159,23 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   }else if(!is.numeric(offset)){
     stop("offset must be a numeric vector")
   }
+  if(is.null(init)){
+    init <- rep(0, ncol(x))
+    GetInit <- TRUE
+  }else if(!is.numeric(init) || length(init) != nrow(x)){
+    stop("init must be null or a numeric vector with length equal to the number of betas")
+  }else{
+    GetInit <- FALSE
+  }
   ### Fitting GLM
   if(length(parallel) != 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")
   }else if(parallel){
-    df <- BranchGLMfit(x, y, offset, method, grads, link, family, nthreads, 
-                       tol, maxit) 
+    df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, nthreads, 
+                       tol, maxit, GetInit) 
   }else{
-    df <- BranchGLMfit(x, y, offset, method, grads, link, family, 1, tol, maxit) 
+    df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, 1, tol, maxit, 
+                       GetInit) 
   }
   
   row.names(df$coefficients) <- colnames(x)
@@ -205,7 +232,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
 
 logLik.BranchGLM <- function(object, ...){
   df <- length(coef(object))
-  if(object$family == "gaussian"){
+  if(object$family == "gaussian" || object$family == "gamma"){
     df <- df + 1
   }
   val <- object$logLik
@@ -287,13 +314,13 @@ GetPreds <- function(XBeta, Link){
     exp(-exp(XBeta))
   }
   else if(Link == "inverse"){
-    1 / (XBeta)
+    - 1 / (XBeta)
   }
   else if(Link == "identity"){
     XBeta
   }
   else{
-    sqrt(XBeta)
+    XBeta^2
   }
 }
 

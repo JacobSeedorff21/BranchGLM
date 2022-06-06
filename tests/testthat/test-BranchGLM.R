@@ -140,3 +140,70 @@ test_that("non-invertible info works", {
   expect_error(VariableSelection(V1 ~ ., data = Data, family = "gaussian", link = "identity", type = "forward") |>
                 suppressWarnings(), NA)
 })
+
+### Testing poisson regression
+test_that("poisson regression works", {
+  library(BranchGLM)
+  set.seed(199861)
+  x <- sapply(rep(0, 25), rnorm, n = 1000, simplify = TRUE)
+  x <- cbind(1, x)
+  beta <- rnorm(26, sd = .5)
+  beta[4:26] <- 0
+  y <- rpois(n = 1000, lambda = exp(x %*% beta))
+  Data <- cbind(y, x[,-1]) |>
+    as.data.frame()
+  
+  ## Fitting poisson regression
+  expect_equal(BranchGLM(y ~ ., data = Data, family = "poisson", link = "log", parallel = TRUE)$coefficients, 
+               BranchGLM(y ~ ., data = Data, family = "poisson", link = "log")$coefficients)
+  
+  ## Checking variable selection
+  ### branch and bound
+  expect_equal(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = TRUE, type = "branch and bound")$finalmodel$coefficients, 
+               VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = FALSE, type = "branch and bound")$finalmodel$coefficients)
+  
+  ### forward selection
+  expect_equal(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = TRUE, type = "forward")$finalmodel$coefficients, 
+               VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = FALSE, type = "forward")$finalmodel$coefficients)
+  ### backward selection
+  expect_equal(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = TRUE, type = "backward")$finalmodel$coefficients, 
+               VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = FALSE, type = "backward")$finalmodel$coefficients)
+  })
+
+### Testing gamma regression
+test_that("gamma regression works", {
+  library(BranchGLM)
+  set.seed(862)
+  x <- sapply(rep(0, 15), rnorm, n = 1000, simplify = TRUE)
+  x <- cbind(1, x)
+  beta <- rnorm(16)
+  y <- rgamma(n = 1000, shape = 10, rate = exp(x %*% beta))
+  Data <- cbind(y, x[,-1]) |>
+    as.data.frame()
+  
+  ## Finding gamma regression
+  expect_equal(BranchGLM(y ~ ., data = Data, family = "gamma", link = "log")$dispersion, 
+               0.097535718)
+  
+  ## Checking variable selection
+  ### branch and bound
+  expect_equal(VariableSelection(y ~ ., data = Data, family = "gamma", 
+                                 link = "log", parallel = TRUE, type = "branch and bound")$finalmodel$coefficients, 
+               VariableSelection(y ~ ., data = Data, family = "gamma", 
+                                 link = "log", parallel = FALSE, type = "branch and bound")$finalmodel$coefficients)
+  
+  ### forward selection doesn't work for this problem, so expect error
+  expect_error(VariableSelection(y ~ ., data = Data, family = "gamma", link = "log", type = "forward"))
+  ### backward selection
+  expect_equal(VariableSelection(y ~ ., data = Data, family = "gamma", 
+                                 link = "log", parallel = TRUE, type = "backward")$finalmodel$coefficients, 
+               VariableSelection(y ~ ., data = Data, family = "gamma", 
+                                 link = "log", parallel = FALSE, type = "backward")$finalmodel$coefficients)
+  
+})

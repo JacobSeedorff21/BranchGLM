@@ -1,20 +1,22 @@
 #include <RcppArmadillo.h>
 #include <cmath>
-#include "ParBranchGLMHelpers.h"
 #include "BranchGLMHelpers.h"
+#include "ParBranchGLMHelpers.h"
 #include "VariableSelection.h"
 #ifdef _OPENMP
 # include <omp.h>
 #endif
 using namespace Rcpp;
 
-double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
+double MetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                        std::string method, 
                        int m, std::string Link, std::string Dist,
                        double tol, int maxit, std::string metric){
   
   arma::vec beta(X->n_cols, arma::fill::zeros);
+  PargetInit(&beta, X, Y, Offset, Dist, Link);
   int Iter;
+  
   if(Dist == "gaussian" && Link == "identity"){
     Iter = ParLinRegCppShort(&beta, X, Y, Offset);
   }else if(method == "BFGS"){
@@ -30,14 +32,15 @@ double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* 
   if(Iter == -2){
     return(arma::datum::inf);
   }
-  double dispersion = 1;
-  arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
   
-  if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (X->n_rows);
+  arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
+  double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
+  double dispersion = GetDispersion(X, Y, &mu, LogLik, Dist, tol);
+  
+  if(dispersion <= 0){
+    return(arma::datum::inf);
   }
   
-  double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
   if(Dist == "gaussian"){
     double temp = X->n_rows/2 * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
@@ -45,14 +48,217 @@ double ParMetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* 
   else if(Dist == "poisson"){
     LogLik -=  ParLogFact(Y);
   }
+  else if(Dist == "gamma"){
+    double shape = 1 / dispersion;
+    LogLik = shape * LogLik + 
+      X->n_rows * (shape * log(shape) - lgamma(shape)) + 
+      (shape - 1) * arma::accu(log(*Y));
+  }
+  if(std::isnan(LogLik)){
+    return(arma::datum::inf);
+  }
   return(GetMetric(X, LogLik, Dist, metric));
 }
-double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
-                        std::string method, int m, std::string Link, std::string Dist,
-                        arma::ivec* CurModel,  arma::ivec* indices, 
-                        double tol, int maxit,
-                        std::string metric, unsigned int cur, int minsize,
-                        arma::uvec* NewOrder, double LowerBound){
+
+// Given a current model, this finds the best variable to add to the model
+void add1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
+          std::string method, int m, std::string Link, std::string Dist,
+          arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+          unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
+          arma::ivec* indices, double tol, int maxit, std::string metric){
+  
+  arma::vec Metrics(CurModel->n_elem, arma::fill::zeros);
+  Metrics.fill(arma::datum::inf);
+  checkUserInterrupt();
+  
+#pragma omp parallel for schedule(dynamic, 1)
+  for(unsigned int j = 0; j < CurModel->n_elem; j++){
+    if(CurModel->at(j) == 0){
+      (*numchecked)++;
+      arma::ivec CurModel2 = *CurModel;
+      CurModel2.at(j) = 1;
+      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+      Metrics.at(j) = MetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
+                 tol, maxit, metric);
+    }
+  }
+  unsigned int BestVar = Metrics.index_min();
+  double NewMetric = Metrics.at(BestVar);
+  checkUserInterrupt();
+  if(NewMetric < *BestMetric){
+    arma::ivec CurModel2 = *CurModel;
+    CurModel2.at(BestVar) = 1;
+    *BestModel = CurModel2;
+    *BestMetric = NewMetric;
+    *flag = false;
+    order->at(i) = BestVar;
+  }
+}
+
+// Performs forward selection
+// [[Rcpp::export]]
+List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
+                IntegerVector indices, IntegerVector num,
+                std::string method, int m,
+                std::string Link, std::string Dist,
+                unsigned int nthreads, double tol, int maxit,
+                IntegerVector keep, 
+                unsigned int steps, std::string metric){
+  
+#ifdef _OPENMP
+  omp_set_num_threads(nthreads);
+#endif
+  
+  const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
+  const arma::vec Y(y.begin(), y.size(), false, true);
+  const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  arma::ivec BestModel(keep.begin(), keep.size(), false, true);
+  arma::ivec Indices(indices.begin(), indices.size(), false, true);
+  
+  arma::ivec CurModel = BestModel;
+  arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  double BestMetric = arma::datum::inf;
+  BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
+                               tol, maxit, metric);
+  unsigned int numchecked = 0;
+  
+  IntegerVector order(CurModel.n_elem, -1);
+  arma::ivec Order(order.begin(), order.size(), false, true);
+  
+  for(unsigned int i = 0; i < steps; i++){
+    checkUserInterrupt();
+    bool flag = true;
+    CurModel = BestModel;
+    add1(&X, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
+         &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
+    
+    if(flag){
+      break;
+    }
+  }
+  // Getting x matrix for best model found
+  checkUserInterrupt();
+  const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
+  
+  List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
+                                 nthreads, tol, maxit);
+  
+  List FinalList = List::create(Named("fit") = helper,
+                                Named("order") = order,
+                                Named("model") = keep,
+                                Named("numchecked") = numchecked,
+                                Named("bestmetric") = BestMetric);
+  
+#ifdef _OPENMP
+  omp_set_num_threads(1);
+#endif
+  
+  return(FinalList);
+}
+
+// Given a current model, this finds the best variable to remove
+void drop1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
+           std::string method, int m, std::string Link, std::string Dist,
+           arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+           unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
+           arma::ivec* indices, double tol, int maxit, std::string metric){
+  
+  arma::vec Metrics(CurModel->n_elem);
+  Metrics.fill(arma::datum::inf);
+  
+#pragma omp parallel for schedule(dynamic, 1)
+  for(unsigned int j = 0; j < CurModel->n_elem; j++){
+    if(CurModel->at(j) == 1){
+      (*numchecked)++;
+      arma::ivec CurModel2 = *CurModel;
+      CurModel2.at(j) = 0;
+      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+      Metrics.at(j) = MetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
+                 tol, maxit, metric);
+      
+      
+    }
+  }
+  unsigned int BestVar = Metrics.index_min();
+  double NewMetric = Metrics.at(BestVar);
+  if(NewMetric < *BestMetric){
+    arma::ivec CurModel2 = *CurModel;
+    CurModel2.at(BestVar) = 0;
+    *BestModel = CurModel2;
+    *BestMetric = NewMetric;
+    *flag = false;
+    order->at(i) = BestVar;
+  }
+}
+
+// Performs backward elimination
+// [[Rcpp::export]]
+List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
+                 IntegerVector indices, IntegerVector num,
+                 std::string method, int m,
+                 std::string Link, std::string Dist,
+                 unsigned int nthreads, double tol, int maxit,
+                 IntegerVector keep, unsigned int steps, std::string metric){
+  
+#ifdef _OPENMP
+  omp_set_num_threads(nthreads);
+#endif
+  
+  const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
+  const arma::vec Y(y.begin(), y.size(), false, true);
+  const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  arma::ivec BestModel(keep.begin(), keep.size(), false, true);
+  arma::ivec Indices(indices.begin(), indices.size(), false, true);
+  
+  arma::ivec CurModel = BestModel;
+  arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  double BestMetric = arma::datum::inf;
+  BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, tol, maxit,
+                               metric);
+  
+  unsigned int numchecked = 0;
+  IntegerVector order(CurModel.n_elem, -1);
+  arma::ivec Order(order.begin(), order.size(), false, true);
+  
+  for(unsigned int i = 0; i < steps; i++){
+    
+    bool flag = true;
+    CurModel = BestModel;
+    drop1(&X, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
+          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
+    
+    if(flag){
+      break;
+    }
+  }
+  
+  // Getting x matrix for best model found
+  
+  const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
+  
+  List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
+                                 nthreads, tol, maxit);
+  
+  List FinalList = List::create(Named("fit") = helper,
+                                Named("order") = order,
+                                Named("model") = keep,
+                                Named("numchecked") = numchecked,
+                                Named("bestmetric") = BestMetric);
+  
+#ifdef _OPENMP
+  omp_set_num_threads(1);
+#endif
+  
+  return(FinalList);
+}
+
+
+double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
+                   std::string method, int m, std::string Link, std::string Dist,
+                   arma::ivec* CurModel,  arma::ivec* indices, 
+                   double tol, int maxit,
+                   std::string metric, unsigned int cur, int minsize,
+                   arma::uvec* NewOrder, double LowerBound){
   int Iter;
   arma::ivec UpperModel = *CurModel;
   
@@ -60,14 +266,13 @@ double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offs
     UpperModel.at(NewOrder->at(i)) = 1;
   }
   arma::mat xTemp = GetMatrix(X, &UpperModel, indices);
-  
   arma::vec beta(xTemp.n_cols, arma::fill::zeros);
+  PargetInit(&beta, &xTemp, Y, Offset, Dist, Link);
   
   if(Dist == "gaussian" && Link == "identity"){
     Iter = ParLinRegCppShort(&beta, &xTemp, Y, Offset);
   }else if(method == "BFGS"){
     Iter = ParBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit);
-    
   }
   else if(method == "LBFGS"){
     Iter = ParLBFGSGLMCpp(&beta, &xTemp, Y, Offset, Link, Dist, tol, maxit, m);
@@ -79,14 +284,13 @@ double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offs
     return(LowerBound);
   }
   
-  double dispersion = 1;
   arma::vec mu = ParLinkCpp(&xTemp, &beta, Offset, Link, Dist);
-  
-  if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - mu, 2)) / (xTemp.n_rows);
-  }
-  
   double LogLik = -ParLogLikelihoodCpp(&xTemp, Y, &mu, Dist);
+  double dispersion = GetDispersion(&xTemp, Y, &mu, LogLik, Dist, tol);
+  
+  if(dispersion <= 0){
+    return(LowerBound);
+  }
   if(Dist == "gaussian"){
     double temp = xTemp.n_rows/2 * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
@@ -94,72 +298,82 @@ double ParGetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offs
   else if(Dist == "poisson"){
     LogLik -=  ParLogFact(Y);
   }
+  else if(Dist == "gamma"){
+    double shape = 1 / dispersion;
+    LogLik = shape * LogLik + 
+      xTemp.n_rows * (shape * log(shape) - lgamma(shape)) + 
+      (shape - 1) * arma::accu(log(*Y));
+  }
+  
+  if(std::isnan(LogLik)){
+    return(LowerBound);
+  }
   return(BoundHelper(X, LogLik, Dist, metric, minsize));
 }
 
-void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
-                      std::string method, int m, std::string Link, std::string Dist,
-                      arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
-                      unsigned int* numchecked,arma::ivec* indices, double tol, 
-                      int maxit, 
-                      int maxsize, unsigned int cur, std::string metric, 
-                      double LowerBound, arma::uvec* NewOrder, Progress* p){
+void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
+               std::string method, int m, std::string Link, std::string Dist,
+               arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+               unsigned int* numchecked, arma::ivec* indices, double tol, 
+               int maxit, 
+               int maxsize, unsigned int cur, std::string metric, 
+               double LowerBound, arma::uvec* NewOrder, Progress* p){
   
   checkUserInterrupt();
   if(LowerBound < *BestMetric && maxsize > 0){
-      p->update(2);
-      p->print();
-      arma::uvec NewOrder2(NewOrder->n_elem - cur);
-      arma::vec Metrics(NewOrder->n_elem - cur);
-      //Getting metric values
+    p->update(2);
+    p->print();
+    arma::uvec NewOrder2(NewOrder->n_elem - cur);
+    arma::vec Metrics(NewOrder->n_elem - cur);
+    //Getting metric values
 #pragma omp parallel for 
-      for(unsigned int j = 0; j < NewOrder2.n_elem; j++){
-        arma::ivec CurModel2 = *CurModel;
-        CurModel2.at(NewOrder->at(j + cur)) = 1;
-        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
-        NewOrder2.at(j) = NewOrder->at(j + cur);
-        Metrics.at(j) = ParMetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
-                   tol, maxit, metric);
-      }
-      // Updating numchecked and potentially updating the best model
-      *numchecked += NewOrder2.n_elem;
-      arma::uvec sorted = sort_index(Metrics);
-      NewOrder2 = NewOrder2(sorted);
-      Metrics = Metrics(sorted);
-      if(Metrics.at(0) < *BestMetric){
-        *BestMetric = Metrics.at(0);
-        *BestModel = *CurModel;
-        BestModel->at(NewOrder2.at(0)) = 1;
-      }
-      //Getting lower bounds
-      
-      arma::uvec Counts(NewOrder->n_elem, arma::fill::zeros);
-      if(maxsize > 1){
+    for(unsigned int j = 0; j < NewOrder2.n_elem; j++){
+      arma::ivec CurModel2 = *CurModel;
+      CurModel2.at(NewOrder->at(j + cur)) = 1;
+      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+      NewOrder2.at(j) = NewOrder->at(j + cur);
+      Metrics.at(j) = MetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
+                 tol, maxit, metric);
+    }
+    // Updating numchecked and potentially updating the best model
+    *numchecked += NewOrder2.n_elem;
+    arma::uvec sorted = sort_index(Metrics);
+    NewOrder2 = NewOrder2(sorted);
+    Metrics = Metrics(sorted);
+    if(Metrics.at(0) < *BestMetric){
+      *BestMetric = Metrics.at(0);
+      *BestModel = *CurModel;
+      BestModel->at(NewOrder2.at(0)) = 1;
+    }
+    //Getting lower bounds
+    
+    arma::uvec Counts(NewOrder->n_elem, arma::fill::zeros);
+    if(maxsize > 1){
 #pragma omp parallel for
-        for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
-          arma::ivec CurModel2 = *CurModel;
-          CurModel2.at(NewOrder2.at(j)) = 1;
-          arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
-          Metrics.at(j) = UpdateBound(X, indices, NewOrder2.at(j), LowerBound, metric, xTemp.n_cols);
-          if(j > 0 && Metrics.at(j) < *BestMetric){
-            Counts.at(j) = 1;
-            Metrics.at(j) = ParGetBound(X, Y, Offset, method, m, Link, Dist, &CurModel2,
-                       indices, tol, maxit, metric, 
-                       j + 1, xTemp.n_cols, &NewOrder2, Metrics.at(j));
-          }
-        }
-        (*numchecked) += sum(Counts);
-      }
-      checkUserInterrupt();
-      // Recursively calling this function for each new model
       for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
         arma::ivec CurModel2 = *CurModel;
         CurModel2.at(NewOrder2.at(j)) = 1;
-        ParBranch(X, Y, Offset, method, m, Link, Dist, &CurModel2, BestModel, 
-                          BestMetric, numchecked, indices, tol, maxit, maxsize - 1, j + 1, metric, 
-                          Metrics.at(j), &NewOrder2, p);
+        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+        Metrics.at(j) = UpdateBound(X, indices, NewOrder2.at(j), LowerBound, metric, xTemp.n_cols);
+        if(j > 0 && Metrics.at(j) < *BestMetric){
+          Counts.at(j) = 1;
+          Metrics.at(j) = GetBound(X, Y, Offset, method, m, Link, Dist, &CurModel2,
+                     indices, tol, maxit, metric, 
+                     j + 1, xTemp.n_cols, &NewOrder2, Metrics.at(j));
+        }
       }
+      (*numchecked) += sum(Counts);
     }
+    checkUserInterrupt();
+    // Recursively calling this function for each new model
+    for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
+      arma::ivec CurModel2 = *CurModel;
+      CurModel2.at(NewOrder2.at(j)) = 1;
+      Branch(X, Y, Offset, method, m, Link, Dist, &CurModel2, BestModel, 
+                BestMetric, numchecked, indices, tol, maxit, maxsize - 1, j + 1, metric, 
+                Metrics.at(j), &NewOrder2, p);
+    }
+  }
   else{
     p->update(GetNum(NewOrder->n_elem - cur, maxsize));
     p->print();
@@ -168,14 +382,13 @@ void ParBranch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
 
 
 // [[Rcpp::export]]
-
-List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
-                                 IntegerVector indices, IntegerVector num,
-                                 std::string method, int m,
-                                 std::string Link, std::string Dist,
-                                 unsigned int nthreads, double tol, int maxit, 
-                                 IntegerVector keep, int maxsize, std::string metric,
-                                 bool display_progress){
+List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
+                          IntegerVector indices, IntegerVector num,
+                          std::string method, int m,
+                          std::string Link, std::string Dist,
+                          unsigned int nthreads, double tol, int maxit, 
+                          IntegerVector keep, int maxsize, std::string metric,
+                          bool display_progress){
   
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
@@ -185,7 +398,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
   double BestMetric = arma::datum::inf;
-  BestMetric = ParMetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
+  BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
                                tol, maxit, metric);
   unsigned int numchecked = 1;
   unsigned int size = 0;
@@ -194,7 +407,6 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
 #endif
   
   // Getting size of model space to check
-  
   for(unsigned int j = 0; j < CurModel.n_elem; j++){
     if(CurModel.at(j) == 0){
       size++;
@@ -223,7 +435,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
     arma::ivec CurModel2 = CurModel;
     CurModel2.at(NewOrder.at(j)) = 1;
     arma::mat xTemp = GetMatrix(&X, &CurModel2, &Indices);
-    Metrics.at(j) = ParMetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
+    Metrics.at(j) = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
                tol, maxit, metric);
   }
   checkUserInterrupt();
@@ -232,10 +444,12 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   arma::uvec sorted = sort_index(Metrics);
   NewOrder = NewOrder(sorted);
   Metrics = Metrics(sorted);
+  
   double LowerBound = -arma::datum::inf;
-  LowerBound = ParGetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel,
-                                       &Indices, tol, maxit, metric, 
-                                       0, xTemp.n_cols, &NewOrder, LowerBound);
+  LowerBound = GetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel,
+                           &Indices, tol, maxit, metric, 
+                           0, sum(abs(CurModel)), &NewOrder, LowerBound);
+  
   numchecked++;
   if(Metrics.at(0) < BestMetric){
     BestMetric = Metrics.at(0);
@@ -251,7 +465,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
       Metrics.at(j) = UpdateBound(&X, &Indices, NewOrder.at(j), LowerBound, metric, xTemp.n_cols);
       if(j > 0 && Metrics.at(j) < BestMetric){
         Counts.at(j) = 1;
-        Metrics.at(j) = ParGetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2,
+        Metrics.at(j) = GetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2,
                    &Indices, tol, maxit, metric, 
                    j + 1, xTemp.n_cols, &NewOrder, Metrics.at(j));
       }
@@ -264,9 +478,9 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   for(unsigned int j = 0; j < NewOrder.n_elem - 1; j++){
     arma::ivec CurModel2 = CurModel;
     CurModel2.at(NewOrder.at(j)) = 1;
-    ParBranch(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2, &BestModel, 
-                     &BestMetric, &numchecked, &Indices, tol, maxit, maxsize - 1, j + 1, metric, 
-                     Metrics.at(j), &NewOrder, &p);
+    Branch(&X, &Y, &Offset, method, m, Link, Dist, &CurModel2, &BestModel, 
+              &BestMetric, &numchecked, &Indices, tol, maxit, maxsize - 1, j + 1, metric, 
+              Metrics.at(j), &NewOrder, &p);
     
   }
   checkUserInterrupt();
@@ -277,7 +491,7 @@ List ParBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                                  nthreads, tol, maxit);
+                                 nthreads, tol, maxit);
   
   List FinalList = List::create(Named("fit") = helper,
                                 Named("model") = keep,

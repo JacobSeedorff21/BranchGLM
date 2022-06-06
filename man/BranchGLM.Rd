@@ -16,6 +16,7 @@ BranchGLM(
   nthreads = 8,
   tol = 1e-04,
   maxit = NULL,
+  init = NULL,
   contrasts = NULL,
   keepData = TRUE,
   keepY = TRUE
@@ -47,6 +48,9 @@ there are many covariates (at least 50).}
 
 \item{maxit}{maximum number of iterations performed. The default for 
 Fisher's scoring is 50 and for the other methods the default is 200.}
+
+\item{init}{inital values for the betas, if not specified then they are automatically 
+selected.}
 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
@@ -103,6 +107,9 @@ converge, then \code{iterations} will be -1.
 The likelihood equations are solved directly, i.e. no matrix decomposition is used.
 All observations with any missing values are ignored. The \code{method} argument 
 is ignored for linear regression and the OLS solution is used.
+
+The dispersion parameter for gamma regression is estimated via maximum likelihood, 
+very similar to the \code{gamma.dispersion} function from the MASS package.
 }
 \examples{
 Data <- iris

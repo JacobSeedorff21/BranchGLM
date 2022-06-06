@@ -40,13 +40,13 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 
 # Fitting glms
 
-- `BranchGLM()` allows fitting of gaussian, binomial, and poisson glms with a variety of links available.  
+- `BranchGLM()` allows fitting of gaussian, binomial, gamma, and poisson glms with a variety of links available.  
 - Parallel computation can also be done to speed up the fitting process, but it is only useful for larger datasets.
 
 ## Optimization methods
 
 - The optimization method can be specified, the default method is fisher scoring, but BFGS and L-BFGS are also available. 
-- BFGS and L-BFGS typically perform better when there are many predictors in the model (at least 30 predictors), otherwise fisher scoring is typically faster.  
+- BFGS and L-BFGS typically perform better when there are many predictors in the model (at least 50 predictors), otherwise fisher scoring is typically faster.  
 - The `grads` argument is for L-BFGS only and it is the number of gradients that are stored at a time and are used to approximate the inverse hessian. The default value for this is 10, but another common choice is 5.
 - The `tol` argument controls how strict the convergence criteria are, higher tolerance will lead to more accurate results, but may also be slower.
 - The `method` argument is ignored for linear regression and the OLS solution is 
@@ -114,7 +114,8 @@ carsFit$coefficients
 - Forward selection and backward elimination are both stepwise variable selection methods.
 - They are not guaranteed to find the best model or even a good model, but they are very fast.
 - Forward selection is recommended if the number of variables is greater than the number of observations or if many of the larger models don't converge.
-- Parallel computation is not available for these methods because they should be fast enough without it.
+- Parallel computation can be used for the methods, but is generally only useful 
+for large datasets.
 
 ### Forward selection example
 
