@@ -191,13 +191,6 @@ test_that("gamma regression works", {
   expect_equal(BranchGLM(y ~ ., data = Data, family = "gamma", link = "log")$dispersion, 
                0.097535718)
   
-  ## Checking variable selection
-  ### branch and bound
-  expect_equal(VariableSelection(y ~ ., data = Data, family = "gamma", 
-                                 link = "log", parallel = TRUE, type = "branch and bound")$finalmodel$coefficients, 
-               VariableSelection(y ~ ., data = Data, family = "gamma", 
-                                 link = "log", parallel = FALSE, type = "branch and bound")$finalmodel$coefficients)
-  
   ### forward selection doesn't work for this problem, so expect error
   expect_error(VariableSelection(y ~ ., data = Data, family = "gamma", link = "log", type = "forward"))
   ### backward selection
