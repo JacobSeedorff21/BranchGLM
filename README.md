@@ -146,7 +146,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.43    0.00    0.42
+    ##    0.27    0.00    0.28
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -156,7 +156,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  183.67    0.28  184.60
+    ##  187.23    0.33  187.61
 
 ### Checking results
 
@@ -171,10 +171,12 @@ all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
 The branch and bound method can be many times faster than an exhaustive
 search and is still guaranteed to find the optimal model.
 
-### Parallel computation
+## Parallel computation
 
 Parallel computation can be used to greatly speed up the branch and
 bound algorithm, especially when the number of variables is large.
+
+### Non-parallel time
 
 ``` r
 set.seed(871980)
@@ -188,7 +190,9 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  169.25    0.06  169.68
+    ##  210.00    0.02  210.06
+
+### Parallel time
 
 ``` r
 system.time(ParBranchVS <- VariableSelection(y ~ ., data = df, 
@@ -198,10 +202,14 @@ system.time(ParBranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  287.37    0.99   36.87
+    ##  363.95    0.75   44.87
+
+### Checking results
 
 ``` r
 all(names(coef(BranchVS$finalmodel)) == names(coef(ParBranchVS$finalmodel)))
 ```
 
     ## [1] TRUE
+
+They both give the same results

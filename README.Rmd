@@ -165,10 +165,12 @@ all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
 The branch and bound method can be many times faster than an exhaustive search and 
 is still guaranteed to find the optimal model.
 
-### Parallel computation
+## Parallel computation
 
 Parallel computation can be used to greatly speed up the branch and bound 
 algorithm, especially when the number of variables is large.
+
+### Non-parallel time
 
 ```{r}
 
@@ -180,7 +182,11 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
                                       family = "binomial", link = "logit",
                   type = "branch and bound", showprogress = FALSE,
                   parallel = FALSE, nthreads = 8, method = "Fisher"))
+```
 
+### Parallel time
+
+```{r}
 system.time(ParBranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
                   type = "branch and bound", showprogress = FALSE,
@@ -188,9 +194,12 @@ system.time(ParBranchVS <- VariableSelection(y ~ ., data = df,
 
 ```
 
+### Checking results
 
 ```{r}
 
 all(names(coef(BranchVS$finalmodel)) == names(coef(ParBranchVS$finalmodel)))
 
 ```
+
+They both give the same results

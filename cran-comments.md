@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-This is a resubmission that fixes documentation issues.
+Updating package to version 1.1.0
