@@ -52,7 +52,7 @@ NormalSimul <- function(n, d, Bprob = .5){
 }
 ### Big simulation
 
-df <- NormalSimul(100000, 250)
+df <- NormalSimul(10000, 250)
 
 Times <- microbenchmark("BranchGLM" = {BranchGLM(y ~ ., data = df, 
                                                         family = "gaussian",
@@ -141,11 +141,12 @@ df <- LogisticSimul(1000, 15, .5, sd = .5)
 ### Timing branch and bound
 system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "branch and bound", showprogress = FALSE))
+                  type = "branch and bound", showprogress = FALSE,
+                  parallel = FALSE, nthreads = 8, method = "Fisher"))
 ```
 
     ##    user  system elapsed 
-    ##    0.37    0.05    0.42
+    ##    0.43    0.00    0.42
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -155,7 +156,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  214.33    0.97  215.64
+    ##  183.67    0.28  184.60
 
 ### Checking results
 
@@ -169,3 +170,38 @@ all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
 
 The branch and bound method can be many times faster than an exhaustive
 search and is still guaranteed to find the optimal model.
+
+### Parallel computation
+
+Parallel computation can be used to greatly speed up the branch and
+bound algorithm, especially when the number of variables is large.
+
+``` r
+set.seed(871980)
+
+df <- LogisticSimul(1000, 40, .5, sd = .5)
+
+system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
+                                      family = "binomial", link = "logit",
+                  type = "branch and bound", showprogress = FALSE,
+                  parallel = FALSE, nthreads = 8, method = "Fisher"))
+```
+
+    ##    user  system elapsed 
+    ##  169.25    0.06  169.68
+
+``` r
+system.time(ParBranchVS <- VariableSelection(y ~ ., data = df, 
+                                      family = "binomial", link = "logit",
+                  type = "branch and bound", showprogress = FALSE,
+                  parallel = TRUE, nthreads = 12, method = "Fisher"))
+```
+
+    ##    user  system elapsed 
+    ##  287.37    0.99   36.87
+
+``` r
+all(names(coef(BranchVS$finalmodel)) == names(coef(ParBranchVS$finalmodel)))
+```
+
+    ## [1] TRUE

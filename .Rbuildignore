@@ -6,7 +6,8 @@ README.md
 ^\.git$
 ^cran-comments\.md$
 ^cran-comments\.Rmd$
-^README-glm-1.png$
+^README-linear-1.png$
+^README-logistic-1.png$
 ^LICENSE\.md$
 ^ToDo.txt$
 ^CRAN-SUBMISSION$
