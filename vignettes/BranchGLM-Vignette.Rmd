@@ -47,7 +47,7 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 
 - The optimization method can be specified, the default method is fisher scoring, but BFGS and L-BFGS are also available. 
 - BFGS and L-BFGS typically perform better when there are many predictors in the model (at least 50 predictors), otherwise fisher scoring is typically faster.  
-- The `grads` argument is for L-BFGS only and it is the number of gradients that are stored at a time and are used to approximate the inverse hessian. The default value for this is 10, but another common choice is 5.
+- The `grads` argument is for L-BFGS only and it is the number of gradients that are stored at a time and are used to approximate the inverse information. The default value for this is 10, but another common choice is 5.
 - The `tol` argument controls how strict the convergence criteria are, higher tolerance will lead to more accurate results, but may also be slower.
 - The `method` argument is ignored for linear regression and the OLS solution is 
 used.
@@ -65,16 +65,16 @@ cars <- mtcars
 
 ### Fitting linear regression model with Fisher scoring
 
-carsFit <- BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity")
+LinearFit <- BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity")
 
-carsFit
+LinearFit
 
-### Fitting linear regression with LBFGS
+### Fitting gamma regression with inverse link with L-BFGS
 
-LBFGSFit <- BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity",
+GammaFit <- BranchGLM(mpg ~ ., data = cars, family = "gamma", link = "inverse",
                       method = "LBFGS", grads = 5)
 
-LBFGSFit
+GammaFit
 
 ```
 
@@ -92,11 +92,11 @@ LBFGSFit
 ```{r}
 ### Predict method
 
-predict(carsFit)
+predict(GammaFit)
 
 ### Accessing coefficients matrix
 
-carsFit$coefficients
+GammaFit$coefficients
 
 ```
 
@@ -114,7 +114,7 @@ carsFit$coefficients
 - Forward selection and backward elimination are both stepwise variable selection methods.
 - They are not guaranteed to find the best model or even a good model, but they are very fast.
 - Forward selection is recommended if the number of variables is greater than the number of observations or if many of the larger models don't converge.
-- Parallel computation can be used for the methods, but is generally only useful 
+- Parallel computation can be used for the methods, but is generally only necessary 
 for large datasets.
 
 ### Forward selection example
@@ -122,7 +122,7 @@ for large datasets.
 ```{r}
 ### Forward selection with mtcars
 
-VariableSelection(carsFit, type = "forward")
+VariableSelection(GammaFit, type = "forward")
 
 ```
 
@@ -131,7 +131,7 @@ VariableSelection(carsFit, type = "forward")
 ```{r}
 ### Backward elimination with mtcars
 
-VariableSelection(carsFit, type = "backward")
+VariableSelection(GammaFit, type = "backward")
 
 ```
 
@@ -150,12 +150,12 @@ VariableSelection(carsFit, type = "backward")
 ```{r}
 ### Branch and bound with mtcars
 
-VariableSelection(carsFit, type = "branch and bound", showprogress = FALSE)
+VariableSelection(GammaFit, type = "branch and bound", showprogress = FALSE)
 
 ### Can also use a formula and data
 
-FormulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gaussian", 
-                               link = "identity", type = "branch and bound",
+FormulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
+                               link = "inverse", type = "branch and bound",
                                showprogress = FALSE)
 
 ### Number of models fit divided by the number of possible models
@@ -175,9 +175,9 @@ FormulaVS$finalmodel
 ```{r}
 ### Example of using keep
 
-VariableSelection(mpg ~ . ,data = cars, family = "gaussian", 
-                               link = "identity", type = "branch and bound",
-                               keep = c("hp", "cyl"), metric = "BIC",
+VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
+                               link = "inverse", type = "branch and bound",
+                               keep = c("hp", "cyl"), metric = "AIC",
                                showprogress = FALSE)
 
 ```
