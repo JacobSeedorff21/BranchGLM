@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-Updating package to version 1.1.0
+This is a resubmission to fix the description.
