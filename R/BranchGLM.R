@@ -1,14 +1,14 @@
 #' Fits GLMs
 #' @param formula a formula for the model.
 #' @param data a dataframe that contains the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson".
-#' @param link link used to link mean structure to linear predictors. One of, 
-#' "identity", "logit", "probit", "cloglog", or "log".
+#' @param family distribution used to model the data, one of "gaussian", "gamma", "binomial", or "poisson".
+#' @param link link used to link mean structure to linear predictors. One of
+#' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".
 #' @param offset offset vector, by default the zero vector is used.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
 #' quasi-newton methods which are typically faster than Fisher's scoring when
 #' there are many covariates (at least 50).
-#' @param grads number of gradients used to approximate information with, only for \code{method = "LBFGS"}.
+#' @param grads number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.
 #' @param parallel whether or not to make use of parallelization via OpenMP.
 #' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
 #' @param tol tolerance used to determine model convergence.

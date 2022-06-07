@@ -2,9 +2,9 @@
 #' @param object a formula or a \code{BranchGLM} object.
 #' @param ... further arguments passed to other methods.
 #' @param data a dataframe with the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "binomial", or "poisson".
-#' @param link link used to link mean structure to linear predictors. One of, 
-#' "identity", "logit", "probit", "cloglog", or "log".
+#' @param family distribution used to model the data, one of "gaussian", "gamma", "binomial", or "poisson".
+#' @param link link used to link mean structure to linear predictors. One of
+#' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".
 #' @param offset offset vector, by default the zero vector is used.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
 #' for forward selection and branch and bound selection since they will typically 

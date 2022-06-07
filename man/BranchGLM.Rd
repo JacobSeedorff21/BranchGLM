@@ -27,10 +27,10 @@ BranchGLM(
 
 \item{data}{a dataframe that contains the response and predictor variables.}
 
-\item{family}{distribution used to model the data, one of "gaussian", "binomial", or "poisson".}
+\item{family}{distribution used to model the data, one of "gaussian", "gamma", "binomial", or "poisson".}
 
-\item{link}{link used to link mean structure to linear predictors. One of, 
-"identity", "logit", "probit", "cloglog", or "log".}
+\item{link}{link used to link mean structure to linear predictors. One of
+"identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".}
 
 \item{offset}{offset vector, by default the zero vector is used.}
 

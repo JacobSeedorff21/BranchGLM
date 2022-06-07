@@ -848,6 +848,7 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   // Returning results
   double satLogLik = LogLikelihoodSat(X, Y, Dist);
   double LogLik = -LogLikelihoodCpp(X, Y, &mu, Dist);
+  double resDev = -2 * (LogLik - satLogLik);
   double AIC = -2 * LogLik + 2 * X->n_cols;
   
   NumericVector beta1 = NumericVector(beta.begin(), beta.end());
@@ -873,13 +874,12 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
     LogLik -=  LogFact(Y);
     AIC = -2 * LogLik + 2 * (X->n_cols);
   }else if(Dist == "gamma"){
-    LogLik = dispersion * LogLik + 
-      X->n_rows * (dispersion * log(dispersion) - lgamma(dispersion)) + 
-      (dispersion - 1) * arma::accu(log(*Y));
+    double shape = 1 / dispersion;
+    LogLik = shape * LogLik + 
+      X->n_rows * (shape * log(shape) - lgamma(shape)) + 
+      (shape - 1) * arma::accu(log(*Y));
     AIC = -2 * LogLik + 2 * (X->n_cols + 1);
   }
-  
-  double resDev = -2 * (LogLik - satLogLik);
   
   SE = sqrt(dispersion) * SE;
   
