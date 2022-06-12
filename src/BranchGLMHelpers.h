@@ -59,7 +59,7 @@ int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
 
 double GetDispersion(const arma::mat* X, const arma::vec* Y, 
                      arma::vec* mu, double LogLik, std::string Dist, 
-                     double tol);
+                     double tol, double C1 = pow(10, -4));
 
 void getInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
              const arma::vec* Offset, std::string Dist, std::string Link);

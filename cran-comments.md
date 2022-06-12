@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-This is a resubmission to fix the description.
+This is a submission to fix undefined behavior detected by UBSAN.

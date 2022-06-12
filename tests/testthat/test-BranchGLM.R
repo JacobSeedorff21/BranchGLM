@@ -174,6 +174,19 @@ test_that("poisson regression works", {
                                  link = "log", parallel = TRUE, type = "backward")$finalmodel$coefficients, 
                VariableSelection(y ~ ., data = Data, family = "poisson", 
                                  link = "log", parallel = FALSE, type = "backward")$finalmodel$coefficients)
+  ### Checking offset predictions
+  MyBranch <- BranchGLM(y ~ ., data = Data, family = "poisson", link = "log", offset = rep(1, nrow(Data)))
+  
+  expect_error(predict(MyBranch, newdata = Data), NA)
+  expect_error(predict(MyBranch, newdata = Data, type = "linpreds"), NA)
+  
+  ### Checking offset predictions
+  MyBranch <- VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                link = "log", parallel = TRUE, type = "forward", 
+                                offset = rep(1, nrow(Data)))$finalmodel
+  
+  expect_error(predict(MyBranch, newdata = Data), NA)
+  expect_error(predict(MyBranch, newdata = Data, type = "linpreds"), NA)
   })
 
 ### Testing gamma regression
@@ -184,6 +197,7 @@ test_that("gamma regression works", {
   x <- cbind(1, x)
   beta <- rnorm(16)
   y <- rgamma(n = 1000, shape = 10, rate = exp(x %*% beta))
+  
   Data <- cbind(y, x[,-1]) |>
     as.data.frame()
   
@@ -191,11 +205,12 @@ test_that("gamma regression works", {
   expect_equal(BranchGLM(y ~ ., data = Data, family = "gamma", link = "log")$dispersion, 
                0.097535718)
   
-  ### forward selection doesn't work for this problem, so expect error
-  expect_error(VariableSelection(y ~ ., data = Data, family = "gamma", link = "log", type = "forward"))
+  ### forward selection should now work
+  expect_error(VariableSelection(y ~ ., data = Data, family = "gamma", link = "log", 
+                                 type = "forward", method = "Fisher"), NA)
   ### backward selection
   expect_equal(VariableSelection(y ~ ., data = Data, family = "gamma", 
-                                 link = "log", parallel = TRUE, type = "backward")$finalmodel$coefficients, 
+                                  link = "log", parallel = TRUE, type = "backward")$finalmodel$coefficients, 
                VariableSelection(y ~ ., data = Data, family = "gamma", 
                                  link = "log", parallel = FALSE, type = "backward")$finalmodel$coefficients)
   

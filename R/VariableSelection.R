@@ -75,13 +75,19 @@ VariableSelection <- function(object, ...) {
   UseMethod("VariableSelection")
 }
 
-VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
-                             method = "Fisher",
-                             grads = 10, parallel = FALSE, 
-                             nthreads = 8, tol = 1e-4, maxit = NULL,
-                             contrasts = NULL, ...){
+#'@rdname VariableSelection
+#'@export
+
+VariableSelection.formula <- function(object, data, family, link, offset = NULL,
+                                      method = "Fisher", type = "forward", metric = "AIC",
+                                      keep = NULL, maxsize = NULL,
+                                      grads = 10, parallel = FALSE, 
+                                      nthreads = 8, tol = 1e-4, maxit = NULL,
+                                      contrasts = NULL,
+                                      showprogress = TRUE, ...){
   
-  ### Creating pseudo BranchGLM object to put into VariableSelection.BranchGLM
+  ### Creating pseudo BranchGLM object to use in VariableSelection.BranchGLM
+  formula <- object
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
   }
@@ -98,12 +104,37 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
     stop("link must be one of 'logit', 'probit', 'cloglog', 'log', 'inverse', 'sqrt', or 'identity'")
   }
   mf <- match.call(expand.dots = FALSE)
-  m <- match(c("formula", "data"), names(mf), 0L)
+  m <- match(c("data", "offset"), names(mf), 0L)
   mf <- mf[c(1L, m)]
   mf$drop.unused.levels <- TRUE
+  mf$na.action <- "na.omit"
+  mf$formula <- formula
   mf[[1L]] <- as.name("model.frame")
   mf <- eval(mf, parent.frame())
+  
+  ## Getting data objects
   y <- model.response(mf, "any")
+  offset <- as.vector(model.offset(mf))
+  x <- model.matrix(attr(mf, "terms"), mf, contrasts)
+  ### Checking offset
+  if(is.null(offset)){
+    offset <- rep(0, nrow(x))
+  }else if(length(offset) != length(y)){
+    stop("offset must have the same length as the y")
+  }else if(!is.numeric(offset)){
+    stop("offset must be a numeric vector")
+  }
+  
+  ## Setting maxit
+  if(is.null(maxit)){
+    if(method == "Fisher"){
+      maxit <- 50
+    }else{
+      maxit <- 200
+    }
+  }else if(length(maxit) != 1 || !is.numeric(maxit) || maxit != as.integer(maxit) || maxit < 0){
+    stop("maxit must be a non-negative integer")
+  }
   
   ## Checking y variable and link function for each family
   if(family == "binomial"){
@@ -134,25 +165,19 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
       stop("valid link functions for gaussian regression are 'identity', 'inverse', 'log', and 'sqrt'")
     }else if(!is.numeric(y)){
       stop("response variable for gaussian regression must be numeric")
+    }else if(link == "log" && any(y <= 0)){
+      stop("gaussian regression with log link must have positive response values")
+    }else if(link == "inverse" && any(y == 0)){
+      stop("gaussian regression with inverse link must have non-zero response values")
+    }else if(link == "sqrt" && any(y < 0)){
+      stop("gaussian regression with sqrt link must have non-negative response values")
     }
   }else if(family == "gamma"){
     if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
       stop("valid link functions for gamma regression are 'identity', 'inverse', 'log', and 'sqrt'")
-    }
-    if(!is.numeric(y) || any(y <= 0)){
+    }else if(!is.numeric(y) || any(y <= 0)){
       stop("response variable for gamma regression must be positive")
     }
-  }
-  
-  x <- model.matrix(formula, data, contrasts)
-  
-  ### Checks for offset
-  if(is.null(offset)){
-    offset <- rep(0, nrow(x))
-  }else if(length(offset) != length(y)){
-    stop("offset must have the same length as the y")
-  }else if(!is.numeric(offset)){
-    stop("offset must be a numeric vector")
   }
   
   df <- list()
@@ -181,26 +206,14 @@ VarFormulaHelper <- function(formula, data, family, link, offset = NULL,
   
   df$offset <- offset
   
+  df$terms <- attr(mf, "terms")
+  
   df$family <- family
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
-  structure(df, class = "BranchGLM")
-}
-
-#'@rdname VariableSelection
-#'@export
-
-VariableSelection.formula <- function(object, data, family, link, offset = NULL,
-                                      method = "Fisher", type = "forward", metric = "AIC",
-                                      keep = NULL, maxsize = NULL,
-                                      grads = 10, parallel = FALSE, 
-                                      nthreads = 8, tol = 1e-4, maxit = NULL,
-                                      contrasts = NULL,
-                                      showprogress = TRUE, ...){
   
-  fit <- VarFormulaHelper(object, data, family, link, offset, method, grads, 
-                          parallel, nthreads, tol, maxit, contrasts)
+  fit <- structure(df, class = "BranchGLM")
   
   ### Performing variable selection
   VariableSelection(fit, type = type, metric = metric, keep = keep, 
@@ -291,10 +304,11 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   }
   
   ## Checking for parallel
-  
   if(!parallel){
     nthreads <- 1
   }
+  
+  ## Performing variable selection
   if(type == "forward"){
     df <- ForwardCpp(object$x, object$y, object$offset, indices, counts, method, grads,
                      object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
@@ -363,6 +377,10 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   df$fit$family <- object$family
   
   df$fit$method <- method
+  
+  df$fit$offset <- object$offset
+  
+  df$fit$terms <- terms(df$fit$formula, data = x)
   
   if(object$family == "binomial"){
     df$fit$ylevel <- object$ylevel

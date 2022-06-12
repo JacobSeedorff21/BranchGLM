@@ -34,6 +34,7 @@
 #' \item{\code{method}}{ iterative method used to fit the model}
 #' \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
 #' \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
+#' \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
 #' \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
 #' \item{\code{numobs}}{ number of observations in the design matrix}
 #' \item{\code{names}}{ names of the variables}
@@ -41,9 +42,9 @@
 #' \item{\code{parallel}}{ whether parallelization was employed to speed up model fitting process}
 #' \item{\code{missing}}{ number of missing values removed from the original dataset}
 #' \item{\code{link}}{ link function used to model the data}
-#' \item{\code{offset}}{ offset vector}
 #' \item{\code{family}}{ family used to model the data}
 #' \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
+#' \item{\code{terms}}{the terms object used}
 #' @description Fits generalized linear models via RcppArmadillo. Also has the 
 #' ability to fit the models with parallelization via OpenMP.
 #' @details Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
@@ -58,11 +59,12 @@
 #' sufficient decrease in the negative log-likelihood, and the other is whether 
 #' each of the elements of the beta vector changes by a sufficient amount. The 
 #' \code{tol} argument controls both of these criteria. If the algorithm fails to 
-#' converge, then \code{iterations} will be -1.
+#' converge, then \code{iterations} will be -1.The \code{method} argument 
+#' is ignored for linear regression and the OLS solution is used.
 #' 
 #' The likelihood equations are solved directly, i.e. no matrix decomposition is used.
-#' All observations with any missing values are ignored. The \code{method} argument 
-#' is ignored for linear regression and the OLS solution is used.
+#' 
+#' All observations with any missing values are ignored. 
 #' 
 #' The dispersion parameter for gamma regression is estimated via maximum likelihood, 
 #' very similar to the \code{gamma.dispersion} function from the MASS package.
@@ -93,12 +95,26 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     stop("link must be one of 'logit', 'probit', 'cloglog', 'log', 'inverse', 'sqrt', or 'identity'")
   }
   mf <- match.call(expand.dots = FALSE)
-  m <- match(c("formula", "data"), names(mf), 0L)
+  m <- match(c("formula", "data", "offset"), names(mf), 0L)
   mf <- mf[c(1L, m)]
   mf$drop.unused.levels <- TRUE
+  mf$na.action <- "na.omit"
   mf[[1L]] <- as.name("model.frame")
   mf <- eval(mf, parent.frame())
+  
+  ## Getting data objects
   y <- model.response(mf, "any")
+  offset <- as.vector(model.offset(mf))
+  x <- model.matrix(attr(mf, "terms"), mf, contrasts)
+  
+  ### Checking offset
+  if(is.null(offset)){
+    offset <- rep(0, nrow(x))
+  }else if(length(offset) != length(y)){
+    stop("offset must have the same length as the y")
+  }else if(!is.numeric(offset)){
+    stop("offset must be a numeric vector")
+  }
   
   ## Setting maxit
   if(is.null(maxit)){
@@ -140,6 +156,12 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
       stop("valid link functions for gaussian regression are 'identity', 'inverse', 'log', and 'sqrt'")
     }else if(!is.numeric(y)){
       stop("response variable for gaussian regression must be numeric")
+    }else if(link == "log" && any(y <= 0)){
+      stop("gaussian regression with log link must have positive response values")
+    }else if(link == "inverse" && any(y == 0)){
+      stop("gaussian regression with inverse link must have non-zero response values")
+    }else if(link == "sqrt" && any(y < 0)){
+      stop("gaussian regression with sqrt link must have non-negative response values")
     }
   }else if(family == "gamma"){
     if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
@@ -149,16 +171,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     }
   }
   
-  x <- model.matrix(formula, data, contrasts)
-  
-  ### Checks for offset
-  if(is.null(offset)){
-    offset <- rep(0, nrow(x))
-  }else if(length(offset) != length(y)){
-    stop("offset must have the same length as the y")
-  }else if(!is.numeric(offset)){
-    stop("offset must be a numeric vector")
-  }
+
   if(is.null(init)){
     init <- rep(0, ncol(x))
     GetInit <- TRUE
@@ -193,6 +206,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(keepData){
     df$data <- data
     df$x <- x
+    df$offset <- offset
   }
   df$names <- attributes(terms(formula, data = data))$factors |>
               colnames()
@@ -210,9 +224,10 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   
   df$contrasts <- contrasts
   
-  df$offset <- offset
-  
   df$family <- family
+  
+  df$terms <- attr(mf, "terms")
+  
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
@@ -260,6 +275,7 @@ coef.BranchGLM <- function(object, ...){
 #' @param type one of "linpreds" or "response", if not specified "response" is used.
 #' @param ... further arguments passed to or from other methods.
 #' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
+#' Offset variables are ignored for predictions on new data.
 #' @description Gets predictions from a \code{BranchGLM} object.
 #' @return A numeric vector of predictions.
 #' @examples
@@ -289,13 +305,16 @@ predict.BranchGLM <- function(object, newdata = NULL, type = "response", ...){
       object$preds
     }
   }else{
-    x <- model.matrix(object$formula, newdata, object$contrasts)
+    myterms <- delete.response(terms(object))
+    m <- model.frame(myterms, newdata, na.action = "na.omit")
+    x <- model.matrix(myterms, m, contrasts = object$contrasts)
+    
     if(ncol(x) != length(object$coefficients$Estimate)){
       stop("could not find all predictor variables in newdata")
     }else if(type == "linpreds"){
-      x %*% coef(object)
+      drop(x %*% coef(object)) |> unname()
     }else if(type == "response"){
-      GetPreds(x %*% coef(object), object$link)
+      GetPreds(drop(x %*% coef(object)) |> unname(), object$link)
     }
   }
 }

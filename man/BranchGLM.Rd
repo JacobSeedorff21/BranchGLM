@@ -38,7 +38,7 @@ BranchGLM(
 quasi-newton methods which are typically faster than Fisher's scoring when
 there are many covariates (at least 50).}
 
-\item{grads}{number of gradients used to approximate information with, only for \code{method = "LBFGS"}.}
+\item{grads}{number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.}
 
 \item{parallel}{whether or not to make use of parallelization via OpenMP.}
 
@@ -74,6 +74,7 @@ A \code{BranchGLM} object which is a list with the following components
 \item{\code{method}}{ iterative method used to fit the model}
 \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
 \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
+\item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
 \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
 \item{\code{numobs}}{ number of observations in the design matrix}
 \item{\code{names}}{ names of the variables}
@@ -81,9 +82,9 @@ A \code{BranchGLM} object which is a list with the following components
 \item{\code{parallel}}{ whether parallelization was employed to speed up model fitting process}
 \item{\code{missing}}{ number of missing values removed from the original dataset}
 \item{\code{link}}{ link function used to model the data}
-\item{\code{offset}}{ offset vector}
 \item{\code{family}}{ family used to model the data}
 \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
+\item{\code{terms}}{the terms object used}
 }
 \description{
 Fits generalized linear models via RcppArmadillo. Also has the 
@@ -102,11 +103,12 @@ two conditions used to control convergence, the first is whether there is a
 sufficient decrease in the negative log-likelihood, and the other is whether 
 each of the elements of the beta vector changes by a sufficient amount. The 
 \code{tol} argument controls both of these criteria. If the algorithm fails to 
-converge, then \code{iterations} will be -1.
+converge, then \code{iterations} will be -1.The \code{method} argument 
+is ignored for linear regression and the OLS solution is used.
 
 The likelihood equations are solved directly, i.e. no matrix decomposition is used.
-All observations with any missing values are ignored. The \code{method} argument 
-is ignored for linear regression and the OLS solution is used.
+
+All observations with any missing values are ignored. 
 
 The dispersion parameter for gamma regression is estimated via maximum likelihood, 
 very similar to the \code{gamma.dispersion} function from the MASS package.

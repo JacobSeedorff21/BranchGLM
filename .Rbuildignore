@@ -12,5 +12,6 @@ README.md
 ^ToDo.txt$
 ^CRAN-SUBMISSION$
 TestingPackage.R
+TestingPackage.cpp
 NEWS.RMD
 NEWS.MD

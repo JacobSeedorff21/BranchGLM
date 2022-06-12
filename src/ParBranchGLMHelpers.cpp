@@ -301,7 +301,7 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double alpha;
   
   while(arma::norm(g1) > tol){
-    if(k == maxit){ 
+    if(k >= maxit){ 
       k = -1;
       break;
     }
@@ -323,8 +323,8 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
       f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
     }
     
-    if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+      if(std::isinf(f1)|| beta->has_nan()){
         k = -2;
       }
       k++;
@@ -357,6 +357,7 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::vec y(beta->n_elem);
   arma::vec g0(beta->n_elem);
   arma::mat H1(beta->n_elem, beta->n_elem);
+  
   if(!inv_sympd(H1, ParFisherInfoCpp(X, &Deriv, &Var))){
     return(-2);
   }
@@ -367,7 +368,7 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double t;
   
   while(arma::norm(g1) > tol){
-    if(k == maxit){ 
+    if(k >= maxit){ 
       k = -1;
       break;
     }
@@ -391,8 +392,8 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     
     k++;
     
-    if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+      if(std::isinf(f1)|| beta->has_nan()){
         k = -1;
       }
       break;}
@@ -436,7 +437,7 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     alpha = 1;
     
     // Checks if we've reached maxit iterations and stops if we have
-    if(k == maxit){ 
+    if(k >= maxit){ 
       k = -1;
       break;
     }
@@ -449,7 +450,6 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     *beta += alpha * p;
     mu = ParLinkCpp(X, beta, Offset, Link, Dist);
     f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
-    
     // Finding alpha with backtracking line search using Armijo-Goldstein condition
     while((f0 < f1 + alpha * t) && (alpha > C1)){
       alpha /= 2;
@@ -459,8 +459,8 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     }
     k++;
     
-    if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+      if(std::isinf(f1)|| beta->has_nan()){
         k = -1;
       }
       break;}
@@ -477,21 +477,23 @@ int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
                    const arma::vec* offset){
   
   arma::mat FinalMat(x->n_cols, x->n_cols);
+  // Using this greatly speeds up the process for some reason
+  arma::vec w(y->n_elem, arma::fill::ones);
   
   // Finding X'X
   for(unsigned int i = 0; i < x->n_cols; i++){
     
-    FinalMat(i, i) = arma::dot(x->col(i), x->col(i));
+    FinalMat(i, i) = arma::dot(x->col(i) % w, x->col(i));
     
     for(unsigned int j = i + 1; j < x->n_cols; j++){
       
-      FinalMat(i, j) = arma::dot(x->col(j), x->col(i));
+      FinalMat(i, j) = arma::dot(x->col(j) % w, x->col(i));
       FinalMat(j, i) = FinalMat(i, j);
     } 
   }
   
   // calculating inverse of X'X
-  arma::mat InvXX(x->n_cols, x->n_cols);
+  arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
   if(!arma::inv_sympd(InvXX, FinalMat)){
     return(-2);
   }

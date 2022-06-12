@@ -256,34 +256,6 @@ arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   return FinalMat;
 }
 
-// Defining fisher information test function
-arma::mat FisherInfoCppNew(const arma::mat* X, arma::vec* Deriv, 
-                           arma::vec* Var){
-  
-  arma::mat FinalMat(X->n_cols, X->n_cols);
-  arma::vec w = pow(*Deriv, 2) / *Var;
-  w.replace(arma::datum::nan, 0);
-  checkUserInterrupt();
-  
-#pragma omp parallel for schedule(dynamic, 1) collapse(2)
-  for(unsigned int i = 0; i < X->n_cols; i++){
-    for(unsigned int j = 0; j < X->n_cols; j++){
-      if(j >= i){
-        FinalMat(i, j) = arma::dot((X->col(j) % w), X->col(i));
-      }
-    } 
-  }
-  
-#pragma omp parallel for
-  for(unsigned int i = 0; i < X->n_cols; i++){
-    for(unsigned int j = 0; j < i; j++){
-      FinalMat(i, j) = FinalMat(j, i);
-      
-    } 
-  }
-  return FinalMat;
-}
-
 // LBFGS helper function
 arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y, 
                          int* k, int* m, 
@@ -370,7 +342,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     }
     
     // Checking for convergence or nan/inf
-    if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
       if(std::isinf(f1) || beta->has_nan()){
         warning("LBFGS failed to converge");
         k = -2;
@@ -447,7 +419,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     k++;
     
     // Checking for convergence or nan/inf
-    if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
       if(std::isinf(f1)|| beta->has_nan()){
         warning("BFGS failed to converge");
         k = -1;
@@ -524,7 +496,7 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     k++;
     
     //Checking for convergence or nan/inf
-    if(abs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
       if(std::isinf(f1)|| beta->has_nan()){
         warning("Fisher Scoring failed to converge");
         k = -1;
@@ -543,22 +515,24 @@ int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
               const arma::vec* offset, arma::vec* SE1){
   
   arma::mat FinalMat(x->n_cols, x->n_cols);
+  // Using this greatly speeds up the process for some reason
+  arma::vec w(y->n_elem, arma::fill::ones);
   
   // Finding X'X
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int i = 0; i < x->n_cols; i++){
     
-    FinalMat(i, i) = arma::dot(x->col(i), x->col(i));
+    FinalMat(i, i) = arma::dot(x->col(i) % w, x->col(i));
     
     for(unsigned int j = i + 1; j < x->n_cols; j++){
       
-      FinalMat(i, j) = arma::dot(x->col(j), x->col(i));
+      FinalMat(i, j) = arma::dot(x->col(j) % w, x->col(i));
       FinalMat(j, i) = FinalMat(i, j);
     } 
   }
   
   // calculating inverse of X'X
-  arma::mat InvXX(x->n_cols, x->n_cols);
+  arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
   if(!arma::inv_sympd(InvXX, FinalMat)){
     warning("Fisher info not invertible");
     return(-2);
@@ -574,22 +548,24 @@ int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
                    const arma::vec* offset){
   
   arma::mat FinalMat(x->n_cols, x->n_cols);
+  // Using this greatly speeds up the process for some reason
+  arma::vec w(y->n_elem, arma::fill::ones);
   
   // Finding X'X
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int i = 0; i < x->n_cols; i++){
     
-    FinalMat(i, i) = arma::dot(x->col(i), x->col(i));
+    FinalMat(i, i) = arma::dot(x->col(i) % w, x->col(i));
     
     for(unsigned int j = i + 1; j < x->n_cols; j++){
       
-      FinalMat(i, j) = arma::dot(x->col(j), x->col(i));
+      FinalMat(i, j) = arma::dot(x->col(j) % w, x->col(i));
       FinalMat(j, i) = FinalMat(i, j);
     } 
   }
   
   // calculating inverse of X'X
-  arma::mat InvXX(x->n_cols, x->n_cols);
+  arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
   if(!arma::inv_sympd(InvXX, FinalMat)){
     warning("Fisher info not invertible");
     return(-2);
@@ -602,13 +578,14 @@ int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
 
 double GetDispersion(const arma::mat* X, const arma::vec* Y, 
                      arma::vec* mu, double LogLik, std::string Dist, 
-                     double tol){
+                     double tol, double C1 = pow(10, -4)){
   double dispersion = 1;
   if(Dist == "gaussian"){
     dispersion = arma::accu(pow(*Y - *mu, 2)) / (X->n_rows);
   }else if(Dist == "gamma"){
     unsigned int it = 0;
-    double dispersion2 = 0;
+    double alpha = 1;
+    double dispersion2 = dispersion + 2 * tol;
     double fixed = LogLik + arma::accu(log(*Y)) + X->n_rows;
     
     // Initializing score and info
@@ -616,8 +593,14 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
     
     double info = X->n_rows * (-1 / dispersion + boost::math::trigamma(dispersion));
     
-    while(abs(score) > tol && abs(dispersion - dispersion2) > tol && it < 25){
+    while(std::fabs(score) > tol && std::fabs(dispersion - dispersion2) > tol && it < 25){
+      alpha = 1;
+      dispersion2 = dispersion;
       dispersion += score / info;
+      while(dispersion <= 0 && alpha >= C1){
+        alpha /= 2;
+        dispersion -= alpha * score / info; 
+      }
       score = fixed + X->n_rows * (log(dispersion) - boost::math::digamma(dispersion));
       info = X->n_rows * (-1 / dispersion + boost::math::trigamma(dispersion));
       it++;
@@ -686,7 +669,6 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   else{
     Iter = FisherScoringGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
-  
   // Checking for non-invertible fisher info error
   if(Iter == -2){
     stop("Algorithm failed to converge because the fisher info was not invertible");

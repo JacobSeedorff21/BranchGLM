@@ -37,10 +37,10 @@ double MetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Off
   double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
   double dispersion = GetDispersion(X, Y, &mu, LogLik, Dist, tol);
   
-  if(dispersion <= 0){
+  if(dispersion <= 0 || std::isnan(LogLik)){
     return(arma::datum::inf);
   }
-  
+    
   if(Dist == "gaussian"){
     double temp = X->n_rows/2 * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;

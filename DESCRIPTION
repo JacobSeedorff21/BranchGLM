@@ -1,7 +1,7 @@
 Package: BranchGLM
 Type: Package
 Title: Efficient Branch and Bound Variable Selection for GLMs using 'RcppArmadillo'
-Version: 1.1.0
+Version: 1.1.1
 Date: 2022-5-16
 Authors@R: person("Jacob", "Seedorff", , "jwseedorff@uiowa.edu", role = c("aut", "cre"))
 Maintainer: Jacob Seedorff <jwseedorff@uiowa.edu>

@@ -23,6 +23,7 @@ Gets predictions from a \code{BranchGLM} object.
 }
 \details{
 linpreds corresponds to the linear predictors and response is on the scale of the response variable.
+Offset variables are ignored for predictions on new data.
 }
 \examples{
 Data <- iris

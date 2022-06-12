@@ -1,6 +1,10 @@
 BranchGLM News
 ================
 
+# BranchGLM 1.1.1
+
+-   Fixing multiple different bugs
+
 # BranchGLM 1.1.0
 
 -   Adding NEWS.md
