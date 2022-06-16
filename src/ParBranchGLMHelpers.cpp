@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include "CrossProducts.h"
 #include <cmath>
 using namespace Rcpp;
 
@@ -226,22 +227,9 @@ arma::vec ParScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
 arma::mat ParFisherInfoCpp(const arma::mat* X, arma::vec* Deriv, 
                            arma::vec* Var){
   
-  arma::mat FinalMat(X->n_cols, X->n_cols);
   arma::vec w = pow(*Deriv, 2) / *Var;
   w.replace(arma::datum::nan, 0);
-  
-  for(unsigned int i = 0; i < X->n_cols; i++){
-    
-    FinalMat(i, i) = arma::dot((X->col(i) % w), X->col(i));
-    
-    for(unsigned int j = i + 1; j < X->n_cols; j++){
-      
-      FinalMat(i, j) = arma::dot((X->col(j) % w), X->col(i));
-      FinalMat(j, i) = FinalMat(i, j);
-      
-    } 
-    
-  }
+  arma::mat FinalMat = XTWX(X, &w, 16);
   return FinalMat;
 }
 
@@ -476,21 +464,7 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
                    const arma::vec* offset){
   
-  arma::mat FinalMat(x->n_cols, x->n_cols);
-  // Using this greatly speeds up the process for some reason
-  arma::vec w(y->n_elem, arma::fill::ones);
-  
-  // Finding X'X
-  for(unsigned int i = 0; i < x->n_cols; i++){
-    
-    FinalMat(i, i) = arma::dot(x->col(i) % w, x->col(i));
-    
-    for(unsigned int j = i + 1; j < x->n_cols; j++){
-      
-      FinalMat(i, j) = arma::dot(x->col(j) % w, x->col(i));
-      FinalMat(j, i) = FinalMat(i, j);
-    } 
-  }
+  arma::mat FinalMat = XTX(x, 16);
   
   // calculating inverse of X'X
   arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
