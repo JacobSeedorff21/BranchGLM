@@ -1,6 +1,11 @@
 BranchGLM News
 ================
 
+# BranchGLM 1.1.2
+
+-   Fixing multiple different bugs
+-   Speeding up regression fitting, especially for large models
+
 # BranchGLM 1.1.1
 
 -   Fixing multiple different bugs
