@@ -38,7 +38,7 @@ NormalSimul <- function(n, d, Bprob = .5){
   x <- MASS::mvrnorm(n, mu = rep(1, d), Sigma = diag(.5, nrow = d, ncol = d) + 
                  matrix(.5, ncol = d, nrow = d))
   
-  beta <- rnorm(d + 1, mean = 0, sd = 5) 
+  beta <- rnorm(d + 1, mean = 1, sd = 1) 
   
   beta[sample(2:length(beta), floor((length(beta) - 1) * Bprob))] = 0
   
@@ -99,7 +99,7 @@ LogisticSimul <- function(n, d, Bprob = .5, sd = 1){
 
 ### Big simulation
 
-df <- LogisticSimul(10000, 50)
+df <- LogisticSimul(10000, 100)
 
 Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "BFGS")}, 

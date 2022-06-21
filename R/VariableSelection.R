@@ -87,6 +87,7 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
                                       showprogress = TRUE, ...){
   
   ### Creating pseudo BranchGLM object to use in VariableSelection.BranchGLM
+  ### Validating supplied arguments
   formula <- object
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
@@ -103,6 +104,10 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
   if(!link %in% c("logit", "probit", "cloglog", "log", "identity", "inverse", "sqrt")){
     stop("link must be one of 'logit', 'probit', 'cloglog', 'log', 'inverse', 'sqrt', or 'identity'")
   }
+  if(length(grads) != 1 || !is.numeric(grads) || as.integer(grads) <= 0){
+    stop("grads must be a positive integer")
+  }
+  ### Evaluating arguments
   mf <- match.call(expand.dots = FALSE)
   m <- match(c("data", "offset"), names(mf), 0L)
   mf <- mf[c(1L, m)]
@@ -237,7 +242,7 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
     stop("the supplied model must have a data and an x component")
   }
     
-  ## Performing argument checks
+  ## Validating supplied arguments
   if(length(parallel) > 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")
   }
@@ -247,6 +252,9 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   if((length(nthreads) > 1) || (!is.numeric(nthreads))||(nthreads <= 0)){
     warning("Please select a positive integer for nthreads, using nthreads = 8")
     nthreads <- 8
+  }
+  if(length(grads) != 1 || !is.numeric(grads) || as.integer(grads) <= 0){
+    stop("grads must be a positive integer")
   }
   if(length(metric) > 1 || !is.character(metric)){
     stop("metric must be one of 'AIC', or 'BIC'")

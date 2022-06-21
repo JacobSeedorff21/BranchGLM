@@ -83,9 +83,6 @@ arma::mat XTX(const arma::mat* x, unsigned int B = 16){
                 temp += x->at(kk, ii) * x->at(kk, jj);
               }
               FinalMat.at(ii, jj) += temp;
-              if(jj != ii && k >= x->n_rows - B){
-                FinalMat.at(jj, ii) = FinalMat.at(ii, jj);
-              }
             }
           }
         }
@@ -108,12 +105,6 @@ arma::mat XTX(const arma::mat* x, unsigned int B = 16){
                 }
                 FinalMat.at(ii, jj) += temp1;
                 FinalMat.at(ii + 1, jj) += temp2;
-                if(k >= x->n_rows - B){
-                  FinalMat.at(jj, ii) = FinalMat.at(ii, jj);
-                  if(jj != ii + 1){
-                    FinalMat.at(jj, ii + 1) = FinalMat.at(ii + 1, jj);
-                  }
-                }
               }
             }
           }
@@ -121,7 +112,7 @@ arma::mat XTX(const arma::mat* x, unsigned int B = 16){
       }
     }
   }
-  return(FinalMat);
+  return(symmatu(FinalMat));
 }
 
 // Use this for parallel GLM fitting
@@ -163,9 +154,6 @@ arma::mat XTWX(const arma::mat* x, const arma::vec* w,
                 temp += x->at(kk, ii) * x->at(kk, jj) * w->at(kk);
               }
               FinalMat.at(ii, jj) += temp;
-              if(jj != ii && k >= x->n_rows - B){
-                FinalMat.at(jj, ii) = FinalMat.at(ii, jj);
-              }
             }
           }
         }
@@ -188,12 +176,6 @@ arma::mat XTWX(const arma::mat* x, const arma::vec* w,
                 }
                 FinalMat.at(ii, jj) += temp1;
                 FinalMat.at(ii + 1, jj) += temp2;
-                if(k >= x->n_rows - B){
-                  FinalMat.at(jj, ii) = FinalMat.at(ii, jj);
-                  if(jj != ii + 1){
-                    FinalMat.at(jj, ii + 1) = FinalMat.at(ii + 1, jj);
-                  }
-                }
               }
             }
           }
@@ -201,5 +183,5 @@ arma::mat XTWX(const arma::mat* x, const arma::vec* w,
       }
     }
   }
-  return(FinalMat);
+  return(symmatu(FinalMat));
 }

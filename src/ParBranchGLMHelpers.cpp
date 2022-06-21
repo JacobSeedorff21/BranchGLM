@@ -482,13 +482,15 @@ int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
 void PargetInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
              const arma::vec* Offset, std::string Dist, std::string Link){
   if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
-    const arma::vec NewY = log(*Y);
+    arma::vec NewY = log(*Y);
     ParLinRegCppShort(beta, X, &NewY, Offset);
   }else if(Link == "inverse" && (Dist == "gamma" || Dist == "gaussian")){
     const arma::vec NewY = -1 / (*Y);
     ParLinRegCppShort(beta, X, &NewY, Offset);
-  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian")){
+  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian"|| Dist == "poisson")){
     const arma::vec NewY = sqrt(*Y);
     ParLinRegCppShort(beta, X, &NewY, Offset);
+  }else if(Link == "identity" && (Dist == "gamma" || Dist == "poisson")){
+    ParLinRegCppShort(beta, X, Y, Offset);
   }
 }

@@ -72,13 +72,19 @@ arma::vec LinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
     }
   }
   else if(Link == "inverse"){
-    mu = -1 / (XBeta);
+#pragma omp parallel for
+    for(unsigned int i = 0; i < Offset->n_elem; i++){
+      mu.at(i) = -1 / (XBeta.at(i));
+    }
   }
   else if(Link == "identity"){
     mu = XBeta;
   }
   else if(Link == "sqrt"){
-    mu = pow(XBeta, 2);
+#pragma omp parallel for
+    for(unsigned int i = 0; i < Offset->n_elem; i++){
+      mu.at(i) = pow(XBeta.at(i), 2);
+    }
   }
   
   CheckBounds(&mu, Dist);
@@ -171,8 +177,11 @@ double LogLikelihoodCpp(const arma::mat* X, const arma::vec* Y,
       LogLik += -Y->at(i) * log(theta) + log1p(theta);
     }
   }else if(Dist == "gamma"){
-    arma::vec theta = -1 / *mu;
-    LogLik = -arma::dot(*Y, theta) - arma::accu(log(-theta));
+#pragma omp parallel for reduction(+:LogLik)
+    for(unsigned int i = 0; i < Y->n_elem; i++){
+      double theta = -1 / mu->at(i);
+      LogLik += -Y->at(i) * theta - log(-theta);
+    }
   }else{
 #pragma omp parallel for reduction(+:LogLik)
     for(unsigned int i = 0; i < Y->n_elem; i++){
@@ -332,7 +341,6 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
       mu = LinkCpp(X, beta, Offset, Link, Dist);
       f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     }
-    
     // Checking for convergence or nan/inf
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
       if(std::isinf(f1) || beta->has_nan()){
@@ -553,7 +561,7 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
                      double tol, double C1 = pow(10, -4)){
   double dispersion = 1;
   if(Dist == "gaussian"){
-    dispersion = arma::accu(pow(*Y - *mu, 2)) / (X->n_rows);
+    dispersion = arma::accu(pow(*Y - *mu, 2)) / (X->n_rows - X->n_cols);
   }else if(Dist == "gamma"){
     unsigned int it = 0;
     double alpha = 1;
@@ -582,22 +590,21 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
   return(dispersion);
 }
 
-// Gets initial values for gamma and gaussian regression with log/inverse/sqrt link 
-// and gamma regression with identity link with transformed y linear regression
+// Gets initial values for gamma, poisson, and gaussian regression
 void getInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
              const arma::vec* Offset, std::string Dist, std::string Link, 
              unsigned int nthreads){
   
   if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
-    const arma::vec NewY = log(*Y);
+    arma::vec NewY = log(*Y);
     LinRegCppShort(beta, X, &NewY, Offset, nthreads);
   }else if(Link == "inverse" && (Dist == "gamma" || Dist == "gaussian")){
     const arma::vec NewY = -1 / (*Y);
     LinRegCppShort(beta, X, &NewY, Offset, nthreads);
-  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian")){
+  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian"|| Dist == "poisson")){
     const arma::vec NewY = sqrt(*Y);
     LinRegCppShort(beta, X, &NewY, Offset, nthreads);
-  }else if(Link == "identity" && (Dist == "gamma")){
+  }else if(Link == "identity" && (Dist == "gamma" || Dist == "poisson")){
     LinRegCppShort(beta, X, Y, Offset, nthreads);
   }
 }

@@ -74,11 +74,13 @@
 #' @export
 
 BranchGLM <- function(formula, data, family, link, offset = NULL, 
-                    method = "Fisher", grads = 10, parallel = FALSE, nthreads = 8, 
+                    method = "Fisher", grads = 10,
+                    parallel = FALSE, nthreads = 8, 
                     tol = 1e-4, maxit = NULL, init = NULL, 
                     contrasts = NULL, keepData = TRUE,
                     keepY = TRUE){
   
+  ### Validating supplied arguments
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
   }
@@ -94,6 +96,10 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(!link %in% c("logit", "probit", "cloglog", "log", "identity", "inverse", "sqrt")){
     stop("link must be one of 'logit', 'probit', 'cloglog', 'log', 'inverse', 'sqrt', or 'identity'")
   }
+  if(length(grads) != 1 || !is.numeric(grads) || as.integer(grads) <= 0){
+    stop("grads must be a positive integer")
+  }
+  ### Evaluating arguments
   mf <- match.call(expand.dots = FALSE)
   m <- match(c("formula", "data", "offset"), names(mf), 0L)
   mf <- mf[c(1L, m)]
@@ -171,11 +177,11 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     }
   }
   
-
+  ### Checking for initial values
   if(is.null(init)){
     init <- rep(0, ncol(x))
     GetInit <- TRUE
-  }else if(!is.numeric(init) || length(init) != nrow(x)){
+  }else if(!is.numeric(init) || length(init) != ncol(x)){
     stop("init must be null or a numeric vector with length equal to the number of betas")
   }else{
     GetInit <- FALSE
@@ -352,11 +358,16 @@ GetPreds <- function(XBeta, Link){
 #' @export
 
 print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
-  
+  if(length(coefdigits)!= 1  || !is.numeric(coefdigits) || coefdigits < 0){
+    stop("coefdigits must be a non-negative number")
+  }
+  if(length(digits)!= 1  || !is.numeric(digits) || digits < 0){
+    stop("coefdigits must be a non-negative number")
+  }
   cat(paste0("Results from ", x$family, " regression with ", x$link, 
              " link function \nUsing the formula ", deparse1(x$formula), "\n\n"))
   
-  printCoefmat(x$coefficients, signif.stars = TRUE, P.values = TRUE, 
+  printCoefmat(round(x$coefficients, digits = coefdigits), signif.stars = TRUE, P.values = TRUE, 
                has.Pvalue = TRUE)
   
   cat(paste0("\nDispersion parameter taken to be ", round(x$dispersion, coefdigits)))
@@ -387,14 +398,3 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
   }
   invisible(x)
 }
-
-### TODO: Implement LRT CI using secant method 
-
-### Notes
-#---------------#
-### Reordered branch and bound works so well because it finds a good solution 
-### pretty quickly, finds the model selected by forward selection first.
-### Also works well because the upper models always contain the worst variables, 
-### so as the better predictors get removed the likelihood on the larger models 
-### get worse very quickly and thus the lower bounds get larger quickly.
-### My implementation of reordered branch and bound uses wide branching.

@@ -35,7 +35,7 @@ NormalSimul <- function(n, d, Bprob = .5){
   x <- MASS::mvrnorm(n, mu = rep(1, d), Sigma = diag(.5, nrow = d, ncol = d) + 
                  matrix(.5, ncol = d, nrow = d))
   
-  beta <- rnorm(d + 1, mean = 0, sd = 5) 
+  beta <- rnorm(d + 1, mean = 1, sd = 1) 
   
   beta[sample(2:length(beta), floor((length(beta) - 1) * Bprob))] = 0
   
@@ -98,7 +98,7 @@ LogisticSimul <- function(n, d, Bprob = .5, sd = 1){
 
 ### Big simulation
 
-df <- LogisticSimul(10000, 50)
+df <- LogisticSimul(10000, 100)
 
 Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "BFGS")}, 
@@ -146,7 +146,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.27    0.00    0.27
+    ##    0.22    0.00    0.22
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -156,7 +156,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  235.97    0.83  239.31
+    ##  142.11    0.36  142.54
 
 ### Checking results
 
@@ -190,7 +190,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  266.12    0.87  269.31
+    ##  154.06    0.03  154.20
 
 ### Parallel time
 
@@ -202,7 +202,7 @@ system.time(ParBranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  318.04    1.13   39.47
+    ##  246.33    1.05   31.47
 
 ### Checking results
 
