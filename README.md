@@ -146,7 +146,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.22    0.00    0.22
+    ##    0.20    0.00    0.22
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -156,7 +156,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  142.11    0.36  142.54
+    ##  142.81    0.92  145.14
 
 ### Checking results
 
@@ -190,7 +190,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  154.06    0.03  154.20
+    ##  166.75    0.94  168.99
 
 ### Parallel time
 
@@ -202,7 +202,7 @@ system.time(ParBranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  246.33    1.05   31.47
+    ##  242.78    1.50   31.25
 
 ### Checking results
 
