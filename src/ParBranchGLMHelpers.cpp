@@ -229,7 +229,20 @@ arma::mat ParFisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   
   arma::vec w = pow(*Deriv, 2) / *Var;
   w.replace(arma::datum::nan, 0);
-  arma::mat FinalMat = XTWX(X, &w, 16);
+  arma::mat FinalMat(X->n_cols, X->n_cols);
+  
+  for(unsigned int i = 0; i < X->n_cols; i++){
+    
+    FinalMat(i, i) = arma::dot((X->col(i) % w), X->col(i));
+    
+    for(unsigned int j = i + 1; j < X->n_cols; j++){
+      
+      FinalMat(i, j) = arma::dot((X->col(j) % w), X->col(i));
+      FinalMat(j, i) = FinalMat(i, j);
+      
+    } 
+    
+  }
   return FinalMat;
 }
 

@@ -239,7 +239,7 @@ arma::vec ScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
 
 // Defining fisher information function
 arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv, 
-                        arma::vec* Var, unsigned int nthreads){
+                        arma::vec* Var){
   
   // Initializing matrix to store results
   arma::mat FinalMat(X->n_cols, X->n_cols);
@@ -248,12 +248,19 @@ arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   arma::vec w = pow(*Deriv, 2) / *Var;
   w.replace(arma::datum::nan, 0);
   checkUserInterrupt();
-  if(nthreads > 1){
-    FinalMat = ParXTWX(X, &w);
-  }else{
-    FinalMat = XTWX(X, &w, 16);
-  }
   
+#pragma omp parallel for schedule(dynamic, 1)
+  for(unsigned int i = 0; i < X->n_cols; i++){
+    
+    FinalMat(i, i) = arma::dot((X->col(i) % w), X->col(i));
+    
+    for(unsigned int j = i + 1; j < X->n_cols; j++){
+      
+      FinalMat(i, j) = arma::dot((X->col(j) % w), X->col(i));
+      FinalMat(j, i) = FinalMat(i, j);
+      
+    } 
+  }
   return FinalMat;
 }
 
@@ -288,7 +295,7 @@ arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
 int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                 const arma::vec* Y, const arma::vec* Offset,
                 std::string Link, std::string Dist, 
-                double tol, int maxit, int m, unsigned int nthreads, 
+                double tol, int maxit, int m, 
                 double C1 = pow(10, -4)){
   
   // Initializing vectors and matrices 
@@ -303,7 +310,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::mat s(beta->n_elem, m);
   arma::mat y(beta->n_elem, m);
   arma::mat Info(beta->n_elem, beta->n_elem);
-  if(!inv_sympd(Info, FisherInfoCpp(X, &Deriv, &Var, nthreads))){
+  if(!inv_sympd(Info, FisherInfoCpp(X, &Deriv, &Var))){
     warning("Fisher information not invertible");
     return(-2);
   }
@@ -365,7 +372,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int BFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                const arma::vec* Y, const arma::vec* Offset,
                std::string Link, std::string Dist,
-               double tol, int maxit, unsigned int nthreads, 
+               double tol, int maxit, 
                double C1 = pow(10, -4)){
   
   // Initializing vectors and matrices
@@ -378,7 +385,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::vec y(beta->n_elem);
   arma::vec g0(beta->n_elem);
   arma::mat H1(beta->n_elem, beta->n_elem);
-  if(!inv_sympd(H1, FisherInfoCpp(X, &Deriv, &Var, nthreads))){
+  if(!inv_sympd(H1, FisherInfoCpp(X, &Deriv, &Var))){
     warning("Fisher information not invertible");
     return(-2);
   }
@@ -447,7 +454,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                         const arma::vec* Y, const arma::vec* Offset,
                         std::string Link, std::string Dist,
-                        double tol, int maxit, unsigned int nthreads, 
+                        double tol, int maxit, 
                         double C1 = pow(10, -4)){
   
   // Initializing vector and matrices
@@ -456,7 +463,7 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::vec Var = Variance(&mu, Dist);
   arma::vec g1 = ScoreCpp(X, Y, &Deriv, &Var, &mu);
   arma::vec p(beta->n_elem);
-  arma::mat H1 = FisherInfoCpp(X, &Deriv, &Var, nthreads);
+  arma::mat H1 = FisherInfoCpp(X, &Deriv, &Var);
   
   // Initializing int and doubles
   int k = 0;
@@ -507,7 +514,7 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     Deriv = DerivativeCpp(X, beta, Offset, &mu, Link, Dist);
     Var = Variance(&mu, Dist);
     g1 = ScoreCpp(X, Y, &Deriv, &Var, &mu);
-    H1 = FisherInfoCpp(X, &Deriv, &Var, nthreads);
+    H1 = FisherInfoCpp(X, &Deriv, &Var);
   }
   return(k);
 }
@@ -641,13 +648,13 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   if(Dist == "gaussian" && Link == "identity"){
     Iter = LinRegCpp(&beta, &X, &Y, &Offset, &SE1, nthreads);
   }else if(method == "BFGS"){
-    Iter = BFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit, nthreads);
+    Iter = BFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
   else if(method == "LBFGS"){
-    Iter = LBFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit, m, nthreads);
+    Iter = LBFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = FisherScoringGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit, nthreads);
+    Iter = FisherScoringGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
   // Checking for non-invertible fisher info error
   if(Iter == -2){
@@ -665,7 +672,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     arma::vec Var = Variance(&mu, Dist);
     
     // Calculating info and initaliazing inverse info
-    Info = FisherInfoCpp(&X, &Deriv, &Var, nthreads);
+    Info = FisherInfoCpp(&X, &Deriv, &Var);
     arma::mat InfoInv = Info;
     
     // Calculating inverse info and returning error if not invertible
@@ -765,13 +772,13 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
   if(Dist == "gaussian" && Link == "identity"){
     Iter = LinRegCpp(&beta, X, Y, Offset, &SE1, nthreads);
   }else if(method == "BFGS"){
-    Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, nthreads);
+    Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
   }
   else if(method == "LBFGS"){
-    Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m, nthreads);
+    Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
   }
   else{
-    Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, nthreads);
+    Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
   }
   
   // Checking for non-invertible fisher info error
@@ -790,7 +797,7 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
     arma::vec Var = Variance(&mu, Dist);
     
     // Calculating info and initaliazing inverse info
-    Info = FisherInfoCpp(X, &Deriv, &Var, nthreads);
+    Info = FisherInfoCpp(X, &Deriv, &Var);
     arma::mat InfoInv = Info;
     
     // Calculating inverse info and returning error if not invertible
