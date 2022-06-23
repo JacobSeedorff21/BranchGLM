@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-This is a submission to fix undefined behavior detected by UBSAN.
+Updating package to version 1.1.2
