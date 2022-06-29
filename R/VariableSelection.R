@@ -361,11 +361,11 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
       as.formula()
   }
   
-  x <- model.matrix(df$fit$formula, object$data, object$contrasts)
-  
-  df$fit$numobs <- nrow(x)
+  df$fit$numobs <- nrow(object$x)
   
   df$fit$y <- object$y
+  
+  x <- model.matrix(df$fit$formula, object$data, object$contrasts)
   
   row.names(df$fit$coefficients) <- colnames(x)
   

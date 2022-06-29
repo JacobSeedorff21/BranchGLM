@@ -1,6 +1,11 @@
 BranchGLM News
 ================
 
+# BranchGLM 1.1.3
+
+-   Fixing number of observations returned from VariableSelection
+    function in the presence of missing values
+
 # BranchGLM 1.1.2
 
 -   Fixing multiple different bugs
