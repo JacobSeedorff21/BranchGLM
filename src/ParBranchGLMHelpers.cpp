@@ -246,6 +246,24 @@ arma::mat ParFisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   return FinalMat;
 }
 
+void ParGetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
+                 arma::vec* mu, arma::vec* p, arma::vec* beta, 
+                 std::string Dist, std::string Link, 
+                 double* f0, double* f1, double* t, double *C1, double* alpha, 
+                 std::string method){
+  if(method == "backtrack"){
+    // Finding alpha with backtracking line search using Armijo-Goldstein condition
+    while((*f0 < *f1 + *alpha * *t) && (*alpha > *C1)){
+      *alpha /= 2;
+      *beta -= *alpha * *p;
+      *mu = ParLinkCpp(X, beta, Offset, Link, Dist);
+      *f1 = ParLogLikelihoodCpp(X, Y, mu, Dist);
+    }
+  }else{
+    // Add other methods here
+  }
+}
+
 // Creating LBFGS helper function
 
 arma::vec ParLBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y, 
@@ -316,13 +334,7 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
     
     // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    
-    while((f0 < f1 + alpha * t) && (alpha > C1)){
-      alpha /= 2;
-      *beta -= alpha * p;
-      mu = ParLinkCpp(X, beta, Offset, Link, Dist);
-      f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
-    }
+    ParGetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
     
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
       if(std::isinf(f1)|| beta->has_nan()){
@@ -383,14 +395,7 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
     
     // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    
-    while((f0 < f1 + alpha * t) && (alpha > C1)){
-      alpha /= 2;
-      *beta -= alpha * p;
-      mu = ParLinkCpp(X, beta, Offset, Link, Dist);
-      f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
-    }
-    
+    ParGetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
     k++;
     
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
@@ -451,13 +456,9 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     *beta += alpha * p;
     mu = ParLinkCpp(X, beta, Offset, Link, Dist);
     f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
-    // Finding alpha with backtracking line search using Armijo-Goldstein condition
-    while((f0 < f1 + alpha * t) && (alpha > C1)){
-      alpha /= 2;
-      *beta -= alpha * p;
-      mu = ParLinkCpp(X, beta, Offset, Link, Dist);
-      f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
-    }
+    
+    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
+    ParGetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
     k++;
     
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){

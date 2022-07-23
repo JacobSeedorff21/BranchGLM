@@ -17,11 +17,13 @@
 #' @param init initial values for the betas, if not specified then they are automatically 
 #' selected.
 #' @param keepData Whether or not to store a copy of data and design matrix, the default 
-#' is TRUE. If this is false, then this cannot be used inside of \code{VariableSelection}.
+#' is TRUE. If this is false, then the results from this cannot be used inside of \code{VariableSelection}.
 #' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
 #' this is FALSE, then the binomial GLM helper functions may not work.
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
-#' @return A \code{BranchGLM} object which is a list with the following components
+#' @param x design matrix used for the fit, must be numeric.
+#' @param y outcome vector, must be numeric.
+#' @return \code{BranchGLM} returns a \code{BranchGLM} object which is a list with the following components
 #' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
 #' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
@@ -44,13 +46,27 @@
 #' \item{\code{link}}{ link function used to model the data}
 #' \item{\code{family}}{ family used to model the data}
 #' \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
+#' \item{\code{xlev}}{ the levels of the factors in the dataset}
 #' \item{\code{terms}}{the terms object used}
+#' 
+#' \code{BranchGLM.fit} returns a list with the following components
+#' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
+#' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
+#' \item{\code{dispersion}}{ the value of the dispersion parameter}
+#' \item{\code{logLik}}{ the log-likelihood of the fitted model}
+#' \item{\code{resdev}}{ the residual deviance of the fitted model}
+#' \item{\code{AIC}}{ the AIC of the fitted model}
+#' \item{\code{preds}}{ predictions from the fitted model}
+#' \item{\code{linpreds}}{ linear predictors from the fitted model}
+#' 
 #' @description Fits generalized linear models via RcppArmadillo. Also has the 
 #' ability to fit the models with parallelization via OpenMP.
 #' @details Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
 #' typically faster than Fisher's scoring when there are at least 50 covariates 
 #' and Fisher's scoring is typically best when there are fewer than 50 covariates.
-#' This function does not currently support the use of weights. 
+#' This function does not currently support the use of weights. In the special 
+#' case of gaussian regression with identity link the \code{method} argument is ignored
+#' and the normal equations are solved directly.
 #' 
 #' The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
 #' convergence, each of the methods makes use of a backtracking line-search using 
@@ -59,18 +75,27 @@
 #' sufficient decrease in the negative log-likelihood, and the other is whether 
 #' each of the elements of the beta vector changes by a sufficient amount. The 
 #' \code{tol} argument controls both of these criteria. If the algorithm fails to 
-#' converge, then \code{iterations} will be -1.The \code{method} argument 
-#' is ignored for linear regression and the OLS solution is used.
+#' converge, then \code{iterations} will be -1.
 #' 
-#' The likelihood equations are solved directly, i.e. no matrix decomposition is used.
-#' 
-#' All observations with any missing values are ignored. 
+#' All observations with any missing values are removed before model fitting. 
 #' 
 #' The dispersion parameter for gamma regression is estimated via maximum likelihood, 
 #' very similar to the \code{gamma.dispersion} function from the MASS package.
+#' 
+#' \code{BranchGLM.fit} can be faster than calling \code{BranchGLM} if the 
+#' x matrix and y vector are already available, but doesn't return as much information.
+#' The object returned by \code{BranchGLM.fit} is not of class \code{BranchGLM}, so 
+#' all of the methods for \code{BranchGLM} objects such as \code{predict} or 
+#' \code{VariableSelection} cannot be used.
+#' 
 #' @examples
 #' Data <- iris
+#' ### Using BranchGLM
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' ### Using BranchGLM.fit
+#' x <- model.matrix(Sepal.Length ~ ., data = Data)
+#' y <- Data$Sepal.Length
+#' BranchGLM.fit(x, y, family = "gaussian", link = "identity")
 #' @export
 
 BranchGLM <- function(formula, data, family, link, offset = NULL, 
@@ -113,27 +138,12 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   offset <- as.vector(model.offset(mf))
   x <- model.matrix(attr(mf, "terms"), mf, contrasts)
   
-  ### Checking offset
   if(is.null(offset)){
-    offset <- rep(0, nrow(x))
-  }else if(length(offset) != length(y)){
-    stop("offset must have the same length as the y")
-  }else if(!is.numeric(offset)){
-    stop("offset must be a numeric vector")
+    offset <- rep(0, length(y))
   }
   
-  ## Setting maxit
-  if(is.null(maxit)){
-    if(method == "Fisher"){
-      maxit <- 50
-    }else{
-      maxit <- 200
-    }
-  }else if(length(maxit) != 1 || !is.numeric(maxit) || maxit != as.integer(maxit) || maxit < 0){
-    stop("maxit must be a non-negative integer")
-  }
   
-  ## Checking y variable and link function for each family
+  ## Checking y variable for binomial family
   if(family == "binomial"){
     if(!(link %in% c("cloglog", "log", "logit", "probit"))){
       stop("valid link functions for binomial regression are 'cloglog', 'log', 'logit', and 'probit'")
@@ -149,53 +159,11 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
       stop("response variable for binomial regression must be numeric with only 
       0s and 1s, a two-level factor, or a logical vector")
     }
-  }else if(family == "poisson"){
-    if(!(link %in% c("identity", "log", "sqrt"))){
-      stop("valid link functions for poisson regression are 'identity', 'log', and 'sqrt'")
-    }else if(!is.numeric(y) || any(y < 0)){
-      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
-    }else if(any(as.integer(y)!= y)){
-      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
-    }
-  }else if(family == "gaussian"){
-    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
-      stop("valid link functions for gaussian regression are 'identity', 'inverse', 'log', and 'sqrt'")
-    }else if(!is.numeric(y)){
-      stop("response variable for gaussian regression must be numeric")
-    }else if(link == "log" && any(y <= 0)){
-      stop("gaussian regression with log link must have positive response values")
-    }else if(link == "inverse" && any(y == 0)){
-      stop("gaussian regression with inverse link must have non-zero response values")
-    }else if(link == "sqrt" && any(y < 0)){
-      stop("gaussian regression with sqrt link must have non-negative response values")
-    }
-  }else if(family == "gamma"){
-    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
-      stop("valid link functions for gamma regression are 'identity', 'inverse', 'log', and 'sqrt'")
-    }else if(!is.numeric(y) || any(y <= 0)){
-      stop("response variable for gamma regression must be positive")
-    }
   }
   
-  ### Checking for initial values
-  if(is.null(init)){
-    init <- rep(0, ncol(x))
-    GetInit <- TRUE
-  }else if(!is.numeric(init) || length(init) != ncol(x)){
-    stop("init must be null or a numeric vector with length equal to the number of betas")
-  }else{
-    GetInit <- FALSE
-  }
-  ### Fitting GLM
-  if(length(parallel) != 1 || !is.logical(parallel)){
-    stop("parallel must be either TRUE or FALSE")
-  }else if(parallel){
-    df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, nthreads, 
-                       tol, maxit, GetInit) 
-  }else{
-    df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, 1, tol, maxit, 
-                       GetInit) 
-  }
+  ### Using BranchGLM.fit to fit GLM
+  df <- BranchGLM.fit(x, y, family, link, offset, method, grads, parallel, nthreads, 
+                      init, maxit, tol)
   
   row.names(df$coefficients) <- colnames(x)
   
@@ -234,14 +202,106 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   
   df$terms <- attr(mf, "terms")
   
+  df$xlev <- .getXlevels(df$terms, mf)
+  
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
-  if(family == "gaussian" && link == "identity"){
+  if(family == "gaussian" || family == "gamma"){
     colnames(df$coefficients)[3] <- "t"
   }
   structure(df, class = "BranchGLM")
 }
+
+#' @rdname BranchGLM
+#' @export
+BranchGLM.fit <- function(x, y, family, link, offset = NULL,
+                          method = "Fisher", grads = 10,
+                          parallel = FALSE, nthreads = 8, init = NULL,  
+                          maxit = NULL, tol = 1e-4){
+  
+  ## Performing a few checks
+  if(!is.matrix(x) || !is.numeric(x)){
+    stop("x must be a numeric matrix")
+  }else if(!is.numeric(y)){
+    stop("y must be numeric")
+  }else if(nrow(x) != length(y)){
+    stop("the number of rows in x must be the same as the length of y")
+  }
+  
+  ## Getting initial values
+  if(is.null(init)){
+    init <- rep(0, ncol(x))
+    GetInit <- TRUE
+  }else if(!is.numeric(init) || length(init) != ncol(x)){
+    stop("init must be null or a numeric vector with length equal to the number of betas")
+  }else{
+    GetInit <- FALSE
+  }
+  
+  ## Getting maxit
+  if(is.null(maxit)){
+    if(method == "Fisher"){
+      maxit = 50
+    }else{
+      maxit = 200
+    }
+  }
+  
+  ## Checking y variable and link function for each family
+  if(family == "binomial"){
+    if(!(link %in% c("cloglog", "log", "logit", "probit"))){
+      stop("valid link functions for binomial regression are 'cloglog', 'log', 'logit', and 'probit'")
+    }else if(!all(y %in% c(0, 1))){
+      stop("for binomial regression y must be a vector of 0s and 1s")
+    }
+  }else if(family == "poisson"){
+    if(!(link %in% c("identity", "log", "sqrt"))){
+      stop("valid link functions for poisson regression are 'identity', 'log', and 'sqrt'")
+    }else if(!is.numeric(y) || any(y < 0)){
+      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
+    }else if(any(as.integer(y)!= y)){
+      stop("response variable for poisson regression must be a numeric vector of non-negative integers")
+    }
+  }else if(family == "gaussian"){
+    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
+      stop("valid link functions for gaussian regression are 'identity', 'inverse', 'log', and 'sqrt'")
+    }else if(!is.numeric(y)){
+      stop("response variable for gaussian regression must be numeric")
+    }else if(link == "log" && any(y <= 0)){
+      stop("gaussian regression with log link must have positive response values")
+    }else if(link == "inverse" && any(y == 0)){
+      stop("gaussian regression with inverse link must have non-zero response values")
+    }else if(link == "sqrt" && any(y < 0)){
+      stop("gaussian regression with sqrt link must have non-negative response values")
+    }
+  }else if(family == "gamma"){
+    if(!(link %in% c("inverse", "identity", "log", "sqrt"))){
+      stop("valid link functions for gamma regression are 'identity', 'inverse', 'log', and 'sqrt'")
+    }else if(!is.numeric(y) || any(y <= 0)){
+      stop("response variable for gamma regression must be positive")
+    }
+  }
+  
+  ## Getting offset
+  if(is.null(offset)){
+    offset <- rep(0, length(y))
+  }else if(length(offset) != length(y)){
+    stop("offset must be the same length as y")
+  }
+  
+  if(length(parallel) != 1 || !is.logical(parallel)){
+    stop("parallel must be either TRUE or FALSE")
+  }else if(parallel){
+    df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, nthreads, 
+                       tol, maxit, GetInit) 
+  }else{
+    df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, 1, tol, maxit, 
+                       GetInit) 
+  }
+  return(df)
+}
+
 
 #' Extract Log-Likelihood
 #' @param object a \code{BranchGLM} object.
@@ -312,7 +372,8 @@ predict.BranchGLM <- function(object, newdata = NULL, type = "response", ...){
     }
   }else{
     myterms <- delete.response(terms(object))
-    m <- model.frame(myterms, newdata, na.action = "na.omit")
+    m <- model.frame(myterms, newdata, na.action = "na.omit",
+                     xlev = object$xlev)
     x <- model.matrix(myterms, m, contrasts = object$contrasts)
     
     if(ncol(x) != length(object$coefficients$Estimate)){
@@ -367,7 +428,7 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
   cat(paste0("Results from ", x$family, " regression with ", x$link, 
              " link function \nUsing the formula ", deparse1(x$formula), "\n\n"))
   
-  printCoefmat(round(x$coefficients, digits = coefdigits), signif.stars = TRUE, P.values = TRUE, 
+  printCoefmat(signif(x$coefficients, digits = coefdigits), signif.stars = TRUE, P.values = TRUE, 
                has.Pvalue = TRUE)
   
   cat(paste0("\nDispersion parameter taken to be ", round(x$dispersion, coefdigits)))

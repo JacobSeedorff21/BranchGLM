@@ -365,7 +365,9 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   
   df$fit$y <- object$y
   
-  x <- model.matrix(df$fit$formula, object$data, object$contrasts)
+  mf <- model.frame(df$fit$formula, data = object$data, na.action = "na.omit")
+  
+  x <- model.matrix(attr(mf, "terms"), mf, contrasts.arg = object$contrasts)
   
   row.names(df$fit$coefficients) <- colnames(x)
   
@@ -390,9 +392,14 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   
   df$fit$terms <- terms(df$fit$formula, data = x)
   
+  df$fit$xlev <- .getXlevels(attr(mf, "terms"), mf)
+  
   if(object$family == "binomial"){
     df$fit$ylevel <- object$ylevel
+  }else if(object$family == "gaussian" || object$family == "gamma"){
+    colnames(df$fit$coefficients)[3] <- "t"
   }
+  
   if(type != "branch and bound"){
     FinalList <- list("finalmodel" = structure(df$fit, class = "BranchGLM"),
                       "variables" = df$model, 

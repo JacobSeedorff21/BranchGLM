@@ -8,6 +8,7 @@
 #endif
 using namespace Rcpp;
 
+// Function used to fit models and calculate desired metric
 double MetricHelper(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                        std::string method, 
                        int m, std::string Link, std::string Dist,
@@ -69,12 +70,14 @@ void add1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   
   arma::vec Metrics(CurModel->n_elem, arma::fill::zeros);
   Metrics.fill(arma::datum::inf);
+  arma::ivec Counts(CurModel->n_elem, arma::fill::zeros);
   checkUserInterrupt();
   
+  // Adding each variable one at a time and calculating metric for each model
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int j = 0; j < CurModel->n_elem; j++){
     if(CurModel->at(j) == 0){
-      (*numchecked)++;
+      Counts.at(j) = 1;
       arma::ivec CurModel2 = *CurModel;
       CurModel2.at(j) = 1;
       arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
@@ -82,6 +85,11 @@ void add1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                  tol, maxit, metric);
     }
   }
+  
+  // Updating numchecked
+  (*numchecked) += arma::accu(Counts);
+  
+  // Updating best model
   unsigned int BestVar = Metrics.index_min();
   double NewMetric = Metrics.at(BestVar);
   checkUserInterrupt();
@@ -109,22 +117,24 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   omp_set_num_threads(nthreads);
 #endif
   
+  // Creating necessary vectors/matrices
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
-  
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  IntegerVector order(CurModel.n_elem, -1);
+  arma::ivec Order(order.begin(), order.size(), false, true);
+  
+  // Creating necessary scalars
   double BestMetric = arma::datum::inf;
   BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
                                tol, maxit, metric);
   unsigned int numchecked = 0;
   
-  IntegerVector order(CurModel.n_elem, -1);
-  arma::ivec Order(order.begin(), order.size(), false, true);
-  
+  // Performing forward selection
   for(unsigned int i = 0; i < steps; i++){
     checkUserInterrupt();
     bool flag = true;
@@ -132,6 +142,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     add1(&X, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
     
+    // Stopping process if no better model is found
     if(flag){
       break;
     }
@@ -140,6 +151,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   checkUserInterrupt();
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
+  // Fitting best model
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
                                  nthreads, tol, maxit);
   
@@ -164,12 +176,14 @@ void drop1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
            arma::ivec* indices, double tol, int maxit, std::string metric){
   
   arma::vec Metrics(CurModel->n_elem);
+  arma::ivec Counts(CurModel->n_elem, arma::fill::zeros);
   Metrics.fill(arma::datum::inf);
   
+  // Removing each variable one at a time and calculating metric for each model
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int j = 0; j < CurModel->n_elem; j++){
     if(CurModel->at(j) == 1){
-      (*numchecked)++;
+      Counts.at(j) = 1;
       arma::ivec CurModel2 = *CurModel;
       CurModel2.at(j) = 0;
       arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
@@ -179,6 +193,11 @@ void drop1(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       
     }
   }
+  
+  // Updating numchecked
+  (*numchecked) += arma::accu(Counts);
+  
+  // Updating best model
   unsigned int BestVar = Metrics.index_min();
   double NewMetric = Metrics.at(BestVar);
   if(NewMetric < *BestMetric){
@@ -204,22 +223,25 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   omp_set_num_threads(nthreads);
 #endif
   
+  // Creating neccessary vectors/matrices
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
-  
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  IntegerVector order(CurModel.n_elem, - 1);
+  arma::ivec Order(order.begin(), order.size(), false, true);
+  
+  // Creating necessary scalars
   double BestMetric = arma::datum::inf;
   BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, tol, maxit,
                                metric);
   
   unsigned int numchecked = 0;
-  IntegerVector order(CurModel.n_elem, -1);
-  arma::ivec Order(order.begin(), order.size(), false, true);
   
+  // Performing Backward elimination
   for(unsigned int i = 0; i < steps; i++){
     
     bool flag = true;
@@ -227,15 +249,17 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     drop1(&X, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
           &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
     
+    // Stopping the process if no better model is found
     if(flag){
       break;
     }
   }
   
   // Getting x matrix for best model found
-  
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
+  
+  // Fitting best model
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
                                  nthreads, tol, maxit);
   
@@ -252,7 +276,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   return(FinalList);
 }
 
-
+// Fits upper model for a set of models and calculates the bound for the desired metric
 double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                    std::string method, int m, std::string Link, std::string Dist,
                    arma::ivec* CurModel,  arma::ivec* indices, 
@@ -262,9 +286,12 @@ double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   int Iter;
   arma::ivec UpperModel = *CurModel;
   
+  // Creating vector for the upper model
   for(unsigned int i = cur; i < NewOrder->n_elem; i++){
     UpperModel.at(NewOrder->at(i)) = 1;
   }
+  
+  // Creating matrix for upper model and fitting it
   arma::mat xTemp = GetMatrix(X, &UpperModel, indices);
   arma::vec beta(xTemp.n_cols, arma::fill::zeros);
   PargetInit(&beta, &xTemp, Y, Offset, Dist, Link);
@@ -311,6 +338,7 @@ double GetBound(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
   return(BoundHelper(X, LogLik, Dist, metric, minsize));
 }
 
+// Function used to performing branching for branch and bound method
 void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                std::string method, int m, std::string Link, std::string Dist,
                arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
@@ -320,11 +348,13 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                double LowerBound, arma::uvec* NewOrder, Progress* p){
   
   checkUserInterrupt();
+  // Continuing branching process if lower bound is smaler than the best observed metric
   if(LowerBound < *BestMetric && maxsize > 0){
     p->update(2);
     p->print();
     arma::uvec NewOrder2(NewOrder->n_elem - cur);
     arma::vec Metrics(NewOrder->n_elem - cur);
+    
     //Getting metric values
 #pragma omp parallel for 
     for(unsigned int j = 0; j < NewOrder2.n_elem; j++){
@@ -335,6 +365,7 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       Metrics.at(j) = MetricHelper(&xTemp, Y, Offset, method, m, Link, Dist, 
                  tol, maxit, metric);
     }
+    
     // Updating numchecked and potentially updating the best model
     *numchecked += NewOrder2.n_elem;
     arma::uvec sorted = sort_index(Metrics);
@@ -345,8 +376,9 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       *BestModel = *CurModel;
       BestModel->at(NewOrder2.at(0)) = 1;
     }
-    //Getting lower bounds
     
+    //Getting lower bounds
+    checkUserInterrupt();
     arma::uvec Counts(NewOrder->n_elem, arma::fill::zeros);
     if(maxsize > 1){
 #pragma omp parallel for
@@ -364,7 +396,9 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
       }
       (*numchecked) += sum(Counts);
     }
+    
     checkUserInterrupt();
+    
     // Recursively calling this function for each new model
     for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
       arma::ivec CurModel2 = *CurModel;
@@ -375,12 +409,14 @@ void Branch(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
     }
   }
   else{
+    // Updating progress since we have cut off part of the tree
     p->update(GetNum(NewOrder->n_elem - cur, maxsize));
     p->print();
   }
 }
 
 
+// Branch and bound method
 // [[Rcpp::export]]
 List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
                           IntegerVector indices, IntegerVector num,
@@ -390,6 +426,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                           IntegerVector keep, int maxsize, std::string metric,
                           bool display_progress){
   
+  // Creating necessary vectors/matrices
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
@@ -397,11 +434,14 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  
+  // Creating necessary scalars
   double BestMetric = arma::datum::inf;
   BestMetric = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
                                tol, maxit, metric);
   unsigned int numchecked = 1;
   unsigned int size = 0;
+  
 #ifdef _OPENMP
   omp_set_num_threads(nthreads);
 #endif
@@ -413,6 +453,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     }
   }
   
+  // Creating object to report progress
   Progress p(GetNum(size, maxsize), display_progress);
   p.print();
   p.update(1);
@@ -422,14 +463,14 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   unsigned int k = 0;
   
   // Making vector of order to look at variables
-  
   for(unsigned int j = 0; j < CurModel.n_elem; j++){
     if(CurModel.at(j) == 0){
       NewOrder.at(k++) = j;
     }
   }
+  
   checkUserInterrupt();
-  // Fitting all models with 1 variable
+  // Fitting all models with 1 additional variable
 #pragma omp parallel for
   for(unsigned int j = 0; j < NewOrder.n_elem; j++){
     arma::ivec CurModel2 = CurModel;
@@ -438,13 +479,18 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     Metrics.at(j) = MetricHelper(&xTemp, &Y, &Offset, method, m, Link, Dist, 
                tol, maxit, metric);
   }
+  
   checkUserInterrupt();
+  
+  // Updating numchecked
   numchecked += NewOrder.n_elem;
+  
   // Ordering variables based upon metric
   arma::uvec sorted = sort_index(Metrics);
   NewOrder = NewOrder(sorted);
   Metrics = Metrics(sorted);
   
+  // Finding initial lower bound
   double LowerBound = -arma::datum::inf;
   LowerBound = GetBound(&X, &Y, &Offset, method, m, Link, Dist, &CurModel,
                            &Indices, tol, maxit, metric, 
@@ -455,6 +501,8 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     BestMetric = Metrics.at(0);
     BestModel.at(NewOrder.at(0)) = 1;
   }
+  
+  // Finding lower bounds
   arma::uvec Counts(NewOrder.n_elem, arma::fill::zeros);
   if(maxsize > 1){
 #pragma omp parallel for
@@ -471,10 +519,14 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
       }
     }
   }
+  
+  // Updating numchecked
   numchecked += sum(Counts);
   if(NewOrder.n_elem > 1){
     p.update(1);
   }
+  
+  // Branching for each of the variables
   for(unsigned int j = 0; j < NewOrder.n_elem - 1; j++){
     arma::ivec CurModel2 = CurModel;
     CurModel2.at(NewOrder.at(j)) = 1;
@@ -483,13 +535,16 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
               Metrics.at(j), &NewOrder, &p);
     
   }
+  
   checkUserInterrupt();
+  
+  // Printing off final update
   p.finalprint();
   
   // Getting x matrix for best model found
-  
   const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
+  // Fitting best model
   List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
                                  nthreads, tol, maxit);
   

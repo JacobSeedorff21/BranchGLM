@@ -117,12 +117,18 @@ arma::vec DerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Of
     }
   }
   else if(Link == "inverse"){
-    Deriv = pow(*mu, 2);
+#pragma omp parallel for
+    for(unsigned int i = 0; i < mu->n_elem; i++){
+      Deriv.at(i) = pow(mu->at(i), 2);
+    }
   }
   else if(Link == "identity"){
     Deriv.fill(1);
   }else if(Link == "sqrt"){
-    Deriv = 2 * sqrt(*mu);
+#pragma omp parallel for
+    for(unsigned int i = 0; i < mu->n_elem; i++){
+      Deriv.at(i) = 2 * sqrt(mu->at(i));
+    }
   }
   
   return(Deriv);
@@ -264,6 +270,24 @@ arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   return FinalMat;
 }
 
+void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
+                 arma::vec* mu, arma::vec* p, arma::vec* beta, 
+                 std::string Dist, std::string Link, 
+                 double* f0, double* f1, double* t, double *C1, double* alpha, 
+                 std::string method){
+  if(method == "backtrack"){
+    // Finding alpha with backtracking line search using Armijo-Goldstein condition
+    while((*f0 < *f1 + *alpha * *t) && (*alpha > *C1)){
+      *alpha /= 2;
+      *beta -= *alpha * *p;
+      *mu = LinkCpp(X, beta, Offset, Link, Dist);
+      *f1 = LogLikelihoodCpp(X, Y, mu, Dist);
+    }
+  }else{
+    // Add other methods here
+  }
+}
+
 // LBFGS helper function
 arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y, 
                          int* k, int* m, 
@@ -342,12 +366,8 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     
     // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    while((f0 < f1 + alpha * t) && (alpha > C1)){
-      alpha /= 2;
-      *beta -= alpha * p;
-      mu = LinkCpp(X, beta, Offset, Link, Dist);
-      f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
-    }
+    GetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
+    
     // Checking for convergence or nan/inf
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
       if(std::isinf(f1) || beta->has_nan()){
@@ -416,14 +436,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     
     // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    
-    while((f0 < f1 + alpha * t) && (alpha > C1)){
-      alpha /= 2;
-      *beta -= alpha * p;
-      mu = LinkCpp(X, beta, Offset, Link, Dist);
-      f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
-    }
-    
+    GetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
     k++;
     
     // Checking for convergence or nan/inf
@@ -494,13 +507,8 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     mu = LinkCpp(X, beta, Offset, Link, Dist);
     f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     
-    // Finding alpha with backtracking line search using Armijo-Goldstein condition
-    while((f0 < f1 + alpha * t) && (alpha > C1)){
-      alpha /= 2;
-      *beta -= alpha * p;
-      mu = LinkCpp(X, beta, Offset, Link, Dist);
-      f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
-    }
+    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
+    GetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
     k++;
     
     //Checking for convergence or nan/inf
@@ -725,20 +733,27 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     AIC = -2 * LogLik + 2 * (X.n_cols + 1);
   }
   
+  // Calculating SE with dispersion parameter
   SE = sqrt(dispersion) * SE;
   
   // Calculating z-values
   NumericVector z = NumericVector(beta.begin(), beta.end()) / SE;
+  NumericVector p(z.length());
   
   // Calculating p-values
-  NumericVector p = 2 * pnorm(abs(z), 0, 1, false, false);
+  if(Dist == "gaussian" || Dist == "gamma"){
+    p = 2 * pt(abs(z), X.n_rows - X.n_cols, false, false);
+  }
+  else{
+    p = 2 * pnorm(abs(z), 0, 1, false, false);
+  }
   
 #ifdef _OPENMP
   omp_set_num_threads(1);
 #endif
   
   return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
-                            Named("SE") = sqrt(dispersion) * SE,
+                            Named("SE") = SE,
                             Named("z") = z, 
                             Named("p-values") = p),
                             Named("iterations") = Iter,
@@ -850,16 +865,23 @@ List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Of
     AIC = -2 * LogLik + 2 * (X->n_cols + 1);
   }
   
+  // Calculating SE with dispersion parameter
   SE = sqrt(dispersion) * SE;
   
   // Calculating z-values
   NumericVector z = NumericVector(beta.begin(), beta.end()) / SE;
+  NumericVector p(z.length());
   
   // Calculating p-values
-  NumericVector p = 2 * pnorm(abs(z), 0, 1, false, false);
+  if(Dist == "gaussian" || Dist == "gamma"){
+    p = 2 * pt(abs(z), X->n_rows - X->n_cols, false, false);
+  }
+  else{
+    p = 2 * pnorm(abs(z), 0, 1, false, false);
+  }
   
   return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
-                            Named("SE") = sqrt(dispersion) * SE,
+                            Named("SE") = SE,
                             Named("z") = z, 
                             Named("p-values") = p),
                             Named("iterations") = Iter,
