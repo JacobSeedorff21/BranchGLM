@@ -102,7 +102,7 @@ A \code{BranchGLMVS} object which is a list with the following components
 }
 \description{
 Performs forward selection, backward elimination, 
-and branch and bound selection for generalized linear models.
+and branch and bound variable selection for generalized linear models.
 }
 \details{
 The model in the formula or the formula from the fitted model is 
@@ -114,14 +114,14 @@ the lower-order terms. Factor variables are either kept in their entirety or
 entirely removed.
 
 The branch and bound method makes use of an efficient branch and bound algorithm 
-to find the optimal model. This is will find the best model according to the metric, but 
-can be much faster than an exhaustive search. The amount of speedup attained by 
-using the branch and bound method as opposed to an exhaustive search depends on 
-the specific problem. Sometimes it may not be able to prune much and must 
-fit most of the models and sometimes it may be able to prune off many of the models.
+to find the optimal model. This is will find the best model according to the metric and 
+can be much faster than an exhaustive search and can be made even faster with 
+parallel computation.
 
 Fisher's scoring is recommended for branch and bound selection and forward selection.
-All observations that have any missing values in the upper model are ignored.
+L-BFGS may be best for backward elimination, especially when there are many variables.
+
+All observations that have any missing values in the upper model are removed.
 }
 \examples{
 Data <- iris

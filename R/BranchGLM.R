@@ -109,7 +109,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
   }
-  if(!is(data, "data.frame")){
+  if(!is.data.frame(data)){
     stop("data must be a data frame")
   }
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){

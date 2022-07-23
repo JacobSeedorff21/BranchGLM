@@ -25,7 +25,7 @@
 #' @param showprogress whether to show progress updates for branch and bound.
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
 #' @description Performs forward selection, backward elimination, 
-#' and branch and bound selection for generalized linear models.
+#' and branch and bound variable selection for generalized linear models.
 #' @details The model in the formula or the formula from the fitted model is 
 #' treated as the upper model. The variables specified in keep along with an 
 #' intercept (if included in formula) is the lower model. When an intercept is 
@@ -35,14 +35,14 @@
 #' entirely removed.
 #' 
 #' The branch and bound method makes use of an efficient branch and bound algorithm 
-#' to find the optimal model. This is will find the best model according to the metric, but 
-#' can be much faster than an exhaustive search. The amount of speedup attained by 
-#' using the branch and bound method as opposed to an exhaustive search depends on 
-#' the specific problem. Sometimes it may not be able to prune much and must 
-#' fit most of the models and sometimes it may be able to prune off many of the models.
+#' to find the optimal model. This is will find the best model according to the metric and 
+#' can be much faster than an exhaustive search and can be made even faster with 
+#' parallel computation.
 #' 
 #' Fisher's scoring is recommended for branch and bound selection and forward selection.
-#' All observations that have any missing values in the upper model are ignored.
+#' L-BFGS may be best for backward elimination, especially when there are many variables.
+#' 
+#' All observations that have any missing values in the upper model are removed.
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -92,7 +92,7 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
   }
-  if(!is(data, "data.frame")){
+  if(!is.data.frame(data)){
     stop("data must be a data frame")
   }
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
@@ -121,6 +121,7 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
   y <- model.response(mf, "any")
   offset <- as.vector(model.offset(mf))
   x <- model.matrix(attr(mf, "terms"), mf, contrasts)
+  
   ### Checking offset
   if(is.null(offset)){
     offset <- rep(0, nrow(x))
@@ -249,7 +250,7 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
     stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
-  if((length(nthreads) > 1) || (!is.numeric(nthreads))||(nthreads <= 0)){
+  if((length(nthreads) > 1) || !is.numeric(nthreads) || (nthreads <= 0)){
     warning("Please select a positive integer for nthreads, using nthreads = 8")
     nthreads <- 8
   }
@@ -261,6 +262,7 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   }else if(!(metric %in% c("AIC", "BIC"))){
     stop("metric must be one of 'AIC' or 'BIC'")
   }
+  
   indices <- attributes(object$x)$assign
   
   ## Setting maxit
