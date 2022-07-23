@@ -7,6 +7,8 @@ test_that("linear regression works", {
   ### Fitting model
   LinearFit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", 
                          link = "identity")
+  
+  ### Checking that number of iterations for linear regression is 1
   expect_equal(LinearFit$iterations, 1)
   
   ### Branch and bound with linear regression
@@ -32,7 +34,19 @@ test_that("linear regression works", {
                                  parallel = TRUE, nthreads = 1)
   
   expect_equal(LinearBackward$finalmodel$coefficients, LinearBackward2$finalmodel$coefficients)
-  expect_equal(LinearBackward$finalmodel$AIC, AIC(LinearBackward$finalmodel))  
+  expect_equal(LinearBackward$finalmodel$AIC, AIC(LinearBackward$finalmodel))
+  
+  ### Predict should work even if not all levels are available in newdata
+  #### Checking for object obtained via BranchGLM function
+  newdata <- Data[1,]
+  newdata$Species <- as.factor(as.character(newdata$Species))
+  expect_equal(predict(LinearFit, newdata = newdata),
+               predict(LinearFit, newdata = Data[1,]))
+  
+  #### Checking for object from VariableSelection function
+  expect_equal(predict(LinearVS$finalmode, newdata = newdata), 
+               predict(LinearVS$finalmode, newdata = Data[1,]))
+  
 })
 
 ### Toothgrowth regression tests
@@ -41,9 +55,19 @@ test_that("binomial regression and stuff works", {
   Data <- ToothGrowth
   
   ## Linear regression tests
-  ### Fitting model
+  ### Fitting model with BranchGLM
   LogitFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", 
                          link = "logit")
+  
+  ### Fitting model with BranchGLM.fit
+  x <- model.matrix(supp ~ ., data = Data)
+  y <- Data$supp
+  LogitFit2 <- BranchGLM.fit(x, as.numeric(y) - 1, family = "binomial", link = "logit")
+  
+  ### Checking that both approaches give same results
+  LogitFitCoef <- LogitFit$coefficients
+  row.names(LogitFitCoef) <- NULL
+  expect_equal(LogitFitCoef, LogitFit2$coefficients)
   
   ### Branch and bound variable selection with logistic regression
   LogitVS <- VariableSelection(LogitFit, type = "branch and bound")

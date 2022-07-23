@@ -8,8 +8,14 @@ bound variable selection for glms.
 
 # How to install
 
-**BranchGLM** can be installed using the `install_github()` function
-from the **devtools** package.
+**BranchGLM** can be installed using the `install.packages()` function
+
+``` r
+install.packages("BranchGLM")
+```
+
+It can also be installed via the `install_github()` function from the
+**devtools** package.
 
 ``` r
 devtools::install_github("JacobSeedorff21/BranchGLM")
@@ -102,7 +108,7 @@ df <- LogisticSimul(10000, 100)
 
 Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "BFGS")}, 
-                        "LBFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
+                        "L-BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "LBFGS")},
                         "Fisher" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "Fisher")},
@@ -146,7 +152,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.20    0.00    0.22
+    ##     0.2     0.0     0.2
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -156,7 +162,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  142.81    0.92  145.14
+    ##  126.46    0.24  126.71
 
 ### Checking results
 
@@ -190,7 +196,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  166.75    0.94  168.99
+    ##  150.74    0.00  150.74
 
 ### Parallel time
 
@@ -202,7 +208,7 @@ system.time(ParBranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  242.78    1.50   31.25
+    ##  211.17    0.92   27.83
 
 ### Checking results
 

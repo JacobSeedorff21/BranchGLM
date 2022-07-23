@@ -10,7 +10,15 @@ variable selection for glms.
 
 # How to install
 
-**BranchGLM** can be installed using the `install_github()` function from the 
+**BranchGLM** can be installed using the `install.packages()` function
+
+```{r, eval = FALSE}
+
+install.packages("BranchGLM")
+
+```
+
+It can also be installed via the `install_github()` function from the 
 **devtools** package.
 
 ```{r, eval = FALSE}
@@ -103,7 +111,7 @@ df <- LogisticSimul(10000, 100)
 
 Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "BFGS")}, 
-                        "LBFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
+                        "L-BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "LBFGS")},
                         "Fisher" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "Fisher")},

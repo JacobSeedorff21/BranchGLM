@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 
 # Description
 
-**BranchGLM** is a package for fitting glms and performing variable selection. 
+**BranchGLM** is a package for fitting GLMs and performing variable selection. 
 Most functions in this package make use of RcppArmadillo 
 and some of them can also make use of OpenMP to perform parallel computations. 
 This vignette introduces the package, provides examples on how to use the 
@@ -29,7 +29,15 @@ functions.
 
 # Installation
 
-**BranchGLM** can be installed using the `install_github()` function from the 
+**BranchGLM** can be installed using the `install.packages()` function
+
+```{r, eval = FALSE}
+
+install.packages("BranchGLM")
+
+```
+
+It can also be installed via the `install_github()` function from the 
 **devtools** package.
 
 ```{r, eval = FALSE}
@@ -38,9 +46,9 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 
 ```
 
-# Fitting glms
+# Fitting GLMs
 
-- `BranchGLM()` allows fitting of gaussian, binomial, gamma, and poisson glms with a variety of links available.  
+- `BranchGLM()` allows fitting of gaussian, binomial, gamma, and poisson GLMs with a variety of links available.  
 - Parallel computation can also be done to speed up the fitting process, but it is only useful for larger datasets.
 
 ## Optimization methods
@@ -80,14 +88,14 @@ GammaFit
 
 ## Useful functions
 
-- **BranchGLM** also has many utility functions for glms such as
+- **BranchGLM** also has many utility functions for GLMs such as
   - `coef()` to extract the coefficients
   - `logLik()` to extract the log likelihood
   - `AIC()` to extract the AIC
   - `BIC()` to extract the BIC
   - `predict()` to obtain predictions from the fitted model
 - The coefficients, standard errors, wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
-- Unlike glm there is no summary method, all the important information is included in the `BranchGLM` object.
+- Unlike GLM there is no summary method, all the important information is included in the `BranchGLM` object.
 
 ```{r}
 ### Predict method
@@ -189,9 +197,9 @@ VariableSelection(mpg ~ . ,data = cars, family = "gamma",
 do not converge, no final model can be selected.
 - For these reasons, if there are convergence issues it is recommended to use forward selection.
 
-# Utility functions for binomial glms
+# Utility functions for binomial GLMs
 
-- **BranchGLM** also has some utility functions for binomial glms
+- **BranchGLM** also has some utility functions for binomial GLMs
   - `Table()` creates a confusion matrix based on the predicted classes and observed classes
   - `ROC()` creates an ROC curve which can be plotted with `plot()`
   - `AUC()` and `Cindex()` calculate the area under the ROC curve

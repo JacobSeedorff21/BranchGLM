@@ -2,6 +2,7 @@
 % Please edit documentation in R/BranchGLM.R
 \name{BranchGLM}
 \alias{BranchGLM}
+\alias{BranchGLM.fit}
 \title{Fits GLMs}
 \usage{
 BranchGLM(
@@ -20,6 +21,21 @@ BranchGLM(
   contrasts = NULL,
   keepData = TRUE,
   keepY = TRUE
+)
+
+BranchGLM.fit(
+  x,
+  y,
+  family,
+  link,
+  offset = NULL,
+  method = "Fisher",
+  grads = 10,
+  parallel = FALSE,
+  nthreads = 8,
+  init = NULL,
+  maxit = NULL,
+  tol = 1e-04
 )
 }
 \arguments{
@@ -55,13 +71,17 @@ selected.}
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
 \item{keepData}{Whether or not to store a copy of data and design matrix, the default 
-is TRUE. If this is false, then this cannot be used inside of \code{VariableSelection}.}
+is TRUE. If this is false, then the results from this cannot be used inside of \code{VariableSelection}.}
 
 \item{keepY}{Whether or not to store a copy of y, the default is TRUE. If 
 this is FALSE, then the binomial GLM helper functions may not work.}
+
+\item{x}{design matrix used for the fit, must be numeric.}
+
+\item{y}{outcome vector, must be numeric.}
 }
 \value{
-A \code{BranchGLM} object which is a list with the following components
+\code{BranchGLM} returns a \code{BranchGLM} object which is a list with the following components
 \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
@@ -84,7 +104,18 @@ A \code{BranchGLM} object which is a list with the following components
 \item{\code{link}}{ link function used to model the data}
 \item{\code{family}}{ family used to model the data}
 \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
+\item{\code{xlev}}{ the levels of the factors in the dataset}
 \item{\code{terms}}{the terms object used}
+
+\code{BranchGLM.fit} returns a list with the following components
+\item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
+\item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
+\item{\code{dispersion}}{ the value of the dispersion parameter}
+\item{\code{logLik}}{ the log-likelihood of the fitted model}
+\item{\code{resdev}}{ the residual deviance of the fitted model}
+\item{\code{AIC}}{ the AIC of the fitted model}
+\item{\code{preds}}{ predictions from the fitted model}
+\item{\code{linpreds}}{ linear predictors from the fitted model}
 }
 \description{
 Fits generalized linear models via RcppArmadillo. Also has the 
@@ -94,7 +125,9 @@ ability to fit the models with parallelization via OpenMP.
 Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
 typically faster than Fisher's scoring when there are at least 50 covariates 
 and Fisher's scoring is typically best when there are fewer than 50 covariates.
-This function does not currently support the use of weights. 
+This function does not currently support the use of weights. In the special 
+case of gaussian regression with identity link the \code{method} argument is ignored
+and the normal equations are solved directly.
 
 The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
 convergence, each of the methods makes use of a backtracking line-search using 
@@ -103,17 +136,25 @@ two conditions used to control convergence, the first is whether there is a
 sufficient decrease in the negative log-likelihood, and the other is whether 
 each of the elements of the beta vector changes by a sufficient amount. The 
 \code{tol} argument controls both of these criteria. If the algorithm fails to 
-converge, then \code{iterations} will be -1.The \code{method} argument 
-is ignored for linear regression and the OLS solution is used.
+converge, then \code{iterations} will be -1.
 
-The likelihood equations are solved directly, i.e. no matrix decomposition is used.
-
-All observations with any missing values are ignored. 
+All observations with any missing values are removed before model fitting. 
 
 The dispersion parameter for gamma regression is estimated via maximum likelihood, 
 very similar to the \code{gamma.dispersion} function from the MASS package.
+
+\code{BranchGLM.fit} can be faster than calling \code{BranchGLM} if the 
+x matrix and y vector are already available, but doesn't return as much information.
+The object returned by \code{BranchGLM.fit} is not of class \code{BranchGLM}, so 
+all of the methods for \code{BranchGLM} objects such as \code{predict} or 
+\code{VariableSelection} cannot be used.
 }
 \examples{
 Data <- iris
+### Using BranchGLM
 BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+### Using BranchGLM.fit
+x <- model.matrix(Sepal.Length ~ ., data = Data)
+y <- Data$Sepal.Length
+BranchGLM.fit(x, y, family = "gaussian", link = "identity")
 }
