@@ -271,20 +271,124 @@ arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
 }
 
 void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
-                 arma::vec* mu, arma::vec* p, arma::vec* beta, 
+                 arma::vec* mu, arma::vec* Deriv, arma::vec* Var, arma::vec* g1, 
+                 arma::vec* p, arma::vec* beta, 
                  std::string Dist, std::string Link, 
-                 double* f0, double* f1, double* t, double *C1, double* alpha, 
+                 double* f0, double* f1, double* t, double* alpha, 
                  std::string method){
+  
+  // Defining maximum number of iterations and counter variable
+  unsigned int maxiter = 25;
+  unsigned int k = 0;
+  
+  // Defining C1 and C2 for backtracking
+  // 0 < C1 < C2 < 1
+  double C1 = pow(10, -4);
+  double C2 = 0.9;
+  *alpha = 1;
+  
+  // Creating temporary variables for alpha, beta, f1, and mu
+  double temp = *alpha;
+  double tempf1 = *f1;
+  arma::vec tempbeta = *beta;
+  arma::vec tempmu = *mu;
+  
+  // Checking condition for initial alpha
+  tempbeta = *beta + temp * *p;
+  tempmu = LinkCpp(X, &tempbeta, Offset, Link, Dist);
+  tempf1 = LogLikelihoodCpp(X, Y, &tempmu, Dist);
+  
+  // Checking for descent direction
+  if(*t <= 0){
+    stop("method failed to provide search direction");
+  }
+  
   if(method == "backtrack"){
-    // Finding alpha with backtracking line search using Armijo-Goldstein condition
-    while((*f0 < *f1 + *alpha * *t) && (*alpha > *C1)){
-      *alpha /= 2;
-      *beta -= *alpha * *p;
-      *mu = LinkCpp(X, beta, Offset, Link, Dist);
-      *f1 = LogLikelihoodCpp(X, Y, mu, Dist);
+    
+    // Finding alpha with backtracking line search using strong wolfe conditions
+    for(; k < maxiter; k++){
+      
+      // Checking first wolfe condition or armijo-goldstein condition
+      if(*f0 >= tempf1 + C1 * temp * *t){
+        
+        // Calculating stuff to check second strong wolfe condition
+        *Deriv = DerivativeCpp(X, &tempbeta, Offset, &tempmu, Link, Dist);
+        *Var = Variance(&tempmu, Dist);
+        *g1 = ScoreCpp(X, Y, Deriv, Var, &tempmu);
+        
+        // Checking 2nd wolfe condition
+        if(std::fabs(arma::dot(*p, *g1) <= C2 * std::fabs(*t))){
+          Rcout << "Strong Wolfe conditions satisfied with alpha = " << temp << std::endl;
+          break;
+        }
+      }
+      
+      // Performing step halving if we have not yet reached maxiter - 1
+      if(k < maxiter - 1){
+        temp /= 2;
+        tempbeta = *beta + temp * *p;
+        tempmu = LinkCpp(X, &tempbeta, Offset, Link, Dist);
+        tempf1 = LogLikelihoodCpp(X, Y, &tempmu, Dist);
+      }
     }
+    
+    // Changing variables if an appropriate step size if found
+    // Setting alpha to 0 if no adequate step size is found
+    if(k < maxiter){
+      *alpha = temp;
+      *beta = tempbeta;
+      *mu = tempmu;
+      *f1 = tempf1;
+    }else if(k == maxiter){
+      *alpha = 0;
+    }
+    
   }else{
-    // Add other methods here
+    /*
+    // Two-way backtracking which starts at previous alpha
+    // Making dec variable which decided whether to decrease or increase alpha
+    double down = 0.5;
+    double up = 2.1;
+    bool dec;
+    if(*f0 >= tempf1 + C1 * temp * *t){
+      dec = false;
+    }else{
+      dec = true;
+    }
+    
+    // Performing the backtracking
+    for(;k < maxiter; k++){
+      if(dec){
+        temp *= down;
+      }
+      else{
+        temp *= up;
+      }
+      
+      tempbeta = *beta + temp * *p;
+      tempmu = LinkCpp(X, &tempbeta, Offset, Link, Dist);
+      tempf1 = LogLikelihoodCpp(X, Y, &tempmu, Dist);
+      
+      // Checking first strong wolfe condition
+      if(*f0 >= tempf1 + C1 * temp * *t){
+        
+        // Checking 2nd wolfe condition if first one is satisfied
+        arma::vec Deriv = DerivativeCpp(X, &tempbeta, Offset, &tempmu, Link, Dist);
+        arma::vec Var = Variance(&tempmu, Dist);
+        if(std::fabs(arma::dot(*p, ScoreCpp(X, Y, &Deriv, &Var, &tempmu))) <= C2 * std::fabs(*t)){
+          Rcout << "Strong Wolfe conditions satisfied with alpha = " << temp << std::endl;
+          *beta = tempbeta;
+          *f1 = tempf1;
+          *mu = tempmu;
+          *alpha = temp;
+        }
+        if(dec){
+          break;
+        }
+      }else if(!dec){
+        break;
+      }
+    }*/
   }
 }
 
@@ -311,7 +415,7 @@ arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
     return *r;
   }
   
-  // Returns this if no gradients have been evaluated yet
+  // Returns this if no prior gradients have been evaluated yet
   return *Info * *g1;
 }
 
@@ -319,8 +423,7 @@ arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
 int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                 const arma::vec* Y, const arma::vec* Offset,
                 std::string Link, std::string Dist, 
-                double tol, int maxit, int m, 
-                double C1 = pow(10, -4)){
+                double tol, int maxit, int m){
   
   // Initializing vectors and matrices 
   arma::vec mu = LinkCpp(X, beta, Offset, Link, Dist);
@@ -344,44 +447,45 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double f0;
   double f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
   double t;
-  double alpha;
+  double alpha = 1;
   
   // Fitting the model
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
+    
+    // Checks if we've reached maxit iterations and stops if we have
     if(k == maxit){ 
       warning("LBFGS failed to converge");
       k = -1;
       break;
     }
-    alpha = 1;
-    g0 = g1;
+    
+    // re-assigning likelihood and score
     f0 = f1;
+    g0 = g1;
     
     // Calculating p (search direction) based on L-BFGS approximation to inverse info
     p = -LBFGSHelperCpp(&g1, &s, &y, &k, &m, &r, &alphavec, &Info);
-    t = -C1 * arma::dot(g0, p);
-    *beta += alpha * p;
-    mu = LinkCpp(X, beta, Offset, Link, Dist);
-    f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
+    t = -arma::dot(g0, p);
     
-    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    GetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
+    // Finding alpha with backtracking linesearch using strong wolfe conditions
+    // This function also calculates mu, Deriv, Var, and g1 for the selected step size
+    GetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
     // Checking for convergence or nan/inf
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1) || beta->has_nan()){
+      if(std::isinf(f1) || beta->has_nan() || alpha == 0){
         warning("LBFGS failed to converge");
         k = -2;
       }
       k++;
       break;}
     
-    Deriv = DerivativeCpp(X, beta, Offset, &mu, Link, Dist);
-    Var = Variance(&mu, Dist);
-    g1 = ScoreCpp(X, Y, &Deriv, &Var, &mu);
+    // Updating s and y for L-BFGS update
     s.col(k % m) = alpha * p;
     y.col(k % m) = g1 - g0;
+    
+    // Incrementing iteration number
     k++;
   }
   return(k);
@@ -392,8 +496,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int BFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                const arma::vec* Y, const arma::vec* Offset,
                std::string Link, std::string Dist,
-               double tol, int maxit, 
-               double C1 = pow(10, -4)){
+               double tol, int maxit){
   
   // Initializing vectors and matrices
   arma::vec mu = LinkCpp(X, beta, Offset, Link, Dist);
@@ -415,48 +518,52 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double f0;
   double f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
   double rho;
-  double alpha;
+  double alpha = 1;
   double t;
   
   // Fitting the model
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
+    
+    // Checks if we've reached maxit iterations and stops if we have
     if(k == maxit){ 
       warning("BFGS failed to converge");
       k = -1;
       break;
     }
-    alpha = 1;
+    
+    // Re-assigning score and likelihood
     g0 = g1;
     f0 = f1;
-    p = -H1 * g1;
-    t = -C1 * arma::dot(g0, p);
-    *beta += alpha * p;
-    mu = LinkCpp(X, beta, Offset, Link, Dist);
-    f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     
-    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    GetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
-    k++;
+    // Finding p based on approximate inverse hessian 
+    p = -H1 * g1;
+    t = -arma::dot(g0, p);
+    
+    // Finding alpha with backtracking linesearch using strong wolfe conditions
+    // This function also calculates mu, Deriv, Var, and g1 for the selected step size
+    GetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
     // Checking for convergence or nan/inf
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)|| beta->has_nan()){
+      if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         warning("BFGS failed to converge");
-        k = -1;
+        k = -2;
       }
+      k++;
       break;}
     
-    Deriv = DerivativeCpp(X, beta, Offset, &mu, Link, Dist);
-    Var = Variance(&mu, Dist);
-    g1 = ScoreCpp(X, Y, &Deriv, &Var, &mu);
+    // Performing BFGS update
     s = alpha * p;
     y = g1 - g0;
     rho = 1/arma::dot(s, y);
     
-    // Calculating next approximate inverse hessian
     H1 = (arma::diagmat(arma::ones(beta->n_elem)) - rho * s * y.t()) * H1 * 
       (arma::diagmat(arma::ones(beta->n_elem)) - rho * y * s.t()) + rho * s * s.t();
+    
+    // Incrementing iteration counter
+    k++;
+    
   }
   return(k);
 }
@@ -467,8 +574,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
 int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                         const arma::vec* Y, const arma::vec* Offset,
                         std::string Link, std::string Dist,
-                        double tol, int maxit, 
-                        double C1 = pow(10, -4)){
+                        double tol, int maxit){
   
   // Initializing vector and matrices
   arma::vec mu = LinkCpp(X, beta, Offset, Link, Dist);
@@ -482,13 +588,12 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   int k = 0;
   double f0;
   double f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
-  double alpha;
+  double alpha = 1;
   double t;
   
   // Fitting the model
   while(arma::norm(g1) > tol){
     checkUserInterrupt();
-    alpha = 1;
     
     // Checks if we've reached maxit iterations and stops if we have
     if(k == maxit){ 
@@ -497,32 +602,35 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
       break;
     }
     
+    // Re-assigning likelihood
     f0 = f1;
+    
+    // Solving for newton direction
     if(!arma::solve(p, -H1, g1, arma::solve_opts::no_approx)){
       warning("Fisher info not invertible");
       return(-2);
     };
-    t = -C1 * arma::dot(g1, p);
-    *beta += alpha * p;
-    mu = LinkCpp(X, beta, Offset, Link, Dist);
-    f1 = LogLikelihoodCpp(X, Y, &mu, Dist);
     
-    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    GetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
-    k++;
+    t = -arma::dot(g1, p);
+    
+    // Finding alpha with backtracking linesearch using strong wolfe conditions
+    // This function also calculates mu, Deriv, Var, and g1 for the selected step size
+    GetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
     //Checking for convergence or nan/inf
     if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)|| beta->has_nan()){
+      if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         warning("Fisher Scoring failed to converge");
-        k = -1;
+        k = -2;
       }
+      k++;
       break;}
     
-    Deriv = DerivativeCpp(X, beta, Offset, &mu, Link, Dist);
-    Var = Variance(&mu, Dist);
-    g1 = ScoreCpp(X, Y, &Deriv, &Var, &mu);
+    // Calculating information
     H1 = FisherInfoCpp(X, &Deriv, &Var);
+    
+    // Incrementing iteration number
+    k++;
   }
   return(k);
 }
