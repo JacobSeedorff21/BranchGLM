@@ -83,34 +83,33 @@ double EffMetricHelper(const arma::mat* X, const arma::mat* XTWX,
 
 // Fits upper model for a set of models and calculates the bound for the desired metric
 double EffGetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
-                std::string method, int m, std::string Link, std::string Dist,
-                arma::ivec* CurModel,  arma::ivec* indices, 
-                double tol, int maxit,
-                std::string metric, unsigned int cur, int minsize,
-                arma::uvec* NewOrder, double LowerBound, 
-                double MetricVal){
-  int Iter;
-  arma::ivec UpperModel = *CurModel;
+                         std::string method, int m, std::string Link, std::string Dist,
+                         arma::ivec* CurModel,  arma::ivec* indices, 
+                         double tol, int maxit,
+                         std::string metric, unsigned int cur, int minsize,
+                         arma::uvec* NewOrder, double LowerBound, double CurMetric,
+                         arma::vec* Metrics){
+  
   
   // Checking if we need to fit model for upper bound and updating bounds if we don't need to
   if(cur == 1){
+    double MetricVal = 0;
     if(metric == "AIC"){
-      if(MetricVal - LowerBound < 2){
-        return(arma::datum::inf);
-      }
-      else{
-        return(UpdateBound(X, indices, NewOrder->at(cur - 1), LowerBound, metric, minsize));
-      }
+      MetricVal = 2;
     }
-    else if(metric == "BIC"){
-      if(MetricVal - LowerBound < log(X->n_rows)){
-        return(arma::datum::inf);
-      }
-      else{
-        return(UpdateBound(X, indices, NewOrder->at(cur - 1), LowerBound, metric, minsize));
-      }
+    else if (metric == "BIC"){
+      MetricVal = log(X->n_rows);
+    }
+    if(CurMetric - LowerBound > MetricVal){
+      return(UpdateBound(X, indices, NewOrder->at(cur - 1), LowerBound, metric, minsize));
+    }
+    else{
+      return(arma::datum::inf);
     }
   }
+  
+  int Iter;
+  arma::ivec UpperModel = *CurModel;
   
   // Creating vector for the upper model
   for(unsigned int i = cur; i < NewOrder->n_elem; i++){
@@ -185,21 +184,29 @@ double EffGetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y
     return(LowerBound);
   }
   
-  // Getting bound and checking if it can tightened or removed
+  // Getting bound
   double NewBound = BoundHelper(X, LogLik, Dist, metric, minsize);
-  if(metric == "AIC"){
-    if(MetricVal - NewBound < 2){
-      NewBound = arma::datum::inf;
-    }else{
-      NewBound += 2;
+  
+  // Checking if bound can be tightened
+  if(cur > 0){
+    Metrics->at(cur - 1) = GetMetric(X, LogLik, Dist, metric);
+    double MetricVal = 0;
+    if(metric == "AIC"){
+      MetricVal = 2;
     }
-  }else if(metric == "BIC"){
-    if(MetricVal - NewBound < log(X->n_rows)){
+    else if (metric == "BIC"){
+      MetricVal = log(X->n_rows);
+    }
+    if(CurMetric - LowerBound > MetricVal){
+      NewBound +=  MetricVal;
+    }
+    else{
       NewBound = arma::datum::inf;
-    }else{
-      NewBound += log(X->n_rows);
     }
   }
+  else{
+    Metrics->at(0) = GetMetric(X, LogLik, Dist, metric);
+  } 
   return(NewBound);
 }
 
@@ -247,6 +254,7 @@ void EffBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, co
     // Getting lower bounds
     checkUserInterrupt();
     arma::uvec Counts(NewOrder2.n_elem - 1, arma::fill::zeros);
+    arma::uvec Bounds(NewOrder2.n_elem - 1, arma::fill::zeros);
     if(maxsize > 1){
 #pragma omp parallel for
       for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
@@ -254,13 +262,26 @@ void EffBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, co
         CurModel2.at(NewOrder2.at(j)) = 1;
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         Counts.at(j) = 1;
-        Metrics.at(j) = EffGetBound(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2,
+        Bounds.at(j) = EffGetBound(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2,
                      indices, tol, maxit, metric, 
                      j + 1, xTemp.n_cols, &NewOrder2, LowerBound, 
-                     Metrics.at(j));
+                     Metrics.at(j), &Metrics);
       }
-      (*numchecked) += sum(Counts);
+      
+      // Updating bounds and numchecked
+      (*numchecked) += sum(Counts) - 1;
+      sorted = sort_index(Metrics);
+      Metrics = Metrics(sorted);
+      if(Metrics.at(0) < *BestMetric){
+        *BestMetric = Metrics.at(0);
+        *BestModel = *CurModel;
+        for(unsigned int i = sorted.at(0); i < NewOrder2.n_elem; i++){
+          BestModel->at(NewOrder2.at(i)) = 1;
+        }
+        Rcout << "Found better metric value from upper bound "<< *BestMetric << std::endl;
+      }
     }
+    
     checkUserInterrupt();
     
     // Recursively calling this function for each new model
@@ -269,7 +290,7 @@ void EffBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, co
       CurModel2.at(NewOrder2.at(j)) = 1;
       EffBranch(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2, BestModel, 
              BestMetric, numchecked, indices, tol, maxit, maxsize - 1, j + 1, metric, 
-             Metrics.at(j), &NewOrder2, p);
+             Bounds.at(j), &NewOrder2, p);
     }
   }
   else{
@@ -356,10 +377,24 @@ List EffBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset
   
   // Finding initial lower bound
   double LowerBound = -arma::datum::inf;
+  arma::vec Metrics(1);
+  Metrics.at(0) = arma::datum::inf;
   LowerBound = EffGetBound(&X, &XTWX, &Y, &Offset, method, m, Link, Dist, &CurModel,
                         &Indices, tol, maxit, metric, 
                         0, sum(abs(CurModel)), &NewOrder, LowerBound, 
-                        CurMetric);
+                        CurMetric, &Metrics);
+  
+  
+  
+  if(Metrics.at(0) < BestMetric){
+    BestMetric = Metrics.at(0);
+    // Defining Upper model
+    arma::ivec UpperModel = CurModel;
+    for(unsigned int i = 0; i < NewOrder.n_elem; i++){
+      UpperModel.at(NewOrder.at(i)) = 1;
+    }
+    BestModel = UpperModel;
+  }
   
   numchecked++;
   
@@ -401,6 +436,7 @@ double EffBackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* 
   if(metricVal == arma::datum::inf){
     return(-metricVal);
   }
+  
   arma::ivec CurModel2 = *CurModel;
   for(unsigned int i = 0; i <= cur; i++){
     CurModel2.at(NewOrder->at(i)) = 2;
@@ -606,3 +642,334 @@ List EffBackwardBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVecto
   return(FinalList);
 }
 
+// Defining function to use in EffForwardBranch
+void EffSwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+                       std::string method, int m, std::string Link, std::string Dist,
+                       arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+                       unsigned int* numchecked, arma::ivec* indices, double tol, 
+                       int maxit, unsigned int cur, std::string metric, 
+                       double LowerBound, arma::uvec* NewOrder, Progress* p);
+
+// Function used to performing branching for branch and bound method
+void EffSwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+               std::string method, int m, std::string Link, std::string Dist,
+               arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+               unsigned int* numchecked, arma::ivec* indices, double tol, 
+               int maxit, unsigned int cur, std::string metric, 
+               double LowerBound, arma::uvec* NewOrder, Progress* p){
+  
+  // Evaluating lower model
+  if(cur < NewOrder->n_elem - 1){
+    arma::mat xTemp = GetMatrix(X, CurModel, indices);
+    double CurMetric = EffMetricHelper(&xTemp, XTWX, Y, Offset, indices, 
+                                       CurModel, method, m, Link, Dist, 
+                                       tol, maxit, metric);
+    
+    if(CurMetric < *BestMetric){
+      *BestMetric = CurMetric;
+      *BestModel = *CurModel;
+      Rcout << "Found better metric value "<< *BestMetric << std::endl;
+    }
+    
+    double MetricVal = 0;
+    if(metric == "AIC"){
+      MetricVal = 2;
+    }
+    else if (metric == "BIC"){
+      MetricVal = log(X->n_rows);
+    }
+    if(CurMetric - LowerBound > MetricVal){
+      LowerBound +=  MetricVal;
+    }
+    else{
+      LowerBound = arma::datum::inf;
+    }
+    (*numchecked)++;
+  }
+
+  
+  checkUserInterrupt();
+  
+  // Continuing branching process if lower bound is smaller than the best observed metric
+  if(LowerBound < *BestMetric){
+    p->update(2);
+    p->print();
+    arma::uvec NewOrder2(NewOrder->n_elem - cur);
+    arma::vec Metrics(NewOrder->n_elem - cur);
+    
+    //Getting metric values
+#pragma omp parallel for 
+    for(unsigned int j = 0; j < NewOrder2.n_elem; j++){
+      arma::ivec CurModel2 = *CurModel;
+      CurModel2.at(NewOrder->at(j + cur)) = 1;
+      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+      NewOrder2.at(j) = NewOrder->at(j + cur);
+      Metrics.at(j) = EffMetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, 
+                 method, m, Link, Dist, 
+                 tol, maxit, metric);
+    }
+    
+    // Updating numchecked and potentially updating the best model
+    *numchecked += NewOrder2.n_elem;
+    arma::uvec sorted = sort_index(Metrics);
+    NewOrder2 = NewOrder2(sorted);
+    Metrics = Metrics(sorted);
+    if(Metrics.at(0) < *BestMetric){
+      *BestMetric = Metrics.at(0);
+      *BestModel = *CurModel;
+      BestModel->at(NewOrder2.at(0)) = 1;
+      Rcout << "Found better metric value "<< *BestMetric << std::endl;
+    }
+    
+    // Getting lower bounds
+    checkUserInterrupt();
+    arma::vec Bounds(NewOrder2.n_elem - 1);
+    arma::uvec Counts(NewOrder2.n_elem - 1, arma::fill::zeros);
+#pragma omp parallel for
+      for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
+        arma::ivec CurModel2 = *CurModel;
+        CurModel2.at(NewOrder2.at(j)) = 1;
+        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+        Counts.at(j) = 1;
+        Bounds.at(j) = EffGetBound(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2,
+                   indices, tol, maxit, metric, 
+                   j + 1, xTemp.n_cols, &NewOrder2, LowerBound, Metrics.at(j), &Metrics);
+      }
+    
+    // Updating numchecked and potentially updating the best model based on upper models
+    (*numchecked) += sum(Counts) - 1;
+    sorted = sort_index(Metrics);
+    Metrics = Metrics(sorted);
+    if(Metrics.at(0) < *BestMetric){
+      *BestMetric = Metrics.at(0);
+      *BestModel = *CurModel;
+      for(unsigned int i = sorted.at(0); i < NewOrder2.n_elem; i++){
+        BestModel->at(NewOrder2.at(i)) = 1;
+      }
+      
+      Rcout << "Found better metric value from upper bound "<< *BestMetric << std::endl;
+    }
+    
+    checkUserInterrupt();
+    
+    // Defining upper model to be used for switch
+    NewOrder2 = reverse(NewOrder2);
+    arma::ivec UpperModel = *CurModel;
+    for(unsigned int i = 0; i < NewOrder2.n_elem; i++){
+      UpperModel.at(NewOrder2.at(i)) = 1;
+    }
+    
+    Bounds = reverse(Bounds);
+    
+    // Recursively calling this function for each new model
+    for(unsigned int j = NewOrder2.n_elem - 1; j > 0; j--){
+      if(j < NewOrder2.n_elem - 1){
+        UpperModel.at(NewOrder2.at(j + 1)) = 0;
+      }
+      EffSwitchBackwardBranch(X, XTWX, Y, Offset, method, m, Link, Dist, &UpperModel, BestModel, 
+                              BestMetric, numchecked, indices, tol, maxit, j - 1, metric, 
+                              Bounds.at(j - 1), &NewOrder2, p);
+    }
+  }
+  else{
+    // Updating progress since we have cut off part of the tree
+    p->update(GetNum(NewOrder->n_elem - cur, NewOrder->n_elem - cur));
+    p->print();
+  }
+}
+
+
+// Function used to performing branching for branch and bound method
+void EffSwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+                       std::string method, int m, std::string Link, std::string Dist,
+                       arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+                       unsigned int* numchecked, arma::ivec* indices, double tol, 
+                       int maxit, unsigned int cur, std::string metric, 
+                       double LowerBound, arma::uvec* NewOrder, Progress* p){
+  
+
+  checkUserInterrupt();
+  // Continuing branching process if lower bound is smaller than the best observed metric
+  if(LowerBound < *BestMetric){
+    p->update(2);
+    p->print();
+    arma::uvec NewOrder2(cur + 1);
+    arma::vec Metrics(cur + 1);
+    
+    //Getting metric values
+#pragma omp parallel for 
+    for(unsigned int j = 0; j < NewOrder2.n_elem; j++){
+      arma::ivec CurModel2 = *CurModel;
+      CurModel2.at(NewOrder->at(j)) = 0;
+      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+      NewOrder2.at(j) = NewOrder->at(j);
+      Metrics.at(j) = EffMetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2,
+                 method, m, Link, Dist, 
+                 tol, maxit, metric);
+    }
+
+    // Updating numchecked and potentially updating the best model
+    *numchecked += NewOrder2.n_elem;
+    arma::uvec sorted = sort_index(Metrics);
+    NewOrder2 = NewOrder2(sorted);
+    Metrics = Metrics(sorted);
+    if(Metrics.at(0) < *BestMetric){
+      *BestMetric = Metrics.at(0);
+      *BestModel = *CurModel;
+      BestModel->at(NewOrder2.at(0)) = 0;
+      Rcout << "Found better metric value "<< *BestMetric << std::endl;
+    }
+    
+    checkUserInterrupt();
+  
+  // Computing upper bounds
+#pragma omp parallel for
+    for(unsigned int j = 1; j < NewOrder2.n_elem; j++){
+      arma::ivec CurModel2 = *CurModel;
+      CurModel2.at(NewOrder2.at(j)) = 0;
+      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+      Metrics.at(j) = EffBackwardGetBound(X, indices, &CurModel2, &NewOrder2, 
+                 j - 1, Metrics.at(j), metric, 
+                 xTemp.n_cols);
+    }
+    
+    checkUserInterrupt();
+    
+    // Defining lower model for switch
+    NewOrder2 = reverse(NewOrder2);
+    arma::ivec LowerModel = *CurModel;
+    LowerModel.at(NewOrder2.at(NewOrder2.n_elem - 1)) = 0;
+    Metrics = reverse(Metrics);
+    
+    // Recursively calling this function for each new model
+    if(NewOrder2.n_elem > 1){
+      for(int j = NewOrder2.n_elem - 2; j >= 0; j--){
+        LowerModel.at(NewOrder2.at(j)) = 0;
+        
+        EffSwitchForwardBranch(X, XTWX, Y, Offset, method, m, Link, Dist, &LowerModel, BestModel, 
+                          BestMetric, numchecked, indices, tol, maxit, j + 1, metric, 
+                          Metrics.at(j), &NewOrder2, p);
+      }
+    }
+    
+  }
+  else{
+    // Updating progress since we have cut off part of the tree
+    p->update(GetNum(cur + 1, cur + 1));
+    p->print();
+  }
+}
+
+
+// Branch and bound method
+// [[Rcpp::export]]
+List EffSwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
+                          IntegerVector indices, IntegerVector num,
+                          std::string method, int m,
+                          std::string Link, std::string Dist,
+                          unsigned int nthreads, double tol, int maxit, 
+                          IntegerVector keep, std::string metric,
+                          bool display_progress, double BestMetric){
+  
+  // Creating necessary vectors/matrices
+  const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
+  const arma::vec Y(y.begin(), y.size(), false, true);
+  const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  arma::ivec BestModel(keep.begin(), keep.size(), false, true);
+  arma::ivec Indices(indices.begin(), indices.size(), false, true);
+  arma::ivec CurModel = BestModel;
+  CurModel.replace(1, 0);
+  arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  
+  
+  // Getting X'WX
+  arma::mat XTWX;
+  if(Dist == "gaussian" || Dist == "gamma"){
+    XTWX = X.t() * X;
+  }else{
+    arma::vec beta(X.n_cols, arma::fill::zeros);
+    arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
+    arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
+    arma::vec Var = Variance(&mu, Dist);
+    XTWX = FisherInfoCpp(&X, &Deriv, &Var);
+  }
+  
+  // Creating necessary scalars
+  unsigned int numchecked = 0;
+  unsigned int size = 0;
+  
+#ifdef _OPENMP
+  omp_set_num_threads(nthreads);
+#endif
+  
+  // Getting size of model space to check
+  for(unsigned int j = 0; j < CurModel.n_elem; j++){
+    if(CurModel.at(j) == 0){
+      size++;
+    }
+  }
+  
+  // Creating object to report progress
+  Progress p(GetNum(size, size), display_progress);
+  p.print();
+  
+  arma::uvec NewOrder(size);
+  unsigned int k = 0;
+  
+  // Making vector of order to look at variables
+  for(unsigned int j = 0; j < CurModel.n_elem; j++){
+    if(CurModel.at(j) == 0){
+      NewOrder.at(k++) = j;
+    }
+  }
+  
+  checkUserInterrupt();
+  
+  // Finding initial lower bound
+  double LowerBound = -arma::datum::inf;
+  arma::vec Metrics(1);
+  Metrics.at(0) = arma::datum::inf;
+  LowerBound = EffGetBound(&X, &XTWX, &Y, &Offset, method, m, Link, Dist, &CurModel,
+                           &Indices, tol, maxit, metric, 
+                           0, sum(abs(CurModel)), &NewOrder, LowerBound, 0, &Metrics);
+  
+  if(Metrics.at(0) < BestMetric){
+    BestMetric = Metrics.at(0);
+    // Defining Upper model
+    arma::ivec UpperModel = CurModel;
+    for(unsigned int i = 0; i < NewOrder.n_elem; i++){
+      UpperModel.at(NewOrder.at(i)) = 1;
+    }
+    BestModel = UpperModel;
+  }
+  
+  numchecked++;
+  
+  // Starting branching process
+  EffSwitchForwardBranch(&X, &XTWX, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
+            &BestMetric, &numchecked, &Indices, tol, maxit, 0, metric, 
+            LowerBound, &NewOrder, &p);
+  
+  checkUserInterrupt();
+  
+  // Printing off final update
+  p.finalprint();
+  
+  // Getting x matrix for best model found
+  const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
+  
+  // Fitting best model
+  List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
+                                 nthreads, tol, maxit);
+  
+  List FinalList = List::create(Named("fit") = helper,
+                                Named("model") = keep,
+                                Named("numchecked") = numchecked,
+                                Named("bestmetric") = BestMetric);
+  
+#ifdef _OPENMP
+  omp_set_num_threads(1);
+#endif
+  
+  return(FinalList);
+}
