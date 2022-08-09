@@ -22,7 +22,7 @@ VariableSelection(object, ...)
   grads = 10,
   parallel = FALSE,
   nthreads = 8,
-  tol = 1e-04,
+  tol = 1e-06,
   maxit = NULL,
   contrasts = NULL,
   showprogress = TRUE,
@@ -39,7 +39,7 @@ VariableSelection(object, ...)
   grads = 10,
   parallel = FALSE,
   nthreads = 8,
-  tol = 1e-04,
+  tol = 1e-06,
   maxit = NULL,
   showprogress = TRUE,
   ...
@@ -63,16 +63,16 @@ VariableSelection(object, ...)
 for forward selection and branch and bound selection since they will typically 
 fit many models with a small number of covariates.}
 
-\item{type}{one of "forward", "backward", or "branch and bound" to indicate 
-which type of variable selection to perform.}
+\item{type}{one of "forward", "backward", "branch and bound", "backward branch and bound", 
+or "switch branch and bound" to indicate which type of variable selection to perform.}
 
 \item{metric}{metric used to choose model, the default is "AIC", but "BIC" is also available.}
 
 \item{keep}{vector of names to denote variables that must be in the model.}
 
 \item{maxsize}{maximum number of variables to consider in a single model, the 
-default is the total number of variables.
-This number adds onto any variables specified in keep.}
+default is the total number of variables. This number adds onto any variables specified in keep. 
+This argument only works for \code{method = "forward"} and \code{method = "branch and bound"}.}
 
 \item{grads}{number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.}
 
@@ -116,10 +116,13 @@ entirely removed.
 The branch and bound method makes use of an efficient branch and bound algorithm 
 to find the optimal model. This is will find the best model according to the metric and 
 can be much faster than an exhaustive search and can be made even faster with 
-parallel computation.
+parallel computation. The backward branch and bound method is very similar to 
+the branch and bound method, except it tends to be faster when the best model 
+contains most of the variables. The switch branch and bound method is a 
+combination of the two methods and is typically very fast.
 
 Fisher's scoring is recommended for branch and bound selection and forward selection.
-L-BFGS may be best for backward elimination, especially when there are many variables.
+L-BFGS may be faster for backward elimination, especially when there are many variables.
 
 All observations that have any missing values in the upper model are removed.
 }

@@ -28,12 +28,12 @@ public:
       last_print = next_print;
     }
   }
-  void finalprint(){
-    double next_print = 100 * (float)cur_size / (float)max_size;
-if(display_progress){    
-	Rcout << "Checked " << next_print << "% of all possible models"  << std::endl;
-    	Rcout << "Found best model"  << std::endl << std::endl;
-    }
+    void finalprint(){
+      double next_print = 100 * (float)cur_size / (float)max_size;
+      if(display_progress){
+        Rcout << "Checked " << next_print << "% of all possible models"  << std::endl;
+        Rcout << "Found best model"  << std::endl << std::endl;
+        }
   }
 };
 
@@ -48,5 +48,12 @@ double BoundHelper(const arma::mat* X, double logLik,
 
 double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double LowerBound, 
                    std::string metric, int minsize);
+
+double MetricHelper(const arma::mat* X, const arma::mat* XTWX, 
+                    const arma::vec* Y, const arma::vec* Offset,
+                    const arma::ivec* Indices, const arma::ivec* CurModel,
+                    std::string method, 
+                    int m, std::string Link, std::string Dist,
+                    double tol, int maxit, std::string metric);
 
 #endif

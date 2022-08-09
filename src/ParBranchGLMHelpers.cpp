@@ -3,27 +3,7 @@
 #include <cmath>
 using namespace Rcpp;
 
-
-// Calculating sum of logs of factorials 
-
-double ParLogFact(const arma::vec* y){
-  double sum = 0;
-  double Max = max(*y);
-  arma::vec logs(Max + 1, arma::fill::zeros);
-  for(unsigned int i = 2; i < logs.n_elem;i++){
-    logs(i) = logs(i - 1) + log(i);
-  }
-  for(unsigned int j = 0; j < y->n_elem; j++){
-    if(y->at(j) > 1){
-      sum += logs(y->at(j));
-    }
-  }
-  
-  return(sum);
-}
-
-// Checking bounds
-
+// Checking bounds and modifying values that are out of bounds
 void ParCheckBounds(arma::vec* mu, std::string Dist){
   if(Dist == "binomial"){
     mu->transform([](double val){
@@ -41,13 +21,15 @@ void ParCheckBounds(arma::vec* mu, std::string Dist){
 }
 
 // Defining Link functions
-
 arma::vec ParLinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset, 
                      std::string Link, std::string Dist){
   
+  // Calculating linear predictors and initializing vector for mu
   arma::vec XBeta = (*X * *beta) + *Offset;
   arma::vec mu(XBeta.n_elem);
   
+  
+  // Calculating mu
   if(Link == "log"){
     for(unsigned int i = 0; i < Offset->n_elem; i++){
       mu.at(i) = exp(XBeta.at(i));
@@ -76,18 +58,20 @@ arma::vec ParLinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offse
     mu = pow(XBeta, 2);
   }
   
+  // Checking bounds for mu and modifying values that are out of bounds
   ParCheckBounds(&mu, Dist);
   
   return(mu);
 }
 
 // Defining Derivative functions
-
 arma::vec ParDerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
                            arma::vec* mu, std::string Link, std::string Dist){
   
+  // Initializing vector to store derivative
   arma::vec Deriv(mu->n_elem);
   
+  // Calculating derivative
   if(Link == "log"){
     Deriv = *mu; 
   }
@@ -117,12 +101,13 @@ arma::vec ParDerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec*
   return(Deriv);
 }
 
-// Defining Link functions
-
+// Defining Variance functions for each family
 arma::vec ParVariance(arma::vec* mu, std::string Dist){
   
+  // Initializing vector to store variance
   arma::vec Var(mu->n_elem);
   
+  // Calculating variance
   if(Dist == "poisson"){
     Var = *mu; 
   }
@@ -145,19 +130,22 @@ arma::vec ParVariance(arma::vec* mu, std::string Dist){
     Var.fill(1);
   }
   
+  // Replacing zeros with FLT_epsilon
   Var.replace(0, FLT_EPSILON);
   
   return(Var);
   
 }
 
-// Defining log likelihood for pointer armadillo vector beta
-
+// Defining log likelihood
 double ParLogLikelihoodCpp(const arma::mat* X, const arma::vec* Y, 
                            arma::vec* mu, std::string Dist){
   
+  // Initializing double to store log-likelihood
   double LogLik = 0;
   
+  
+  // Calculating log-likelihood
   if(Dist == "poisson"){
     for(unsigned int i = 0; i < Y->n_elem; i++){
       LogLik += -Y->at(i) * log(mu->at(i)) + mu->at(i);
@@ -180,11 +168,12 @@ double ParLogLikelihoodCpp(const arma::mat* X, const arma::vec* Y,
 }
 
 // Defining log likelihood for saturated model
-
 double ParLogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist){
   
+  // Initializing double to hold saturated log-likelihood
   double LogLik = 0;
   
+  // Calculating saturated log-likelihood
   if(Dist == "poisson"){
     for(unsigned int i = 0; i< Y->n_elem;i++){
       if(Y->at(i) !=0){
@@ -204,16 +193,19 @@ double ParLogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string D
   return(LogLik);
 }
 
-// Defining score with pointers
-
+// Defining score function
 arma::vec ParScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
                       arma::vec* Var, arma::vec* mu){
   
+  // Initializing vector for score
   arma::vec FinalVec(X->n_cols);
+  
+  // Calculating w and diff for score computation
   arma::vec w = *Deriv / *Var;
   arma::vec diff = *Y - *mu;
   w.replace(arma::datum::nan, 0);
   
+  // Calculating score
   for(unsigned int i = 0; i < X->n_cols; i++){
     
     FinalVec(i) = -arma::dot(X->col(i) % w, diff);
@@ -222,15 +214,18 @@ arma::vec ParScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
   return FinalVec;
 }
 
-// Defining fisher information with pointer
-
+// Defining fisher information function
 arma::mat ParFisherInfoCpp(const arma::mat* X, arma::vec* Deriv, 
                            arma::vec* Var){
   
-  arma::vec w = pow(*Deriv, 2) / *Var;
-  w.replace(arma::datum::nan, 0);
+  // Initializing matrix to store results
   arma::mat FinalMat(X->n_cols, X->n_cols);
   
+  // Calculating weight vector, this is the diagonal of the W matrix
+  arma::vec w = pow(*Deriv, 2) / *Var;
+  w.replace(arma::datum::nan, 0);
+  
+  // Calculating X'WX
   for(unsigned int i = 0; i < X->n_cols; i++){
     
     FinalMat(i, i) = arma::dot((X->col(i) % w), X->col(i));
@@ -246,26 +241,88 @@ arma::mat ParFisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   return FinalMat;
 }
 
+// Function used to get step size
 void ParGetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
-                 arma::vec* mu, arma::vec* p, arma::vec* beta, 
-                 std::string Dist, std::string Link, 
-                 double* f0, double* f1, double* t, double *C1, double* alpha, 
-                 std::string method){
+                    arma::vec* mu, arma::vec* Deriv, arma::vec* Var, arma::vec* g1, 
+                    arma::vec* p, arma::vec* beta, 
+                    std::string Dist, std::string Link, 
+                    double* f0, double* f1, double* t, double* alpha, 
+                    std::string method){
+  
+  // Defining maximum number of iterations and counter variable
+  unsigned int maxiter = 40;
+  unsigned int k = 0;
+  
+  // Defining C1 and C2 for backtracking
+  // 0 < C1 < C2 < 1
+  double C1 = pow(10, -4);
+  double C2 = 0.9;
+  
+  // Setting initial step size to be 1
+  *alpha = 1;
+  
+  // Creating temporary variables for alpha, beta, f1, and mu
+  double temp = *alpha;
+  double tempf1 = *f1;
+  arma::vec tempbeta = *beta;
+  arma::vec tempmu = *mu;
+  
+  // Checking condition for initial alpha
+  tempbeta = *beta + temp * *p;
+  tempmu = ParLinkCpp(X, &tempbeta, Offset, Link, Dist);
+  tempf1 = ParLogLikelihoodCpp(X, Y, &tempmu, Dist);
+  
+  // Checking for descent direction
+  if(*t <= 0){
+    *alpha = 0;
+    return;
+  }
+  
   if(method == "backtrack"){
-    // Finding alpha with backtracking line search using Armijo-Goldstein condition
-    while((*f0 < *f1 + *alpha * *t) && (*alpha > *C1)){
-      *alpha /= 2;
-      *beta -= *alpha * *p;
-      *mu = ParLinkCpp(X, beta, Offset, Link, Dist);
-      *f1 = ParLogLikelihoodCpp(X, Y, mu, Dist);
+    
+    // Finding alpha with backtracking line search using strong wolfe conditions
+    for(; k < maxiter; k++){
+      
+      // Checking first wolfe condition or armijo-goldstein condition
+      if(*f0 >= tempf1 + C1 * temp * *t){
+        
+        // Calculating stuff to check second strong wolfe condition
+        *Deriv = ParDerivativeCpp(X, &tempbeta, Offset, &tempmu, Link, Dist);
+        *Var = ParVariance(&tempmu, Dist);
+        *g1 = ParScoreCpp(X, Y, Deriv, Var, &tempmu);
+        
+        // Checking 2nd wolfe condition
+        if(std::fabs(arma::dot(*p, *g1) <= C2 * std::fabs(*t))){
+          break;
+        }
+      }
+      
+      // Performing step halving if we have not yet reached maxiter - 1
+      if(k < maxiter - 1){
+        temp /= 2;
+        tempbeta = *beta + temp * *p;
+        tempmu = ParLinkCpp(X, &tempbeta, Offset, Link, Dist);
+        tempf1 = ParLogLikelihoodCpp(X, Y, &tempmu, Dist);
+      }
     }
+    
+    // Changing variables if an appropriate step size is found
+    // Setting alpha to 0 if no adequate step size is found
+    if(k < maxiter){
+      *alpha = temp;
+      *beta = tempbeta;
+      *mu = tempmu;
+      *f1 = tempf1;
+    }else if(k == maxiter){
+      *alpha = 0;
+    }
+    
   }else{
     // Add other methods here
   }
 }
 
 // Creating LBFGS helper function
-
 arma::vec ParLBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y, 
                             int* k, unsigned int* m, 
                             arma::vec* r, arma::vec* alpha, const arma::mat* Info){
@@ -291,12 +348,11 @@ arma::vec ParLBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
   return *Info * *g1;
 }
 
-// Creating LBFGS for GLMs for parallel functions
-int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
-                      const arma::vec* Y, const arma::vec* Offset,
-                      std::string Link, std::string Dist, 
-                      double tol, int maxit, unsigned int m = 5, 
-                      double C1 = pow(10, -4)){
+// Creating LBFGS for GLMs for Parallel functions
+int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX,
+                   const arma::vec* Y, const arma::vec* Offset,
+                   std::string Link, std::string Dist, 
+                   double tol, int maxit, unsigned int m, bool UseXTWX){
   
   int k = 0;
   arma::vec mu = ParLinkCpp(X, beta, Offset, Link, Dist);
@@ -311,8 +367,16 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::mat s(beta->n_elem, m);
   arma::mat y(beta->n_elem, m);
   arma::mat Info(beta->n_elem, beta->n_elem);
-  if(!inv_sympd(Info, ParFisherInfoCpp(X, &Deriv, &Var))){
-    return(-2);
+  
+  if(UseXTWX){
+    if(!inv_sympd(Info, *XTWX)){
+      return(-2);
+    }
+  }
+  else{
+    if(!inv_sympd(Info, ParFisherInfoCpp(X, &Deriv, &Var))){
+      return(-2);
+    }
   }
   double f0;
   double f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
@@ -320,45 +384,48 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double alpha;
   
   while(arma::norm(g1) > tol){
+    
+    // Checks if we've reached maxit iterations and stops if we have
     if(k >= maxit){ 
       k = -1;
       break;
     }
-    alpha = 1;
+    
+    // Re-assigning log-likelihood and score
     g0 = g1;
     f0 = f1;
+    
+    // Calculating p (search direction) based on L-BFGS approximation to inverse info
     p = -ParLBFGSHelperCpp(&g1, &s, &y, &k, &m, &r, &alphavec, &Info);
-    t = -C1 * arma::dot(g0, p);
-    *beta += alpha * p;
-    mu = ParLinkCpp(X, beta, Offset, Link, Dist);
-    f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
+    t = -arma::dot(g0, p);
     
-    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    ParGetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
+    // Finding alpha with backtracking linesearch using strong wolfe conditions
+    // This function also calculates mu, Deriv, Var, and g1 for the selected step size
+    ParGetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
-    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
-      if(std::isinf(f1)|| beta->has_nan()){
+    if(std::fabs(f1 -  f0) < tol || alpha == 0){
+      if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         k = -2;
       }
       k++;
       break;}
     
-    Deriv = ParDerivativeCpp(X, beta, Offset, &mu, Link, Dist);
-    Var = ParVariance(&mu, Dist);
-    g1 = ParScoreCpp(X, Y, &Deriv, &Var, &mu);
+    // Updating s and y for L-BFGS update
     s.col(k % m) = alpha * p;
     y.col(k % m) = g1 - g0;
+    
+    // Incrementing iteration number
     k++;
   }
   return(k);
 }
 
 
-// Creating BFGS for GLMs for parallel functions
-int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
-                     const arma::vec* Y, const arma::vec* Offset,
-                     std::string Link, std::string Dist,
-                     double tol, int maxit, double C1 = pow(10, -4)){
+// Creating BFGS for GLMs for Parallel functions
+int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX,  
+                  const arma::vec* Y, const arma::vec* Offset,
+                  std::string Link, std::string Dist,
+                  double tol, int maxit, bool UseXTWX){
   
   int k = 0;
   arma::vec mu = ParLinkCpp(X, beta, Offset, Link, Dist);
@@ -371,9 +438,17 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::vec g0(beta->n_elem);
   arma::mat H1(beta->n_elem, beta->n_elem);
   
-  if(!inv_sympd(H1, ParFisherInfoCpp(X, &Deriv, &Var))){
-    return(-2);
+  if(UseXTWX){
+    if(!inv_sympd(H1, *XTWX)){
+      return(-2);
+    }
   }
+  else{
+    if(!inv_sympd(H1, ParFisherInfoCpp(X, &Deriv, &Var))){
+      return(-2);
+    }
+  }
+  
   double f0;
   double f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
   double rho;
@@ -381,51 +456,52 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   double t;
   
   while(arma::norm(g1) > tol){
+    
+    // Checks if we've reached maxit iterations and stops if we have
     if(k >= maxit){ 
       k = -1;
       break;
     }
-    alpha = 1;
+    // Re-assigning log-likelihood and score
     g0 = g1;
     f0 = f1;
+    
+    // Finding direction based on approximate inverse hessian
     p = -H1 * g1;
-    t = -C1 * arma::dot(g0, p);
-    *beta += alpha * p;
-    mu = ParLinkCpp(X, beta, Offset, Link, Dist);
-    f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
+    t = -arma::dot(g0, p);
     
-    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    ParGetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
-    k++;
+    // Finding alpha with backtracking linesearch using strong wolfe conditions
+    // This function also calculates mu, Deriv, Var, and g1 for the selected step size
+    ParGetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
-    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    // Checking for convergence or non-convergence
+    if(std::fabs(f1 -  f0) < tol || alpha == 0){
       if(std::isinf(f1)|| beta->has_nan()){
-        k = -1;
+        k = -2;
       }
+      k++;
       break;}
     
-    Deriv = ParDerivativeCpp(X, beta, Offset, &mu, Link, Dist);
-    Var = ParVariance(&mu, Dist);
-    g1 = ParScoreCpp(X, Y, &Deriv, &Var, &mu);
+    // Performing BFGS update
     s = alpha * p;
     y = g1 - g0;
     rho = 1/arma::dot(s, y);
     
-    // Calculating next approximate inverse hessian
-    
     H1 = (arma::diagmat(arma::ones(beta->n_elem)) - rho * s * y.t()) * H1 * 
       (arma::diagmat(arma::ones(beta->n_elem)) - rho * y * s.t()) + rho * s * s.t();
+    
+    // Incrementing iteration number
+    k++;
   }
   return(k);
 }
 
 
-// Creating Fisher Scoring for GLMs for parallel functions
+// Creating Fisher Scoring for GLMs for Parallel functions
 int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
-                             const arma::vec* Y, const arma::vec* Offset,
-                             std::string Link, std::string Dist,
-                             double tol, int maxit, 
-                             double C1 = pow(10, -4)){
+                           const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+                           std::string Link, std::string Dist,
+                           double tol, int maxit, bool UseXTWX){
   
   int k = 0;
   arma::vec mu = ParLinkCpp(X, beta, Offset, Link, Dist);
@@ -433,14 +509,19 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::vec Var = ParVariance(&mu, Dist);
   arma::vec g1 = ParScoreCpp(X, Y, &Deriv, &Var, &mu);
   arma::vec p(beta->n_elem);
-  arma::mat H1 = ParFisherInfoCpp(X, &Deriv, &Var);
+  arma::mat H1(beta->n_elem, beta->n_elem);
+  if(UseXTWX){
+    H1 = *XTWX;
+  }
+  else{
+    H1 = ParFisherInfoCpp(X, &Deriv, &Var);
+  }
   double f0;
   double f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
   double alpha;
   double t;
   
   while(arma::norm(g1) > tol){
-    alpha = 1;
     
     // Checks if we've reached maxit iterations and stops if we have
     if(k >= maxit){ 
@@ -448,63 +529,71 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
       break;
     }
     
+    // Re-assiging log-likelihood
     f0 = f1;
-    if(!arma::solve(p, -H1, g1, arma::solve_opts::no_approx)){
+    
+    // Solving for newton direction
+    if(!arma::solve(p, -H1, g1, arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
       return(-2);
     }
-    t = -C1 * arma::dot(g1, p);
-    *beta += alpha * p;
-    mu = ParLinkCpp(X, beta, Offset, Link, Dist);
-    f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
+    t = -arma::dot(g1, p);
     
-    // Finding alpha with backtracking linesearch using Armijo-Goldstein condition
-    ParGetStepSize(X, Y, Offset, &mu, &p, beta, Dist, Link, &f0 ,&f1, &t, &C1, &alpha, "backtrack");
-    k++;
     
-    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    // Finding alpha with backtracking linesearch using strong wolfe conditions
+    // This function also calculates mu, Deriv, Var, and g1 for the selected step size
+    ParGetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
+    
+    // Checking for convergence or non-convergence
+    if(std::fabs(f1 -  f0) < tol || alpha == 0){
       if(std::isinf(f1)|| beta->has_nan()){
-        k = -1;
+        k = -2;
       }
+      k++;
       break;}
     
-    Deriv = ParDerivativeCpp(X, beta, Offset, &mu, Link, Dist);
-    Var = ParVariance(&mu, Dist);
-    g1 = ParScoreCpp(X, Y, &Deriv, &Var, &mu);
+    // Calculating information
     H1 = ParFisherInfoCpp(X, &Deriv, &Var);
+    
+    // Incrementing iteration number
+    k++;
   }
   return(k);
 }
 
-int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
-                   const arma::vec* offset){
+int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* XTWX, const arma::mat* y,
+                      const arma::vec* offset){
   
-  arma::mat FinalMat = XTX(x, 16);
   
-  // calculating inverse of X'X
+  // Calculating inverse of X'X
   arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
-  if(!arma::inv_sympd(InvXX, FinalMat)){
+  arma::vec XY = x->t() * (*y - *offset);
+  if(!arma::solve(*beta, *XTWX, XY, arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
     return(-2);
   }
   
-  // Calculating beta, dispersion parameter, and beta variances
-  *beta = InvXX * x->t() * (*y - *offset);
   return(1);
 }
 
 // Gets initial values for gamma and gaussian regression with log/inverse/sqrt link with 
 // transformed y linear regression
-void PargetInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
-             const arma::vec* Offset, std::string Dist, std::string Link){
+void PargetInit(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
+                const arma::vec* Offset, std::string Dist, std::string Link, 
+                bool* UseXTWX){
+  
   if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
     arma::vec NewY = log(*Y);
-    ParLinRegCppShort(beta, X, &NewY, Offset);
+    ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
+    *UseXTWX = false;
   }else if(Link == "inverse" && (Dist == "gamma" || Dist == "gaussian")){
     const arma::vec NewY = -1 / (*Y);
-    ParLinRegCppShort(beta, X, &NewY, Offset);
-  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian"|| Dist == "poisson")){
+    ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
+    *UseXTWX = false;
+  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian")){
     const arma::vec NewY = sqrt(*Y);
-    ParLinRegCppShort(beta, X, &NewY, Offset);
-  }else if(Link == "identity" && (Dist == "gamma" || Dist == "poisson")){
-    ParLinRegCppShort(beta, X, Y, Offset);
+    ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
+    *UseXTWX = false;
+  }else if(Link == "identity" && (Dist == "gamma")){
+    ParLinRegCppShort(beta, X, XTWX, Y, Offset);
+    *UseXTWX = false;
   }
 }

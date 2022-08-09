@@ -9,13 +9,13 @@
 #' @param method one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
 #' for forward selection and branch and bound selection since they will typically 
 #' fit many models with a small number of covariates.
-#' @param type one of "forward", "backward", or "branch and bound" to indicate 
-#' which type of variable selection to perform.
+#' @param type one of "forward", "backward", "branch and bound", "backward branch and bound", 
+#' or "switch branch and bound" to indicate which type of variable selection to perform.
 #' @param metric metric used to choose model, the default is "AIC", but "BIC" is also available.
 #' @param keep vector of names to denote variables that must be in the model.
 #' @param maxsize maximum number of variables to consider in a single model, the 
-#' default is the total number of variables.
-#' This number adds onto any variables specified in keep. 
+#' default is the total number of variables. This number adds onto any variables specified in keep. 
+#' This argument only works for \code{method = "forward"} and \code{method = "branch and bound"}.
 #' @param grads number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.
 #' @param parallel one of TRUE or FALSE to indicate if parallelization should be used
 #' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
@@ -37,10 +37,13 @@
 #' The branch and bound method makes use of an efficient branch and bound algorithm 
 #' to find the optimal model. This is will find the best model according to the metric and 
 #' can be much faster than an exhaustive search and can be made even faster with 
-#' parallel computation.
+#' parallel computation. The backward branch and bound method is very similar to 
+#' the branch and bound method, except it tends to be faster when the best model 
+#' contains most of the variables. The switch branch and bound method is a 
+#' combination of the two methods and is typically very fast.
 #' 
 #' Fisher's scoring is recommended for branch and bound selection and forward selection.
-#' L-BFGS may be best for backward elimination, especially when there are many variables.
+#' L-BFGS may be faster for backward elimination, especially when there are many variables.
 #' 
 #' All observations that have any missing values in the upper model are removed.
 #' @examples
@@ -82,7 +85,7 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
                                       method = "Fisher", type = "forward", metric = "AIC",
                                       keep = NULL, maxsize = NULL,
                                       grads = 10, parallel = FALSE, 
-                                      nthreads = 8, tol = 1e-4, maxit = NULL,
+                                      nthreads = 8, tol = 1e-6, maxit = NULL,
                                       contrasts = NULL,
                                       showprogress = TRUE, ...){
   
@@ -235,12 +238,16 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
 VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC",
                                         keep = NULL, maxsize = NULL, 
                                         method = "Fisher", grads = 10, parallel = FALSE, 
-                                        nthreads = 8, tol = 1e-4, maxit = NULL,
+                                        nthreads = 8, tol = 1e-6, maxit = NULL,
                                         showprogress = TRUE, ...){
   
   ## Checking if supplied BranchGLM object has x and data
   if(is.null(object$data) || is.null(object$x)){
     stop("the supplied model must have a data and an x component")
+  }
+  ## Checking if supplied BranchGLM object has y
+  if(is.null(object$y)){
+    stop("the supplied model must have a y component")
   }
     
   ## Validating supplied arguments
@@ -291,9 +298,9 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
     stop("maxsize must be a positive integer specifying the max size of the models") 
   }
   
-  ## Setting starting model
+  ## Setting starting model and saving keep1 for later use since keep is modified
   keep1 <- keep
-  if(is.null(keep) && type == "forward"){
+  if(is.null(keep) && type != "backward"){
     keep <- rep(0, length(counts))
     if(intercept){
       keep[1] <- -1
@@ -330,10 +337,18 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
                       metric)
   }else if(type == "branch and bound"){
     df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
-                                      object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
-                                      metric, showprogress)
+                                       object$link, object$family, nthreads, tol, maxit, keep, maxsize,
+                                       metric, showprogress, Inf)
+  }else if(type == "backward branch and bound"){
+    df <- BackwardBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+                                    object$link, object$family, nthreads, tol, maxit, keep, 
+                                    metric, showprogress, Inf)
+  }else if(type == "switch branch and bound"){
+    df <- SwitchBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+                                       object$link, object$family, nthreads, tol, maxit, keep, 
+                                       metric, showprogress, Inf)
   }else{
-    stop("type must be one of 'forward', 'backward', or 'branch and bound'")
+    stop("type must be one of 'forward', 'backward', 'branch and bound', 'backward branch and bound', or 'switch branch and bound'")
   }
   
   df$model[df$model == -1] <- 1
@@ -422,6 +437,28 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   }
   
   structure(FinalList, class = "BranchGLMVS")
+}
+
+#' Predict Method for BranchGLMVS Objects
+#' @param object a \code{BranchGLMVS} object.
+#' @param newdata a dataframe, if not specified the data the model was fit on is used.
+#' @param type one of "linpreds" or "response", if not specified "response" is used.
+#' @param ... further arguments passed to \code{predict.BranchGLM}.
+#' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
+#' Offset variables are ignored for predictions on new data.
+#' @description Gets predictions from the best model found in the \code{BranchGLMVS} object.
+#' @return A numeric vector of predictions.
+#' @examples
+#' Data <- iris
+#' VS <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
+#'                         link = "identity", type = "branch and bound", showprogress = FALSE)
+#' predict(VS)
+#' ### Example with new data
+#' predict(VS, newdata = iris[1:20,])
+#' @export
+
+predict.BranchGLMVS <- function(object, newdata = NULL, type = "response", ...){
+  return(predict(object$finalmodel, newdata = newdata, type = type, ...))
 }
 
 #' Print Method for BranchGLMVS

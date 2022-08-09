@@ -1,11 +1,11 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include "BranchGLMHelpers.h"
+#include "ParBranchGLMHelpers.h"
 using namespace Rcpp;
 
 // Function used to get number of models given a certain maxsize and the number 
 // of variables
-// [[Rcpp::export]]
 unsigned long long GetNum(unsigned long long size, unsigned long long max){
   double temp = 0;
   if(max >= size){
@@ -48,7 +48,7 @@ public:
       if(display_progress){
         Rcout << "Checked " << next_print << "% of all possible models"  << std::endl;
         Rcout << "Found best model"  << std::endl << std::endl;
-      }
+        }
   }
 };
 // Gets metric for given log likelihood and x matrix
@@ -142,4 +142,76 @@ double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double Lowe
     value = LowerBound + log(X->n_rows) * k;
   }
   return(value);
+}
+
+// Function used to fit models and calculate desired metric
+double MetricHelper(const arma::mat* X, const arma::mat* XTWX, 
+                    const arma::vec* Y, const arma::vec* Offset,
+                    const arma::ivec* Indices, const arma::ivec* CurModel,
+                    std::string method, 
+                    int m, std::string Link, std::string Dist,
+                    double tol, int maxit, std::string metric){
+  
+  // Getting submatrix of XTWX
+  unsigned count = 0;
+  for(unsigned int i = 0; i < Indices->n_elem; i++){
+    if(CurModel->at(Indices->at(i)) != 0){
+      count++;
+    }
+  }
+  arma::uvec NewInd(count);
+  count = 0;
+  for(unsigned int i = 0; i < Indices->n_elem; i++){
+    if(CurModel->at(Indices->at(i)) != 0){
+      NewInd.at(count++) = i;
+    }
+  }
+  
+  arma::mat NewXTWX = XTWX->submat(NewInd, NewInd);
+  bool UseXTWX = true;
+  arma::vec beta(X->n_cols, arma::fill::zeros);
+  PargetInit(&beta, X, &NewXTWX, Y, Offset, Dist, Link, &UseXTWX);
+  int Iter;
+  
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = ParLinRegCppShort(&beta, X, &NewXTWX, Y, Offset);
+  }else if(method == "BFGS"){
+    Iter = ParBFGSGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+    
+  }
+  else if(method == "LBFGS"){
+    Iter = ParLBFGSGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, m, UseXTWX);
+  }
+  else{
+    Iter = ParFisherScoringGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+  }
+  if(Iter == -2){
+    return(arma::datum::inf);
+  }
+  
+  arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
+  double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
+  double dispersion = GetDispersion(X, Y, &mu, LogLik, Dist, tol);
+  
+  if(dispersion <= 0 || std::isnan(LogLik)){
+    return(arma::datum::inf);
+  }
+  
+  if(Dist == "gaussian"){
+    double temp = X->n_rows/2 * log(2*M_PI*dispersion);
+    LogLik = LogLik / dispersion - temp;
+  }
+  else if(Dist == "poisson"){
+    LogLik -=  LogFact(Y);
+  }
+  else if(Dist == "gamma"){
+    double shape = 1 / dispersion;
+    LogLik = shape * LogLik + 
+      X->n_rows * (shape * log(shape) - lgamma(shape)) + 
+      (shape - 1) * arma::accu(log(*Y));
+  }
+  if(std::isnan(LogLik)){
+    return(arma::datum::inf);
+  }
+  return(GetMetric(X, LogLik, Dist, metric));
 }
