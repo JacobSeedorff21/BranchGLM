@@ -5,8 +5,8 @@ output: github_document
 
 # Overview
 
-**BranchGLM** is a package for fitting glms and performing branch and bound 
-variable selection for glms.
+**BranchGLM** is a package for fitting GLMs and performing branch and bound 
+variable selection for GLMs.
 
 # How to install
 
@@ -28,7 +28,7 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 ```
 
 # Usage
-## Fitting glms
+## Fitting GLMs
 ### Linear regression
 
 **BranchGLM** can fit large linear regression models very quickly, 

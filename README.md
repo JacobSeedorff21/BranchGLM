@@ -3,8 +3,8 @@ BranchGLM
 
 # Overview
 
-**BranchGLM** is a package for fitting glms and performing branch and
-bound variable selection for glms.
+**BranchGLM** is a package for fitting GLMs and performing branch and
+bound variable selection for GLMs.
 
 # How to install
 
@@ -23,7 +23,7 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 
 # Usage
 
-## Fitting glms
+## Fitting GLMs
 
 ### Linear regression
 
@@ -152,7 +152,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##    0.19    0.00    0.19
+    ##    0.17    0.00    0.17
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -162,7 +162,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  127.55    0.28  127.82
+    ##  128.73    0.26  129.02
 
 ### Checking results
 
@@ -196,7 +196,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##   91.37    0.02   91.39
+    ##   92.09    0.03   92.16
 
 ### Parallel time
 
@@ -208,7 +208,7 @@ system.time(ParBranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  138.24    0.47   14.21
+    ##  136.39    0.34   14.25
 
 ### Checking results
 
