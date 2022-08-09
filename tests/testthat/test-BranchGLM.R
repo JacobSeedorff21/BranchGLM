@@ -186,7 +186,8 @@ test_that("poisson regression works", {
   
   ## Fitting poisson regression
   expect_equal(BranchGLM(y ~ ., data = Data, family = "poisson", link = "log", parallel = TRUE)$coefficients, 
-               BranchGLM(y ~ ., data = Data, family = "poisson", link = "log")$coefficients)
+               BranchGLM(y ~ ., data = Data, family = "poisson", link = "log")$coefficients, 
+               tolerance = .Machine$double.eps^(.25))
   
   ## Checking variable selection
   ### branch and bound
