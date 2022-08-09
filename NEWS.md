@@ -1,6 +1,17 @@
 BranchGLM News
 ================
 
+# BranchGLM 1.3.0
+
+-   Updated GLM fitting to use backtracking line search with strong
+    Wolfe conditions instead of Armijo-Goldstein condition to find step
+    size.
+-   Adding new variable selection types for `VariableSelection()` which
+    are called “backward branch and bound” and “switch branch and
+    bound”. These methods are similar to the regular branch and bound
+    method, but sometimes they can be much faster.
+-   Added predict method for `BranchGLMVS` objects.
+
 # BranchGLM 1.2.0
 
 -   Introducing new function `BranchGLM.fit()` which is similar to
