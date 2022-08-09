@@ -70,12 +70,19 @@ test_that("binomial regression and stuff works", {
   expect_equal(LogitFitCoef, LogitFit2$coefficients)
   
   ### Branch and bound variable selection with logistic regression
+  ### Checking that each branch and method gives same results
   LogitVS <- VariableSelection(LogitFit, type = "branch and bound")
   LogitVS2 <- VariableSelection(supp ~ ., data = Data, family = "binomial", 
-                                 link = "logit", type = "branch and bound", 
-                                 parallel = TRUE, nthreads = 1)
+                                 link = "logit", type = "backward branch and bound", 
+                                 parallel = TRUE)
   
   expect_equal(LogitVS$finalmodel$coefficients, LogitVS2$finalmodel$coefficients)
+  
+  LogitVS3<- VariableSelection(supp ~ ., data = Data, family = "binomial", 
+                                link = "logit", type = "switch branch and bound", 
+                                parallel = TRUE)
+  
+  expect_equal(LogitVS$finalmodel$coefficients, LogitVS3$finalmodel$coefficients)
   
   ### Forward variable selection with logistic regression
   LogitVS <- VariableSelection(LogitFit, type = "forward")

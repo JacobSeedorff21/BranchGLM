@@ -56,7 +56,7 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 - The optimization method can be specified, the default method is fisher scoring, but BFGS and L-BFGS are also available. 
 - BFGS and L-BFGS typically perform better when there are many predictors in the model (at least 50 predictors), otherwise fisher scoring is typically faster.  
 - The `grads` argument is for L-BFGS only and it is the number of gradients that are stored at a time and are used to approximate the inverse information. The default value for this is 10, but another common choice is 5.
-- The `tol` argument controls how strict the convergence criteria are, higher tolerance will lead to more accurate results, but may also be slower.
+- The `tol` argument controls how strict the convergence criteria are, lower values of this will lead to more accurate results, but may also be slower.
 - The `method` argument is ignored for linear regression and the OLS solution is 
 used.
 
@@ -145,15 +145,16 @@ VariableSelection(GammaFit, type = "backward")
 
 ## Branch and bound
 
-- Branch and bound is much slower than the other methods, but it is guaranteed to find the best model.
-- The branch and bound method can be much faster than an exhaustive search and can also be made many times faster if parallel computation is used.
+- The Branch and bound methods can be much slower than the stepwise methods, but 
+they are guaranteed to find the best model.
+- The branch and bound methods can be much faster than an exhaustive search and can also be made many times faster if parallel computation is used.
 - One way to judge how much faster the branch and bound algorithm is compared to an exhaustive search is to look at the ratio of the number of models fit against the total number of possible models.
   - If this ratio is close to 1, then it is performing poorly and has to fit almost every model, if it is close to 0, then it is performing well and ruled out many models without having to fit them.
 
 ### Branch and bound example
 
 - If `showprogress` is true, then progress of the branch and bound algorithm will be reported occasionally.
-- Parallel computation can be used with this method and can lead to very large speedups.
+- Parallel computation can be used with these methods and can lead to very large speedups.
 
 ```{r}
 ### Branch and bound with mtcars

@@ -188,7 +188,7 @@ df <- LogisticSimul(1000, 40, .5, sd = .5)
 
 system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "branch and bound", showprogress = FALSE,
+                  type = "switch branch and bound", showprogress = FALSE,
                   parallel = FALSE, nthreads = 8, method = "Fisher"))
 ```
 
@@ -197,7 +197,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```{r}
 system.time(ParBranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "branch and bound", showprogress = FALSE,
+                  type = "switch branch and bound", showprogress = FALSE,
                   parallel = TRUE, nthreads = 12, method = "Fisher"))
 
 ```
