@@ -36,19 +36,17 @@ arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
 int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                    const arma::vec* Y, const arma::vec* Offset,
                    std::string Link, std::string Dist, 
-                   double tol, int maxit, int m = 5, 
-                   double C1 = pow(10, -4));
+                   double tol, int maxit, int m = 5);
 
 int BFGSGLMCpp(arma::vec* beta, const arma::mat* X, 
                   const arma::vec* Y, const arma::vec* Offset,
                   std::string Link, std::string Dist,
-                  double tol, int maxit, double C1 = pow(10, -4));
+                  double tol, int maxit);
 
 int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X, 
                                const arma::vec* Y, const arma::vec* Offset,
                                std::string Link, std::string Dist,
-                               double tol, int maxit, 
-                               double C1 = pow(10, -4));
+                               double tol, int maxit);
 
 List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                 std::string method,  unsigned int m, std::string Link, std::string Dist,
@@ -59,7 +57,7 @@ int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
 
 double GetDispersion(const arma::mat* X, const arma::vec* Y, 
                      arma::vec* mu, double LogLik, std::string Dist, 
-                     double tol, double C1 = pow(10, -4));
+                     double tol);
 
 void getInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
              const arma::vec* Offset, std::string Dist, std::string Link);

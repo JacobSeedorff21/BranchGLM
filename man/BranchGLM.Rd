@@ -15,7 +15,7 @@ BranchGLM(
   grads = 10,
   parallel = FALSE,
   nthreads = 8,
-  tol = 1e-04,
+  tol = 1e-06,
   maxit = NULL,
   init = NULL,
   contrasts = NULL,
@@ -35,7 +35,7 @@ BranchGLM.fit(
   nthreads = 8,
   init = NULL,
   maxit = NULL,
-  tol = 1e-04
+  tol = 1e-06
 )
 }
 \arguments{
@@ -71,10 +71,11 @@ selected.}
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
 \item{keepData}{Whether or not to store a copy of data and design matrix, the default 
-is TRUE. If this is false, then the results from this cannot be used inside of \code{VariableSelection}.}
+is TRUE. If this is FALSE, then the results from this cannot be used inside of \code{VariableSelection}.}
 
 \item{keepY}{Whether or not to store a copy of y, the default is TRUE. If 
-this is FALSE, then the binomial GLM helper functions may not work.}
+this is FALSE, then the binomial GLM helper functions may not work and this 
+cannot be used inside of \code{VariableSelection}.}
 
 \item{x}{design matrix used for the fit, must be numeric.}
 
@@ -131,10 +132,10 @@ and the normal equations are solved directly.
 
 The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
 convergence, each of the methods makes use of a backtracking line-search using 
-the armijo-goldstein condition to find an adequate step size. There are also 
+the strong Wolfe conditions to find an adequate step size. There are also 
 two conditions used to control convergence, the first is whether there is a 
 sufficient decrease in the negative log-likelihood, and the other is whether 
-each of the elements of the beta vector changes by a sufficient amount. The 
+the norm of the score is sufficiently small. The 
 \code{tol} argument controls both of these criteria. If the algorithm fails to 
 converge, then \code{iterations} will be -1.
 

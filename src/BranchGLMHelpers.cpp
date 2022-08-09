@@ -25,8 +25,9 @@ double LogFact(const arma::vec* y){
   return(sum);
 }
 
-// Checking bounds
+// Checking bounds and modifying values that are out of bounds
 void CheckBounds(arma::vec* mu, std::string Dist){
+  
   if(Dist == "binomial"){
     mu->transform([](double val){
       if(val <= 0){val = FLT_EPSILON;}
@@ -46,10 +47,11 @@ void CheckBounds(arma::vec* mu, std::string Dist){
 arma::vec LinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset, 
                   std::string Link, std::string Dist){
   
-  // Calculating linear predictors
+  // Calculating linear predictors and initializing vector for mu
   arma::vec XBeta = (*X * *beta) + *Offset;
   arma::vec mu(XBeta.n_elem);
   
+  // Calculating mu
   if(Link == "log"){
 #pragma omp parallel for
     for(unsigned int i = 0; i < Offset->n_elem; i++){
@@ -87,6 +89,7 @@ arma::vec LinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
     }
   }
   
+  // Checking bounds and modifying values that are out of bounds
   CheckBounds(&mu, Dist);
   
   return(mu);
@@ -96,8 +99,10 @@ arma::vec LinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
 arma::vec DerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
                         arma::vec* mu, std::string Link, std::string Dist){
   
+  // Initializing vector to store derivative
   arma::vec Deriv(mu->n_elem);
   
+  // Calculating derivative
   if(Link == "log"){
     Deriv = *mu; 
   }
@@ -137,8 +142,11 @@ arma::vec DerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Of
 // Defining Variance functions for each family
 arma::vec Variance(arma::vec* mu, std::string Dist){
   
+  // Initializing vector to store variance
   arma::vec Var(mu->n_elem);
   
+  
+  // Calculating variance
   if(Dist == "poisson"){
     Var = *mu; 
   }
@@ -158,6 +166,7 @@ arma::vec Variance(arma::vec* mu, std::string Dist){
     Var.fill(1);
   }
   
+  // Replacing zeros with FLT_epsilon
   Var.replace(0, FLT_EPSILON);
   
   return(Var);
@@ -168,8 +177,10 @@ arma::vec Variance(arma::vec* mu, std::string Dist){
 double LogLikelihoodCpp(const arma::mat* X, const arma::vec* Y, 
                         arma::vec* mu, std::string Dist){
   
+  // Initializing double to store log-likelihood
   double LogLik = 0;
   
+  // Calculating log-likelihood
   if(Dist == "poisson"){
 #pragma omp parallel for reduction(+:LogLik)
     for(unsigned int i = 0; i < Y->n_elem; i++){
@@ -200,8 +211,10 @@ double LogLikelihoodCpp(const arma::mat* X, const arma::vec* Y,
 // Defining log likelihood for saturated model
 double LogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist){
   
+  // Initializing double to hold saturated log-likelihood
   double LogLik = 0;
   
+  // Calculating saturated log-likelihood
   if(Dist == "poisson"){
     for(unsigned int i = 0; i< Y->n_elem;i++){
       if(Y->at(i) != 0){
@@ -225,10 +238,10 @@ double LogLikelihoodSat(const arma::mat* X, const arma::vec* Y, std::string Dist
 arma::vec ScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
                    arma::vec* Var, arma::vec* mu){
   
-  // Initializing vector to store results
+  // Initializing vector for score
   arma::vec FinalVec(X->n_cols);
   
-  //Calculating weights and difference in observed and expected
+  // Calculating w and diff for score computation
   arma::vec w = *Deriv / *Var;
   arma::vec diff = *Y - *mu;
   w.replace(arma::datum::nan, 0);
@@ -255,6 +268,7 @@ arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   w.replace(arma::datum::nan, 0);
   checkUserInterrupt();
   
+  // Calculating X'WX
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int i = 0; i < X->n_cols; i++){
     
@@ -270,6 +284,7 @@ arma::mat FisherInfoCpp(const arma::mat* X, arma::vec* Deriv,
   return FinalMat;
 }
 
+// Function used to get step size
 void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
                  arma::vec* mu, arma::vec* Deriv, arma::vec* Var, arma::vec* g1, 
                  arma::vec* p, arma::vec* beta, 
@@ -278,13 +293,15 @@ void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset
                  std::string method){
   
   // Defining maximum number of iterations and counter variable
-  unsigned int maxiter = 25;
+  unsigned int maxiter = 40;
   unsigned int k = 0;
   
   // Defining C1 and C2 for backtracking
   // 0 < C1 < C2 < 1
   double C1 = pow(10, -4);
   double C2 = 0.9;
+  
+  // Setting initial step size to be 1
   *alpha = 1;
   
   // Creating temporary variables for alpha, beta, f1, and mu
@@ -300,7 +317,8 @@ void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset
   
   // Checking for descent direction
   if(*t <= 0){
-    stop("method failed to provide search direction");
+    *alpha = 0;
+    return;
   }
   
   if(method == "backtrack"){
@@ -318,7 +336,6 @@ void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset
         
         // Checking 2nd wolfe condition
         if(std::fabs(arma::dot(*p, *g1) <= C2 * std::fabs(*t))){
-          Rcout << "Strong Wolfe conditions satisfied with alpha = " << temp << std::endl;
           break;
         }
       }
@@ -332,7 +349,7 @@ void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset
       }
     }
     
-    // Changing variables if an appropriate step size if found
+    // Changing variables if an appropriate step size is found
     // Setting alpha to 0 if no adequate step size is found
     if(k < maxiter){
       *alpha = temp;
@@ -343,52 +360,9 @@ void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset
       *alpha = 0;
     }
     
-  }else{
-    /*
-    // Two-way backtracking which starts at previous alpha
-    // Making dec variable which decided whether to decrease or increase alpha
-    double down = 0.5;
-    double up = 2.1;
-    bool dec;
-    if(*f0 >= tempf1 + C1 * temp * *t){
-      dec = false;
-    }else{
-      dec = true;
-    }
+  }
+  else{
     
-    // Performing the backtracking
-    for(;k < maxiter; k++){
-      if(dec){
-        temp *= down;
-      }
-      else{
-        temp *= up;
-      }
-      
-      tempbeta = *beta + temp * *p;
-      tempmu = LinkCpp(X, &tempbeta, Offset, Link, Dist);
-      tempf1 = LogLikelihoodCpp(X, Y, &tempmu, Dist);
-      
-      // Checking first strong wolfe condition
-      if(*f0 >= tempf1 + C1 * temp * *t){
-        
-        // Checking 2nd wolfe condition if first one is satisfied
-        arma::vec Deriv = DerivativeCpp(X, &tempbeta, Offset, &tempmu, Link, Dist);
-        arma::vec Var = Variance(&tempmu, Dist);
-        if(std::fabs(arma::dot(*p, ScoreCpp(X, Y, &Deriv, &Var, &tempmu))) <= C2 * std::fabs(*t)){
-          Rcout << "Strong Wolfe conditions satisfied with alpha = " << temp << std::endl;
-          *beta = tempbeta;
-          *f1 = tempf1;
-          *mu = tempmu;
-          *alpha = temp;
-        }
-        if(dec){
-          break;
-        }
-      }else if(!dec){
-        break;
-      }
-    }*/
   }
 }
 
@@ -396,9 +370,11 @@ void GetStepSize(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset
 arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y, 
                          int* k, int* m, 
                          arma::vec* r, arma::vec* alpha, const arma::mat* Info){
-  if(*k > 0) {
+  if(*k > 0){
     unsigned int max = std::min(*k, *m);
     unsigned int index;
+    
+    // Performing L-BFGS update
     for(unsigned int i = 1; i <= max; i++){
       index = (*k - i) % *m;
       alpha->at(index) = arma::dot(s->col(index), *g1)/arma::dot(y->col(index), s->col(index));
@@ -407,6 +383,8 @@ arma::vec LBFGSHelperCpp(arma::vec* g1, arma::mat* s, arma::mat* y,
     }
     index = (*k - 1)% *m;
     *r = *Info * *g1;
+    //*r *= arma::dot(s->col(index), y->col(index)) / arma::dot(y->col(index), y->col(index));
+    
     for(unsigned int j = max; j > 0; j--){
       index = (*k - j) % *m;
       *r += s->col(index) * (alpha->at(index) - arma::dot(y->col(index), *r)/arma::dot(y->col(index), s->col(index)));
@@ -460,7 +438,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
       break;
     }
     
-    // re-assigning likelihood and score
+    // Re-assigning log-likelihood and score
     f0 = f1;
     g0 = g1;
     
@@ -473,7 +451,7 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     GetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
     // Checking for convergence or nan/inf
-    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol) || alpha == 0){
       if(std::isinf(f1) || beta->has_nan() || alpha == 0){
         warning("LBFGS failed to converge");
         k = -2;
@@ -536,7 +514,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     g0 = g1;
     f0 = f1;
     
-    // Finding p based on approximate inverse hessian 
+    // Finding direction based on approximate inverse hessian
     p = -H1 * g1;
     t = -arma::dot(g0, p);
     
@@ -544,8 +522,8 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     // This function also calculates mu, Deriv, Var, and g1 for the selected step size
     GetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
-    // Checking for convergence or nan/inf
-    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    // Checking for convergence or non-convergence
+    if(std::fabs(f1 -  f0) < tol || alpha == 0){
       if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         warning("BFGS failed to converge");
         k = -2;
@@ -617,8 +595,8 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     // This function also calculates mu, Deriv, Var, and g1 for the selected step size
     GetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
-    //Checking for convergence or nan/inf
-    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol)){
+    // Checking for convergence or non-convergence
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol) || alpha == 0){
       if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         warning("Fisher Scoring failed to converge");
         k = -2;
@@ -635,9 +613,11 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   return(k);
 }
 
+// Linear regression used when SEs need to be calculated
 int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
               const arma::vec* offset, arma::vec* SE1, unsigned int nthreads){
   
+  // Creating initial mat and calculating X'X
   arma::mat FinalMat(x->n_cols, x->n_cols);
   if(nthreads > 1){
     FinalMat = ParXTX(x);
@@ -652,12 +632,13 @@ int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
     return(-2);
   }
   
-  // Calculating beta, dispersion parameter, and beta variances
+  // Calculating beta and beta variances
   *beta = InvXX * x->t() * (*y - *offset);
   *SE1 = arma::diagvec(InvXX);
   return(1);
 } 
 
+// Linear regression used when SEs are not necessary
 int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
                    const arma::vec* offset, unsigned int nthreads){
   
@@ -674,18 +655,23 @@ int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
     return(-2);
   }
   
-  // Calculating beta, dispersion parameter, and beta variances
+  // Calculating beta
   *beta = InvXX * x->t() * (*y - *offset);
   return(1);
 }
 
 double GetDispersion(const arma::mat* X, const arma::vec* Y, 
                      arma::vec* mu, double LogLik, std::string Dist, 
-                     double tol, double C1 = pow(10, -4)){
+                     double tol){
+  // Setting default value for dispersion parameter
   double dispersion = 1;
+  
   if(Dist == "gaussian"){
+    // Dispersion parameter for gaussian glm is the MSE
     dispersion = arma::accu(pow(*Y - *mu, 2)) / (X->n_rows - X->n_cols);
   }else if(Dist == "gamma"){
+    
+    // Initializing values
     unsigned int it = 0;
     double alpha = 1;
     double dispersion2 = dispersion + 2 * tol;
@@ -693,14 +679,14 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
     
     // Initializing score and info
     double score = fixed + X->n_rows * (log(dispersion) - boost::math::digamma(dispersion)); 
-    
     double info = X->n_rows * (-1 / dispersion + boost::math::trigamma(dispersion));
     
+    // Using newton's method to find shape parameter
     while(std::fabs(score) > tol && std::fabs(dispersion - dispersion2) > tol && it < 25){
       alpha = 1;
       dispersion2 = dispersion;
       dispersion += score / info;
-      while(dispersion <= 0 && alpha >= C1){
+      while(dispersion <= 0){
         alpha /= 2;
         dispersion -= alpha * score / info; 
       }
@@ -708,6 +694,8 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
       info = X->n_rows * (-1 / dispersion + boost::math::trigamma(dispersion));
       it++;
     }
+    
+    // Converting shape parameter to dispersion parameter
     dispersion = 1 / dispersion;
   }
   return(dispersion);
@@ -772,6 +760,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   else{
     Iter = FisherScoringGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
+  
   // Checking for non-invertible fisher info error
   if(Iter == -2){
     stop("Algorithm failed to converge because the fisher info was not invertible");
