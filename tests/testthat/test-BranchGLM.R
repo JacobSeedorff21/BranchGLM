@@ -247,3 +247,37 @@ test_that("gamma regression works", {
                                  link = "log", parallel = FALSE, type = "backward")$finalmodel$coefficients)
   
 })
+
+### Testing variable selection with interactions
+test_that("Interactions work", {
+  library(BranchGLM)
+  set.seed(8621)
+  x <- sapply(rep(0, 5), rnorm, n = 1000, simplify = TRUE)
+  x <- cbind(1, x)
+  beta <- rnorm(6)
+  y <- rgamma(n = 1000, shape = 10, rate = exp(x %*% beta))
+  
+  Data <- cbind(y, x[,-1]) |>
+    as.data.frame()
+  
+  ### forward selection
+  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+                                 type = "forward", method = "Fisher"), NA)
+  ### backward selection
+  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+                                 type = "backward", method = "Fisher"), NA)
+  
+  ### branch and bound selection
+  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+                                 type = "branch and bound", method = "Fisher"), NA)
+  
+  ### backward branch and bound selection
+  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+                                 type = "backward branch and bound", method = "Fisher"), NA)
+  
+  ### switch branch and bound selection
+  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+                                 type = "switch branch and bound", method = "Fisher"), NA)
+  
+})
+
