@@ -1,6 +1,11 @@
 BranchGLM News
 ================
 
+# BranchGLM 1.3.1
+
+-   The `VariableSelection()` function should now properly handle
+    interaction terms.
+
 # BranchGLM 1.3.0
 
 -   Updated GLM fitting to use backtracking line search with strong
