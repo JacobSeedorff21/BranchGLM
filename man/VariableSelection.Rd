@@ -108,10 +108,8 @@ and branch and bound variable selection for generalized linear models.
 The model in the formula or the formula from the fitted model is 
 treated as the upper model. The variables specified in keep along with an 
 intercept (if included in formula) is the lower model. When an intercept is 
-included in the model formula it is kept in each model. Interaction terms 
-are not properly handled, i.e. an interaction term may be kept while removing 
-the lower-order terms. Factor variables are either kept in their entirety or 
-entirely removed.
+included in the model formula it is kept in each model. Factor 
+variables are either kept in their entirety or entirely removed.
 
 The branch and bound method makes use of an efficient branch and bound algorithm 
 to find the optimal model. This is will find the best model according to the metric and 
