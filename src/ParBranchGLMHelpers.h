@@ -4,7 +4,12 @@
 #include <RcppArmadillo.h>
 using namespace Rcpp;
 
-arma::vec ParScoreCpp(const arma::mat* X, const arma::vec* XY, const arma::vec* Y, arma::vec* Deriv,
+arma::vec ParVariance(arma::vec* mu, std::string Dist);
+
+arma::vec ParDerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
+                           arma::vec* mu, std::string Link, std::string Dist);
+
+arma::vec ParScoreCpp(const arma::mat* X, const arma::vec* Y, arma::vec* Deriv,
                    arma::vec* Var, arma::vec* mu);
 
 arma::mat ParFisherInfoCpp(const arma::mat* X, arma::vec* Deriv, 

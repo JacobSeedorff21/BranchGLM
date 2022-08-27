@@ -20,6 +20,7 @@ unsigned long long GetNum(unsigned long long size, unsigned long long max){
   }
   return(temp);
 }
+
 // Class to display progress for branch and bound method
 class Progress{
 private:
@@ -214,4 +215,71 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
     return(arma::datum::inf);
   }
   return(GetMetric(X, LogLik, Dist, metric));
+}
+
+// Function used to check if given model is valid, i.e. if lower order terms are 
+// in the model while an interaction term is present
+bool CheckModel(const arma::ivec* CurModel, const arma::imat* Interactions){
+  for(unsigned int i = 0; i < CurModel->n_elem; i++){
+    if(CurModel->at(i) != 0){
+      // This variable is included in the current model, so we need to check for 
+      // lower order terms if it is an interaction term
+      
+      for(unsigned int j = 0; j < Interactions->n_rows; j++){
+        if(Interactions->at(j, i) != 0 && CurModel->at(j) == 0){
+          // Interaction term found without lower order terms included
+          return(false);
+        }
+      }
+    }
+  }
+  return(true);
+}
+
+// Function used to check if a set of models is valid, i.e. if any of the models in this 
+// set are valid
+bool CheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder, 
+                 const arma::imat* Interactions, 
+                 unsigned int cur){
+  
+  
+  // Getting order for this set of models
+  arma::uvec NewOrder2 = NewOrder->subvec(cur, NewOrder->n_elem - 1);
+  
+  for(unsigned int i = 0; i < CurModel->n_elem; i++){
+    if(CurModel->at(i) != 0){
+      // This variable is included in the current model, so we need to check for 
+      // lower order terms if it is an interaction term
+      for(unsigned int j = 0; j < Interactions->n_rows; j++){
+        if(Interactions->at(j, i) != 0 && CurModel->at(j) == 0 && all(NewOrder2 != j)){
+          // Interaction term found without lower order terms included and they cannot be included
+          return(false);
+        }
+      }
+    }
+  }
+  return(true);
+}
+
+// Function used to check if a set of models is valid for backward methods
+bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder, 
+                         const arma::imat* Interactions, 
+                         unsigned int cur){
+  
+  arma::uvec NewOrder2 = NewOrder->subvec(0, cur);
+  
+  for(unsigned int i = 0; i < CurModel->n_elem; i++){
+    if(CurModel->at(i) != 0){
+      // This variable is included in the current model, so we need to check for 
+      // lower order terms if it is an interaction term
+      
+      for(unsigned int j = 0; j < Interactions->n_rows; j++){
+        if(Interactions->at(j, i) != 0 && CurModel->at(j) == 0 && all(NewOrder2 != i)){
+          // Interaction term found without lower order terms included
+          return(false);
+        }
+      }
+    }
+  }
+  return(true);
 }

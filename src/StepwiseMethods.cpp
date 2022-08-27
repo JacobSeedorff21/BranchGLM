@@ -10,7 +10,7 @@ using namespace Rcpp;
 
 // Given a current model, this finds the best variable to add to the model
 void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
-          std::string method, int m, std::string Link, std::string Dist,
+          const arma::imat* Interactions, std::string method, int m, std::string Link, std::string Dist,
           arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
           unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
           arma::ivec* indices, double tol, int maxit, std::string metric){
@@ -24,12 +24,15 @@ void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const a
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int j = 0; j < CurModel->n_elem; j++){
     if(CurModel->at(j) == 0){
-      Counts.at(j) = 1;
       arma::ivec CurModel2 = *CurModel;
       CurModel2.at(j) = 1;
-      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
-      Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
-                 tol, maxit, metric);
+      if(CheckModel(&CurModel2, Interactions)){
+        // This model is valid, so we fit it
+        Counts.at(j) = 1;
+        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+        Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
+                   tol, maxit, metric);
+      }
     }
   }
   
@@ -53,7 +56,8 @@ void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const a
 // Performs forward selection
 // [[Rcpp::export]]
 List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
-                IntegerVector indices, IntegerVector num,
+                IntegerVector indices, IntegerVector num, 
+                IntegerMatrix interactions,
                 std::string method, int m,
                 std::string Link, std::string Dist,
                 unsigned int nthreads, double tol, int maxit,
@@ -68,6 +72,8 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::imat Interactions(interactions.begin(), interactions.rows(), 
+                                interactions.cols(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel = BestModel;
@@ -100,7 +106,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     checkUserInterrupt();
     bool flag = true;
     CurModel = BestModel;
-    add1(&X, &XTWX, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
+    add1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
     
     // Stopping process if no better model is found
@@ -131,7 +137,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
 
 // Given a current model, this finds the best variable to remove
 void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
-           std::string method, int m, std::string Link, std::string Dist,
+           const arma::imat* Interactions, std::string method, int m, std::string Link, std::string Dist,
            arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
            unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
            arma::ivec* indices, double tol, int maxit, std::string metric){
@@ -144,14 +150,14 @@ void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const 
 #pragma omp parallel for schedule(dynamic, 1)
   for(unsigned int j = 0; j < CurModel->n_elem; j++){
     if(CurModel->at(j) == 1){
-      Counts.at(j) = 1;
       arma::ivec CurModel2 = *CurModel;
       CurModel2.at(j) = 0;
-      arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
-      Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
-                 tol, maxit, metric);
-      
-      
+      if(CheckModel(&CurModel2, Interactions)){
+        Counts.at(j) = 1;
+        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+        Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
+                   tol, maxit, metric);
+      }
     }
   }
   
@@ -175,6 +181,7 @@ void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const 
 // [[Rcpp::export]]
 List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
                  IntegerVector indices, IntegerVector num,
+                 IntegerMatrix interactions, 
                  std::string method, int m,
                  std::string Link, std::string Dist,
                  unsigned int nthreads, double tol, int maxit,
@@ -188,6 +195,8 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::imat Interactions(interactions.begin(), interactions.rows(), 
+                                interactions.cols(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel = BestModel;
@@ -219,7 +228,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     
     bool flag = true;
     CurModel = BestModel;
-    drop1(&X, &XTWX, &Y, &Offset, method, m, Link, Dist, &CurModel, &BestModel, 
+    drop1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
           &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
     
     // Stopping the process if no better model is found

@@ -31,22 +31,16 @@ arma::vec ParLinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offse
   
   // Calculating mu
   if(Link == "log"){
-    for(unsigned int i = 0; i < Offset->n_elem; i++){
-      mu.at(i) = exp(XBeta.at(i));
-    }
+    mu = exp(XBeta);
   }
   else if(Link == "logit"){
-    for(unsigned int i = 0; i < Offset->n_elem; i++){
-      mu.at(i) = 1 / (1 + exp(-XBeta.at(i)));
-    }
+    mu = 1 / (1 + exp(-XBeta));
   }
   else if(Link == "probit"){
     mu = arma::normcdf(XBeta);
   }
   else if(Link == "cloglog"){
-    for(unsigned int i = 0; i < Offset->n_elem; i++){
-      mu.at(i) = exp(-exp(XBeta.at(i)));
-    }
+    mu = exp(-exp(XBeta));
   }
   else if(Link == "inverse"){
     mu = -1 / (XBeta);
@@ -76,17 +70,13 @@ arma::vec ParDerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec*
     Deriv = *mu; 
   }
   else if(Link == "logit"){
-    for(unsigned int i = 0; i < mu->n_elem; i++){
-      Deriv.at(i) = mu->at(i) * (1 - mu->at(i));
-    }
+    Deriv = *mu % (1 - *mu);
   }
   else if(Link == "probit"){
     Deriv = arma::normpdf(*X * *beta + *Offset);
   }
   else if(Link == "cloglog"){
-    for(unsigned int i = 0; i < mu->n_elem; i++){
-      Deriv.at(i) = mu->at(i) * log(mu->at(i));
-    }
+    Deriv = *mu % log(*mu);
   }
   else if(Link == "inverse"){
     Deriv = pow(*mu, 2);
@@ -111,20 +101,11 @@ arma::vec ParVariance(arma::vec* mu, std::string Dist){
   if(Dist == "poisson"){
     Var = *mu; 
   }
-  else if(Dist == "Negative binomial"){
-    for(unsigned int i = 0; i < mu->n_elem; i++){
-      Var.at(i) = mu->at(i) * pow(mu->at(i), 2);
-    }
-  }
   else if(Dist == "binomial"){
-    for(unsigned int i = 0; i < mu->n_elem; i++){
-      Var.at(i) = mu->at(i) * (1 - mu->at(i));
-    }
+    Var = *mu % (1 - *mu);
   }
   else if(Dist == "gamma"){
-    for(unsigned int i = 0; i < mu->n_elem; i++){
-      Var.at(i) = pow(mu->at(i), 2);
-    }
+    Var = pow(*mu, 2);
   }
   else{
     Var.fill(1);

@@ -56,4 +56,14 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
                     int m, std::string Link, std::string Dist,
                     double tol, int maxit, std::string metric);
 
+bool CheckModel(const arma::ivec* CurModel, const arma::imat* Interactions);
+
+bool CheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder, 
+                 const arma::imat* Interactions, 
+                 unsigned int cur);
+
+bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder, 
+                         const arma::imat* Interactions, 
+                         unsigned int cur);
+
 #endif

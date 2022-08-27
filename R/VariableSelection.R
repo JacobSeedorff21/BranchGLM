@@ -29,10 +29,8 @@
 #' @details The model in the formula or the formula from the fitted model is 
 #' treated as the upper model. The variables specified in keep along with an 
 #' intercept (if included in formula) is the lower model. When an intercept is 
-#' included in the model formula it is kept in each model. Interaction terms 
-#' are not properly handled, i.e. an interaction term may be kept while removing 
-#' the lower-order terms. Factor variables are either kept in their entirety or 
-#' entirely removed.
+#' included in the model formula it is kept in each model. Factor 
+#' variables are either kept in their entirety or entirely removed.
 #' 
 #' The branch and bound method makes use of an efficient branch and bound algorithm 
 #' to find the optimal model. This is will find the best model according to the metric and 
@@ -199,13 +197,13 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
   
   df$data <- data
   
-  df$names <- attributes(terms(df$formula, data = data))$factors |>
+  df$names <- attr(terms(df$formula, data = data), "factors") |>
     colnames()
   
-  df$yname <- attributes(terms(df$formula, data = data))$variables[-1] |>
+  df$yname <- attr(terms(df$formula, data = data), "variables")[-1] |>
     as.character()
   
-  df$yname <- df$yname[attributes(terms(df$formula, data = data))$response]
+  df$yname <- df$yname[attr(terms(df$formula, data = data), "response")]
   
   df$missing <- nrow(data) - nrow(x)
   
@@ -215,7 +213,7 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
   
   df$offset <- offset
   
-  df$terms <- attr(mf, "terms")
+  df$terms <- terms(df$formula, data = data)
   
   df$family <- family
   if(family == "binomial"){
@@ -229,7 +227,7 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
                     maxsize = maxsize, method = method, grads = grads, 
                     parallel = parallel, 
                     nthreads = nthreads, tol = tol, maxit = maxit,
-                    showprogress = showprogress)
+                    showprogress = showprogress, ...)
 }
 
 #'@rdname VariableSelection
@@ -270,7 +268,8 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
     stop("metric must be one of 'AIC' or 'BIC'")
   }
   
-  indices <- attributes(object$x)$assign
+  indices <- attr(object$x, "assign")
+  interactions <- attr(object$terms, "factors")[-1L, ]
   
   ## Setting maxit
   if(is.null(maxit)){
@@ -286,6 +285,8 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   ## Checking for intercept
   if(colnames(object$x)[1] == "(Intercept)"){
     intercept <- TRUE
+    interactions <- rbind(0, interactions)
+    interactions <- cbind(0, interactions)
   }else{
     intercept <- FALSE
     indices <- indices - 1
@@ -327,24 +328,24 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   
   ## Performing variable selection
   if(type == "forward"){
-    df <- ForwardCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+    df <- ForwardCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                      object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                      metric)
     
   }else if(type == "backward"){
-    df <- BackwardCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+    df <- BackwardCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                       object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                       metric)
   }else if(type == "branch and bound"){
-    df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+    df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                                        object$link, object$family, nthreads, tol, maxit, keep, maxsize,
                                        metric, showprogress, Inf)
   }else if(type == "backward branch and bound"){
-    df <- BackwardBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+    df <- BackwardBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                                     object$link, object$family, nthreads, tol, maxit, keep, 
                                     metric, showprogress, Inf)
   }else if(type == "switch branch and bound"){
-    df <- SwitchBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, method, grads,
+    df <- SwitchBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                                        object$link, object$family, nthreads, tol, maxit, keep, 
                                        metric, showprogress, Inf)
   }else{
