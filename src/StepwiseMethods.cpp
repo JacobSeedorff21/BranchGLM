@@ -204,6 +204,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   IntegerVector order(CurModel.n_elem, - 1);
   arma::ivec Order(order.begin(), order.size(), false, true);
   
+  
   // Getting X'WX
   arma::mat XTWX;
   if(Dist == "gaussian" || Dist == "gamma"){

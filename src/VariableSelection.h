@@ -66,4 +66,16 @@ bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder,
                          const arma::imat* Interactions, 
                          unsigned int cur);
 
+double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* CurModel,
+                        arma::uvec* NewOrder, unsigned int cur, double metricVal, 
+                        std::string metric, unsigned int maxsize);
+
+double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+                std::string method, int m, std::string Link, std::string Dist,
+                arma::ivec* CurModel,  arma::ivec* indices, 
+                double tol, int maxit,
+                std::string metric, unsigned int cur, int minsize,
+                arma::uvec* NewOrder, double LowerBound, double CurMetric,
+                arma::vec* Metrics, bool DoAnyways = false);
+
 #endif

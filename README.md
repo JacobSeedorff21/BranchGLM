@@ -147,12 +147,12 @@ df <- LogisticSimul(1000, 15, .5, sd = .5)
 ### Timing branch and bound
 system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "branch and bound", showprogress = FALSE,
+                  type = "switch branch and bound", showprogress = FALSE,
                   parallel = FALSE, nthreads = 8, method = "Fisher"))
 ```
 
     ##    user  system elapsed 
-    ##    0.18    0.00    0.19
+    ##    0.09    0.00    0.10
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -162,7 +162,7 @@ system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1
 ```
 
     ##    user  system elapsed 
-    ##  152.56    0.44  153.19
+    ##  139.41    0.28  139.72
 
 ### Checking results
 
@@ -196,7 +196,7 @@ system.time(BranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  111.50    1.06  112.71
+    ##   49.73    0.53   50.29
 
 ### Parallel time
 
@@ -208,7 +208,7 @@ system.time(ParBranchVS <- VariableSelection(y ~ ., data = df,
 ```
 
     ##    user  system elapsed 
-    ##  150.35    0.35   15.46
+    ##  127.08    0.31   13.44
 
 ### Checking results
 

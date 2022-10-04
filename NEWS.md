@@ -1,6 +1,13 @@
 BranchGLM News
 ================
 
+# BranchGLM 1.3.2
+
+-   Improving efficiency for the “branch and bound” and “switch branch
+    and bound” methods in the `VariableSelection()` function.
+-   Fixed bug related to initial values in the `VariableSelection()`
+    function.
+
 # BranchGLM 1.3.1
 
 -   The `VariableSelection()` function should now properly handle

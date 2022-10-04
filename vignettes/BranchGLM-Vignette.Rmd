@@ -95,7 +95,6 @@ GammaFit
   - `BIC()` to extract the BIC
   - `predict()` to obtain predictions from the fitted model
 - The coefficients, standard errors, wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
-- Unlike GLM there is no summary method, all the important information is included in the `BranchGLM` object.
 
 ```{r}
 ### Predict method

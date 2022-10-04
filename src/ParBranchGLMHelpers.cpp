@@ -548,7 +548,9 @@ int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* XTWX
   // Calculating inverse of X'X
   arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
   arma::vec XY = x->t() * (*y - *offset);
+  arma::vec tempbeta = *beta;
   if(!arma::solve(*beta, *XTWX, XY, arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
+    *beta = tempbeta;
     return(-2);
   }
   
@@ -561,7 +563,10 @@ void PargetInit(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX, cons
                 const arma::vec* Offset, std::string Dist, std::string Link, 
                 bool* UseXTWX){
   
-  if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
+  if(Dist != "gamma" && (Dist != "gaussian" || Dist == "identity")){
+    // Do nothing since we don't find initial values for these families
+  }
+  else if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
     arma::vec NewY = log(*Y);
     ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
     *UseXTWX = false;

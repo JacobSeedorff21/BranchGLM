@@ -153,6 +153,11 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
                     int m, std::string Link, std::string Dist,
                     double tol, int maxit, std::string metric){
   
+  // If x has more columns than rows, then we cannot fit any model
+  if(X->n_cols > X->n_rows){
+    return(arma::datum::inf);
+  }
+  
   // Getting submatrix of XTWX
   unsigned count = 0;
   for(unsigned int i = 0; i < Indices->n_elem; i++){
@@ -171,7 +176,10 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
   arma::mat NewXTWX = XTWX->submat(NewInd, NewInd);
   bool UseXTWX = true;
   arma::vec beta(X->n_cols, arma::fill::zeros);
+  
+  // Getting initial values
   PargetInit(&beta, X, &NewXTWX, Y, Offset, Dist, Link, &UseXTWX);
+  
   int Iter;
   
   if(Dist == "gaussian" && Link == "identity"){
@@ -282,4 +290,175 @@ bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder,
     }
   }
   return(true);
+}
+
+// When doing the process backwards the upper model is already fit, so we just 
+// need to use that and minimum number of variables to get bound
+double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* CurModel,
+                        arma::uvec* NewOrder, unsigned int cur, double metricVal, 
+                        std::string metric, unsigned int maxsize){
+  
+  // If metricVal is infinite, then return -inf as the lower bound
+  if(metricVal == arma::datum::inf){
+    return(-metricVal);
+  }
+  
+  // Getting the minimum size of this set of regressions
+  arma::ivec CurModel2 = *CurModel;
+  for(unsigned int i = 0; i <= cur; i++){
+    CurModel2.at(NewOrder->at(i)) = 2;
+  }
+  
+  unsigned int minsize = maxsize;
+  double value = 0;
+  for(unsigned int i = 0; i < indices->n_elem; i++){
+    if(CurModel2.at(indices->at(i)) == 2){
+      minsize--;
+    }
+  }
+  
+  // Calculating lower bound from metricVal and maxsize/minsize
+  if(metric == "AIC"){
+    value =  metricVal  - 2 * int (maxsize - minsize);
+  }else if(metric == "AICc"){
+    // Need to fix this method, but it's not currently used anyways
+    int newk = -(maxsize - minsize);
+    value = metricVal + 2 * maxsize - (2 * newk + 2 * pow(newk, 2)) / (X->n_rows - newk - 1) + 
+      (2 * minsize + 2 * pow(minsize, 2)) / (X->n_rows - minsize - 1);
+  }else if(metric == "BIC"){
+    value = metricVal - log(X->n_rows) * int (maxsize - minsize);
+  }
+  
+  return(value);
+}
+
+
+// Fits upper model for a set of models and calculates the bound for the desired metric
+double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+                std::string method, int m, std::string Link, std::string Dist,
+                arma::ivec* CurModel,  arma::ivec* indices, 
+                double tol, int maxit,
+                std::string metric, unsigned int cur, int minsize,
+                arma::uvec* NewOrder, double LowerBound, double CurMetric,
+                arma::vec* Metrics, bool DoAnyways = false){
+  
+  // Checking if we need to fit model for upper bound and updating bounds if we don't need to
+  if(cur == 0 && !DoAnyways){
+    return(UpdateBound(X, indices, NewOrder->at(cur), LowerBound, metric, minsize));
+  }
+  
+  // Creating vector for the upper model
+  arma::ivec UpperModel = *CurModel;
+  for(unsigned int i = cur; i < NewOrder->n_elem; i++){
+    UpperModel.at(NewOrder->at(i)) = 1;
+  }
+  
+  // Getting submatrix of XTWX
+  unsigned count = 0;
+  for(unsigned int i = 0; i < indices->n_elem; i++){
+    if(UpperModel.at(indices->at(i)) != 0){
+      count++;
+    }
+  }
+  
+  arma::uvec NewInd(count);
+  count = 0;
+  for(unsigned int i = 0; i < indices->n_elem; i++){
+    if(UpperModel.at(indices->at(i)) != 0){
+      NewInd.at(count++) = i;
+    }
+  }
+  
+  
+  
+  // Defining Iter
+  int Iter;
+  
+  // Creating matrices for upper model and fitting it
+  arma::mat NewXTWX = XTWX->submat(NewInd, NewInd);
+  bool UseXTWX = true;
+  arma::mat xTemp = X->cols(NewInd);
+  arma::vec beta(xTemp.n_cols, arma::fill::zeros);
+  
+  // Can't fit model if there are more columns than rows
+  if(xTemp.n_cols > xTemp.n_rows){
+    return(LowerBound);
+  }
+  
+  // Getting initial values
+  PargetInit(&beta, &xTemp, &NewXTWX, Y, Offset, Dist, Link, &UseXTWX);
+  
+  // Fitting model
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = ParLinRegCppShort(&beta, &xTemp, &NewXTWX, Y, Offset);
+  }else if(method == "BFGS"){
+    Iter = ParBFGSGLMCpp(&beta, &xTemp, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+  }
+  else if(method == "LBFGS"){
+    Iter = ParLBFGSGLMCpp(&beta, &xTemp, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, m, UseXTWX);
+  }
+  else{
+    Iter = ParFisherScoringGLMCpp(&beta, &xTemp, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+  }
+  
+  // Checking for non-invertible fisher info
+  if(Iter == -2){
+    return(LowerBound);
+  }
+  
+  // Calculating metric value
+  arma::vec mu = ParLinkCpp(&xTemp, &beta, Offset, Link, Dist);
+  double LogLik = -ParLogLikelihoodCpp(&xTemp, Y, &mu, Dist);
+  double dispersion = GetDispersion(&xTemp, Y, &mu, LogLik, Dist, tol);
+  
+  // Checking for non-positive dispersion
+  if(dispersion <= 0){
+    return(LowerBound);
+  }
+  
+  // Final computation of log-likelihood
+  if(Dist == "gaussian"){
+    double temp = xTemp.n_rows/2 * log(2*M_PI*dispersion);
+    LogLik = LogLik / dispersion - temp;
+  }
+  else if(Dist == "poisson"){
+    LogLik -=  LogFact(Y);
+  }
+  else if(Dist == "gamma"){
+    double shape = 1 / dispersion;
+    LogLik = shape * LogLik + 
+      xTemp.n_rows * (shape * log(shape) - lgamma(shape)) + 
+      (shape - 1) * arma::accu(log(*Y));
+  }
+  
+  // Returning previous lower bound if log likelihood is nan
+  if(std::isnan(LogLik)){
+    return(LowerBound);
+  }
+  
+  // Updating metric value
+  if(cur > 0){
+    Metrics->at(cur) = GetMetric(&xTemp, LogLik, Dist, metric);
+  }
+  else{
+    Metrics->at(0) = GetMetric(&xTemp, LogLik, Dist, metric);
+  } 
+  
+  // Checking for failed convergence 
+  if(Iter == -1){
+    return(LowerBound);
+  }
+  
+  // Getting bound if model converged
+  double NewBound = BoundHelper(&xTemp, LogLik, Dist, metric, minsize);
+  double MetricVal = 0;
+  
+  if(metric == "AIC"){
+    MetricVal = 2;
+  }
+  else if(metric == "BIC"){
+    MetricVal = log(X->n_rows);
+  }
+  
+  return(NewBound + MetricVal);
 }

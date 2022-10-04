@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-Resubmission to update date field.
+Updating package to version 1.3.2.
