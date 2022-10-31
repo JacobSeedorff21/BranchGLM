@@ -150,13 +150,16 @@ df <- LogisticSimul(1000, 15, .5, sd = .5)
 ### Timing branch and bound
 system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "switch branch and bound", showprogress = FALSE,
-                  parallel = FALSE, nthreads = 8, method = "Fisher"))
+                  type = "branch and bound", showprogress = FALSE,
+                  parallel = FALSE, nthreads = 8, method = "Fisher", 
+                  bestmodels = 10))
+
+res <- summary(BranchVS)
 
 Xy <- cbind(df[,-1], df[,1])
 
 ### Timing exhaustive search
-system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 1))
+system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 10))
 
 ```
 

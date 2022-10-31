@@ -2,74 +2,129 @@
 #' @param object a formula or a \code{BranchGLM} object.
 #' @param ... further arguments passed to other methods.
 #' @param data a dataframe with the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "gamma", "binomial", or "poisson".
+#' @param family distribution used to model the data, one of "gaussian", "gamma", 
+#' "binomial", or "poisson".
 #' @param link link used to link mean structure to linear predictors. One of
 #' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".
 #' @param offset offset vector, by default the zero vector is used.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
-#' for forward selection and branch and bound selection since they will typically 
+#' for forward selection and branch and bound methods since they will typically 
 #' fit many models with a small number of covariates.
 #' @param type one of "forward", "backward", "branch and bound", "backward branch and bound", 
-#' or "switch branch and bound" to indicate which type of variable selection to perform.
-#' @param metric metric used to choose model, the default is "AIC", but "BIC" is also available.
-#' @param keep vector of names to denote variables that must be in the model.
+#' or "switch branch and bound" to indicate the type of variable selection to perform. 
+#' The default value is "forward". The branch and bound methods are guaranteed to 
+#' find the best models according to the metric while "forward" and "backward" are 
+#' heuristic approaches that may not find the optimal model.
+#' @param metric metric used to choose the best models, the default is "AIC", 
+#' but "BIC" and "HQIC" are also available. AIC is the Akaike information criterion, 
+#' BIC is the bayesian information criterion, and HQIC is the Hannan-Quinn information 
+#' criterion.
+#' @param bestmodels number of the best models to find according to the chosen metric, 
+#' the default is 1. This is only used for the branch and bound methods.
+#' @param cutoff this is a non-negative number which indicates that the function 
+#' should return all models that have a metric value within cutoff of the 
+#' best metric value. The default value is 0 and only one of this or bestmodels 
+#' should be specified. This is only used for the branch and bound methods.
+#' @param keep vector of names to denote variables that must be in the models.
 #' @param maxsize maximum number of variables to consider in a single model, the 
 #' default is the total number of variables. This number adds onto any variables specified in keep. 
-#' This argument only works for \code{method = "forward"} and \code{method = "branch and bound"}.
+#' This argument only works for \code{type = "forward"} and \code{type = "branch and bound"}.
 #' @param grads number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.
 #' @param parallel one of TRUE or FALSE to indicate if parallelization should be used
 #' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
-#' @param tol tolerance used to determine model convergence.
-#' @param maxit maximum number of iterations performed. The default for 
+#' @param tol tolerance used to determine model convergence when fitting GLMs.
+#' @param maxit maximum number of iterations performed when fitting GLMs. The default for 
 #' Fisher's scoring is 50 and for the other methods the default is 200.
-#' @param showprogress whether to show progress updates for branch and bound.
+#' @param showprogress whether to show progress updates for branch and bound methods.
 #' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
 #' @description Performs forward selection, backward elimination, 
-#' and branch and bound variable selection for generalized linear models.
-#' @details The model in the formula or the formula from the fitted model is 
+#' and efficient best subsets variable selection with information criterion for 
+#' generalized linear models. Best subsets selection is performed with branch and 
+#' bound algorithms to greatly speed up the process.
+#' @details The supplied formula or the formula from the fitted model is 
 #' treated as the upper model. The variables specified in keep along with an 
 #' intercept (if included in formula) is the lower model. When an intercept is 
 #' included in the model formula it is kept in each model. Factor 
 #' variables are either kept in their entirety or entirely removed.
 #' 
+#' 
 #' The branch and bound method makes use of an efficient branch and bound algorithm 
-#' to find the optimal model. This is will find the best model according to the metric and 
+#' to find the optimal models. This is will find the best models according to the metric and 
 #' can be much faster than an exhaustive search and can be made even faster with 
 #' parallel computation. The backward branch and bound method is very similar to 
-#' the branch and bound method, except it tends to be faster when the best model 
-#' contains most of the variables. The switch branch and bound method is a 
-#' combination of the two methods and is typically very fast.
+#' the branch and bound method, except it tends to be faster when the best models 
+#' contain most of the variables. The switch branch and bound method is a 
+#' combination of the two methods and is typically the fastest of the 3 branch and 
+#' bound methods. 
 #' 
 #' Fisher's scoring is recommended for branch and bound selection and forward selection.
 #' L-BFGS may be faster for backward elimination, especially when there are many variables.
 #' 
 #' All observations that have any missing values in the upper model are removed.
+#' 
+#' @return A \code{BranchGLMVS} object which is a list with the following components
+#' \item{\code{initmodel}}{ the supplied \code{BranchGLM} object or a fake \code{BranchGLM}
+#' object if a formula is supplied}
+#' \item{\code{numchecked}}{ number of models fit}
+#' \item{\code{names}}{ character vector of the names of the predictor variables}
+#' \item{\code{order}}{ the order the variables were added to the model or removed from the model, this is not included for branch and bound selection}
+#' \item{\code{type}}{ type of variable selection employed}
+#' \item{\code{metric}}{ metric used to select best models}
+#' \item{\code{bestmodels}}{ numeric matrix used to describe the best models}
+#' \item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search}
+#' @name VariableSelection
+#' 
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 #' 
-#' ### Doing branch and bound selection 
-#' VariableSelection(Fit, type = "branch and bound", metric = "BIC")
+#' # Doing branch and bound selection 
+#' VS <- VariableSelection(Fit, type = "branch and bound", metric = "BIC", 
+#' bestmodels = 10, showprogress = FALSE)
+#' VS
 #' 
-#' ### Now doing it in parallel (although it isn't necessary for this dataset)
-#' VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metric = "BIC")
+#' ## Getting summary of the process
+#' Summ <- summary(VS)
+#' Summ
 #' 
-#' ### Using a formula
-#' VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
-#' link = "identity", metric = "BIC", type = "branch and bound")
+#' ## Plotting the BIC of the best models
+#' plot(Summ, type = "b")
 #' 
-#' ### Using the keep argument
-#' VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", metric = "BIC")
-#' @return A \code{BranchGLMVS} object which is a list with the following components
-#' \item{\code{finalmodel}}{ the final \code{BranchGLM} model selected}
-#' \item{\code{variables}}{ a vector corresponding to the selected variables}
-#' \item{\code{numchecked}}{ number of models fit}
-#' \item{\code{order}}{ the order the variables were added to the model or removed from the model, this is not included for branch and bound selection}
-#' \item{\code{type}}{ type of variable selection employed}
-#' \item{\code{keep}}{ character vector of variables kept in each model, NULL if none specified}
-#' \item{\code{metric}}{ metric used to select model}
-#' \item{\code{bestmetric}}{ the best metric found in the search}
-#' @name VariableSelection
+#' ## Plotting the variables in the best models
+#' plot(Summ, ptype = "variables")
+#' 
+#' ## Getting the best model according to BIC
+#' FinalModel <- fit(Summ, which = 1)
+#' FinalModel
+#' 
+#' # Now doing it in parallel (although it isn't necessary for this dataset)
+#' parVS <- VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metric = "BIC", 
+#' bestmodels = 10, showprogress = FALSE)
+#' 
+#' ## Getting the best model according to BIC
+#' Summ <- summary(parVS)
+#' FinalModel <- fit(Summ, which = 1)
+#' FinalModel
+#' 
+#' # Using a formula
+#' formVS <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
+#' link = "identity", metric = "BIC", type = "branch and bound", bestmodels = 10, showprogress = FALSE)
+#' 
+#' ## Getting the best model according to BIC
+#' Summ <- summary(formVS)
+#' FinalModel <- fit(Summ, which = 1)
+#' FinalModel
+#' 
+#' # Using the keep argument
+#' keepVS <- VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", 
+#' metric = "BIC", bestmodels = 10, showprogress = FALSE)
+#' keepVS
+#' 
+#' ## Getting the fifth best model according to BIC when keeping Petal.Width in every model
+#' Summ <- summary(keepVS)
+#' FinalModel <- fit(Summ, which = 5)
+#' FinalModel
+#' 
 #' @export
 #' 
 VariableSelection <- function(object, ...) {
@@ -81,6 +136,7 @@ VariableSelection <- function(object, ...) {
 
 VariableSelection.formula <- function(object, data, family, link, offset = NULL,
                                       method = "Fisher", type = "forward", metric = "AIC",
+                                      bestmodels = 1, cutoff = 0, 
                                       keep = NULL, maxsize = NULL,
                                       grads = 10, parallel = FALSE, 
                                       nthreads = 8, tol = 1e-6, maxit = NULL,
@@ -215,7 +271,14 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
   
   df$terms <- terms(df$formula, data = data)
   
+  df$tol <- tol
+  
+  df$maxit <- maxit
+  
+  df$method <- method
+  
   df$family <- family
+  
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
@@ -223,7 +286,9 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
   fit <- structure(df, class = "BranchGLM")
   
   ### Performing variable selection
-  VariableSelection(fit, type = type, metric = metric, keep = keep, 
+  VariableSelection(fit, type = type, metric = metric, 
+                    bestmodels = bestmodels, cutoff = cutoff,
+                    keep = keep, 
                     maxsize = maxsize, method = method, grads = grads, 
                     parallel = parallel, 
                     nthreads = nthreads, tol = tol, maxit = maxit,
@@ -234,6 +299,7 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
 #'@export
 
 VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC",
+                                        bestmodels = 1, cutoff = 0, 
                                         keep = NULL, maxsize = NULL, 
                                         method = "Fisher", grads = 10, parallel = FALSE, 
                                         nthreads = 8, tol = 1e-6, maxit = NULL,
@@ -252,21 +318,43 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   if(length(parallel) > 1 || !is.logical(parallel)){
     stop("parallel must be either TRUE or FALSE")
   }
+  
+  ## Checking method
   if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
     stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
+  
+  ### checking nthreads
   if((length(nthreads) > 1) || !is.numeric(nthreads) || (nthreads <= 0)){
     warning("Please select a positive integer for nthreads, using nthreads = 8")
     nthreads <- 8
   }
+  
+  ### Checking grads
   if(length(grads) != 1 || !is.numeric(grads) || as.integer(grads) <= 0){
     stop("grads must be a positive integer")
   }
+  
+  ### Checking metric
   if(length(metric) > 1 || !is.character(metric)){
-    stop("metric must be one of 'AIC', or 'BIC'")
-  }else if(!(metric %in% c("AIC", "BIC"))){
-    stop("metric must be one of 'AIC' or 'BIC'")
+    stop("metric must be one of 'AIC','BIC', or 'HQIC'")
+  }else if(!(metric %in% c("AIC", "BIC", "HQIC"))){
+    stop("metric must be one of 'AIC','BIC', or 'HQIC'")
   }
+  
+  ### Checking bestmodels
+  if(length(bestmodels) != 1 || !is.numeric(bestmodels) || 
+     bestmodels <= 0 || bestmodels != as.integer(bestmodels)){
+    stop("bestmodels must be a positive integer")
+  }
+  
+  ### Checking cutoff
+  if(length(cutoff) != 1 || !is.numeric(cutoff) || cutoff < 0){
+    stop("bestmodels must be a non-negative number")
+  }else if(cutoff > 0 && bestmodels > 1){
+    stop("only one of bestmodels or cutoff can be specified")
+  }
+  
   
   indices <- attr(object$x, "assign")
   interactions <- attr(object$terms, "factors")[-1L, ]
@@ -328,138 +416,83 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
   
   ## Performing variable selection
   if(type == "forward"){
+    if(bestmodels > 1 || cutoff > 0){
+      warning("forward selection only finds 1 final model")
+    }
     df <- ForwardCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                      object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                      metric)
     
   }else if(type == "backward"){
+    if(bestmodels > 1 || cutoff > 0){
+      warning("backward elimination only finds 1 final model")
+    }
     df <- BackwardCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                       object$link, object$family, nthreads, tol, maxit, keep, maxsize, 
                       metric)
   }else if(type == "branch and bound"){
     df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                                        object$link, object$family, nthreads, tol, maxit, keep, maxsize,
-                                       metric, showprogress, Inf)
+                                       metric, showprogress, bestmodels, cutoff)
   }else if(type == "backward branch and bound"){
     df <- BackwardBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                                     object$link, object$family, nthreads, tol, maxit, keep, 
-                                    metric, showprogress, Inf)
+                                    metric, showprogress, bestmodels, cutoff)
   }else if(type == "switch branch and bound"){
     df <- SwitchBranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, interactions, method, grads,
                                        object$link, object$family, nthreads, tol, maxit, keep, 
-                                       metric, showprogress, Inf)
+                                       metric, showprogress, bestmodels, cutoff)
   }else{
     stop("type must be one of 'forward', 'backward', 'branch and bound', 'backward branch and bound', or 'switch branch and bound'")
   }
   
-  df$model[df$model == -1] <- 1
-  
-  df$order <- df$order[df$order != -1]
-  
-  if(!intercept){
-    df$order <- df$order + 1
-  }else{
-    df$model <- df$model[-1] 
+  # Creating coefficient names
+  names <- object$names
+  if(intercept){
+    names <- c("(Intercept)", names)
   }
   
-  tempnames <- paste0(object$names[as.logical(df$model)], 
-                      collapse = "+")
-  
-  if(nchar(tempnames) == 0 && intercept){
-    tempnames <- 1
-  }else if(nchar(tempnames) == 0){
-    stop("Final model included no variables or intercept")
-  }
-  
-  df$fit$formula <- as.formula(paste0(object$yname, " ~ ", tempnames))
-  
-  if(!intercept){
-    df$fit$formula <- deparse1(df$fit$formula) |>
-      paste0(" - 1") |>
-      as.formula()
-  }
-  
-  df$fit$numobs <- nrow(object$x)
-  
-  df$fit$y <- object$y
-  
-  mf <- model.frame(df$fit$formula, data = object$data, na.action = "na.omit")
-  
-  x <- model.matrix(attr(mf, "terms"), mf, contrasts.arg = object$contrasts)
-  
-  row.names(df$fit$coefficients) <- colnames(x)
-  
-  df$fit$names <- attributes(terms(df$fit$formula, data = x))$factors |>
-    colnames()
-  
-  df$fit$yname <- object$yname
-  
-  df$fit$parallel <- parallel
-  
-  df$fit$missing <- object$missing
-  
-  df$fit$link <- object$link
-  
-  df$fit$contrasts <- object$contrasts
-  
-  df$fit$family <- object$family
-  
-  df$fit$method <- method
-  
-  df$fit$offset <- object$offset
-  
-  df$fit$terms <- terms(df$fit$formula, data = x)
-  
-  df$fit$xlev <- .getXlevels(attr(mf, "terms"), mf)
-  
-  if(object$family == "binomial"){
-    df$fit$ylevel <- object$ylevel
-  }else if(object$family == "gaussian" || object$family == "gamma"){
-    colnames(df$fit$coefficients)[3] <- "t"
-  }
-  
-  if(type != "branch and bound"){
-    FinalList <- list("finalmodel" = structure(df$fit, class = "BranchGLM"),
-                      "variables" = df$model, 
-                      "numchecked" = df$numchecked,
+  if(type %in% c("forward", "backward")){
+    # Checking for infinite best metric value
+    if(is.infinite(df$bestmetric)){
+      stop("no models were found that had an invertible fisher information")
+    }
+    df$order <- df$order[df$order > 0]
+    if(!intercept){
+      df$order <- df$order + 1
+    }
+    FinalList <- list("numchecked" = df$numchecked,
                       "order" = object$names[df$order],
                       "type" = type, 
-                      "keep" = keep1,
                       "metric" = metric,
-                      "bestmetric" = df$bestmetric)
+                      "bestmodels" = df$bestmodel,
+                      "bestmetrics" = df$bestmetric, 
+                      "names" = names, 
+                      "initmodel" = object)
   }else{
-    FinalList <- list("finalmodel" = structure(df$fit, class = "BranchGLM"),
-                      "variables" = df$model, 
-                      "numchecked" = df$numchecked,
+    # Checking for infinite best metric values
+    if(all(is.infinite(df$bestmetrics))){
+      stop("no models were found that had an invertible fisher information")
+    }
+    
+    # Only returning best models that have a finite metric value
+    bestInd <- which(is.finite(df$bestmetrics))
+    
+    # Only returning best models that are not the null model
+    newInd <- which(colSums(abs(df$bestmodels)) != 0)
+    bestInd <- union(bestInd, newInd)
+    
+    
+    
+    FinalList <- list("numchecked" = df$numchecked,
                       "type" = type, 
-                      "keep" = keep1,
                       "metric" = metric,
-                      "bestmetric" = df$bestmetric)
+                      "bestmodels" = df$bestmodels[, bestInd],
+                      "bestmetrics" = df$bestmetrics[bestInd], 
+                      "names" = names, 
+                      "initmodel" = object)
   }
-  
   structure(FinalList, class = "BranchGLMVS")
-}
-
-#' Predict Method for BranchGLMVS Objects
-#' @param object a \code{BranchGLMVS} object.
-#' @param newdata a dataframe, if not specified the data the model was fit on is used.
-#' @param type one of "linpreds" or "response", if not specified "response" is used.
-#' @param ... further arguments passed to \code{predict.BranchGLM}.
-#' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
-#' Offset variables are ignored for predictions on new data.
-#' @description Gets predictions from the best model found in the \code{BranchGLMVS} object.
-#' @return A numeric vector of predictions.
-#' @examples
-#' Data <- iris
-#' VS <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
-#'                         link = "identity", type = "branch and bound", showprogress = FALSE)
-#' predict(VS)
-#' ### Example with new data
-#' predict(VS, newdata = iris[1:20,])
-#' @export
-
-predict.BranchGLMVS <- function(object, newdata = NULL, type = "response", ...){
-  return(predict(object$finalmodel, newdata = newdata, type = type, ...))
 }
 
 #' Print Method for BranchGLMVS
@@ -470,53 +503,26 @@ predict.BranchGLMVS <- function(object, newdata = NULL, type = "response", ...){
 #' @return The supplied \code{BranchGLMVS} object.
 #' @export
 
-print.BranchGLMVS <- function(x, coefdigits = 4, digits = 0, ...){
-  
-  fit <- x$finalmodel
-  
-  coefs <- fit$coefficients
-  
-  spaces <- row.names(coefs) |>
-    nchar() |>
-    max()
-  
-  spaces <- spaces + 1
-  
-  
-  if(any(coefs$p.values < 2e-16)){
-    rounder <- 4
-  }else if(any(coefs$p.values < 10^(-coefdigits))){
-    rounder <- nchar(coefdigits) + 2
-  }else{rounder <- coefdigits}
-  
-  coefs$p.values <- ifelse(coefs$p.values < 2e-16, "<2e-16" ,
-                           ifelse(coefs$p.values < 10^(-coefdigits), 
-                                  paste0("<1e-", coefdigits),
-                                  format(round(coefs$p.values, digits = coefdigits), 
-                                         nsmall = max(coefdigits, rounder))))
-  
-  Rounded <- sapply(coefs[, -4], round, digits = coefdigits, simplify = F)  |>
-    sapply(format, nsmall = coefdigits, simplify = F)
-  
-  Rounded$p.values <- coefs$p.values 
-  
-  MoreSpaces <- sapply(Rounded, nchar, simplify = F) |>
-    sapply(max)
-  
-  MoreSpaces <- pmax(MoreSpaces, c(9, 3, 7, 7))
-  
-  MoreSpaces[1:3] <- MoreSpaces[1:3] + 1
+print.BranchGLMVS <- function(x, coefdigits = 4, digits = 2, ...){
   
   cat("Variable Selection Info:\n")
-  cat(paste0(rep("-", spaces + sum(MoreSpaces)), collapse = ""))
+  cat(paste0(rep("-", 24), collapse = ""))
   cat("\n")
   if(x$type != "backward"){
     cat(paste0("Variables were selected using ", x$type, " selection with ", x$metric, "\n"))
   }else{
     cat(paste0("Variables were selected using ", x$type, " elimination with ", x$metric, "\n"))
   }
+  if(length(x$bestmetrics) == 1){
   cat(paste0("The best value of ", x$metric, " obtained was ", 
-             round(x$bestmetric, digits = digits), "\n"))
+             round(x$bestmetrics[1], digits = digits), "\n"))
+  }else{
+    cat(paste0("Found the top ", length(x$bestmetrics), " models\n"))
+    cat(paste0("The range of ", x$metric, " values for the top ", length(x$bestmetrics), 
+               " models is (", round(x$bestmetrics[1], digits = digits), 
+               ", ", round(x$bestmetrics[length(x$bestmetrics)], digits = digits), ")\n"))
+    
+  }
   cat(paste0("Number of models fit: ", x$numchecked))
   cat("\n")
   if(!is.null(x$keep)){
@@ -540,12 +546,7 @@ print.BranchGLMVS <- function(x, coefdigits = 4, digits = 0, ...){
       cat(paste0(i, "). ", x$order[i], "\n"))
     }
   }
-  cat(paste0(rep("-", spaces + sum(MoreSpaces)), collapse = ""))
-  cat("\n")
-  cat(paste0("Final Model:\n"))
-  cat(paste0(rep("-", spaces + sum(MoreSpaces)), collapse = ""))
-  cat("\n")
-  print(fit, coefdigits = coefdigits, digits = digits)
   
   invisible(x)
 }
+

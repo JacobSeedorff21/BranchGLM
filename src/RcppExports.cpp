@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // BranchAndBoundCpp
-List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, int maxsize, std::string metric, bool display_progress, double BestMetric);
-RcppExport SEXP _BranchGLM_BranchAndBoundCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP maxsizeSEXP, SEXP metricSEXP, SEXP display_progressSEXP, SEXP BestMetricSEXP) {
+List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, int maxsize, std::string metric, bool display_progress, unsigned int NumBest, double cutoff);
+RcppExport SEXP _BranchGLM_BranchAndBoundCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP maxsizeSEXP, SEXP metricSEXP, SEXP display_progressSEXP, SEXP NumBestSEXP, SEXP cutoffSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -34,14 +34,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type maxsize(maxsizeSEXP);
     Rcpp::traits::input_parameter< std::string >::type metric(metricSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    Rcpp::traits::input_parameter< double >::type BestMetric(BestMetricSEXP);
-    rcpp_result_gen = Rcpp::wrap(BranchAndBoundCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, maxsize, metric, display_progress, BestMetric));
+    Rcpp::traits::input_parameter< unsigned int >::type NumBest(NumBestSEXP);
+    Rcpp::traits::input_parameter< double >::type cutoff(cutoffSEXP);
+    rcpp_result_gen = Rcpp::wrap(BranchAndBoundCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, maxsize, metric, display_progress, NumBest, cutoff));
     return rcpp_result_gen;
 END_RCPP
 }
 // BackwardBranchAndBoundCpp
-List BackwardBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, std::string metric, bool display_progress, double BestMetric);
-RcppExport SEXP _BranchGLM_BackwardBranchAndBoundCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP metricSEXP, SEXP display_progressSEXP, SEXP BestMetricSEXP) {
+List BackwardBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, std::string metric, bool display_progress, unsigned int NumBest, double cutoff);
+RcppExport SEXP _BranchGLM_BackwardBranchAndBoundCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP metricSEXP, SEXP display_progressSEXP, SEXP NumBestSEXP, SEXP cutoffSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -61,14 +62,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type keep(keepSEXP);
     Rcpp::traits::input_parameter< std::string >::type metric(metricSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    Rcpp::traits::input_parameter< double >::type BestMetric(BestMetricSEXP);
-    rcpp_result_gen = Rcpp::wrap(BackwardBranchAndBoundCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, metric, display_progress, BestMetric));
+    Rcpp::traits::input_parameter< unsigned int >::type NumBest(NumBestSEXP);
+    Rcpp::traits::input_parameter< double >::type cutoff(cutoffSEXP);
+    rcpp_result_gen = Rcpp::wrap(BackwardBranchAndBoundCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, metric, display_progress, NumBest, cutoff));
     return rcpp_result_gen;
 END_RCPP
 }
 // SwitchBranchAndBoundCpp
-List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, std::string metric, bool display_progress, double BestMetric);
-RcppExport SEXP _BranchGLM_SwitchBranchAndBoundCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP metricSEXP, SEXP display_progressSEXP, SEXP BestMetricSEXP) {
+List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, std::string metric, bool display_progress, unsigned int NumBest, double cutoff);
+RcppExport SEXP _BranchGLM_SwitchBranchAndBoundCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP metricSEXP, SEXP display_progressSEXP, SEXP NumBestSEXP, SEXP cutoffSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -88,8 +90,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type keep(keepSEXP);
     Rcpp::traits::input_parameter< std::string >::type metric(metricSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    Rcpp::traits::input_parameter< double >::type BestMetric(BestMetricSEXP);
-    rcpp_result_gen = Rcpp::wrap(SwitchBranchAndBoundCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, metric, display_progress, BestMetric));
+    Rcpp::traits::input_parameter< unsigned int >::type NumBest(NumBestSEXP);
+    Rcpp::traits::input_parameter< double >::type cutoff(cutoffSEXP);
+    rcpp_result_gen = Rcpp::wrap(SwitchBranchAndBoundCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, metric, display_progress, NumBest, cutoff));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -233,9 +236,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_BranchGLM_BranchAndBoundCpp", (DL_FUNC) &_BranchGLM_BranchAndBoundCpp, 18},
-    {"_BranchGLM_BackwardBranchAndBoundCpp", (DL_FUNC) &_BranchGLM_BackwardBranchAndBoundCpp, 17},
-    {"_BranchGLM_SwitchBranchAndBoundCpp", (DL_FUNC) &_BranchGLM_SwitchBranchAndBoundCpp, 17},
+    {"_BranchGLM_BranchAndBoundCpp", (DL_FUNC) &_BranchGLM_BranchAndBoundCpp, 19},
+    {"_BranchGLM_BackwardBranchAndBoundCpp", (DL_FUNC) &_BranchGLM_BackwardBranchAndBoundCpp, 18},
+    {"_BranchGLM_SwitchBranchAndBoundCpp", (DL_FUNC) &_BranchGLM_SwitchBranchAndBoundCpp, 18},
     {"_BranchGLM_BranchGLMfit", (DL_FUNC) &_BranchGLM_BranchGLMfit, 12},
     {"_BranchGLM_ForwardCpp", (DL_FUNC) &_BranchGLM_ForwardCpp, 16},
     {"_BranchGLM_BackwardCpp", (DL_FUNC) &_BranchGLM_BackwardCpp, 16},

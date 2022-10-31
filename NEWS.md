@@ -1,6 +1,22 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.0.0
+
+-   Added the following features to the `VariableSelection()` function
+    -   Finding the top k models according to the metric via the
+        bestmodels argument
+    -   Finding all models with a metric value within k of the best
+        metric value via the cutoff argument
+    -   Added HQIC as a possible metric, HQIC is the Hannan-Quinn
+        information criterion
+-   Added summary method for `BranchGLMVS` objects along with the
+    following functions
+    -   `plot.summary.BranchGLMVS()` for plotting results from variable
+        selection
+    -   `fit.summary.BranchGLMVS()` which can be used to get a
+        `BranchGLM` object for one of the best models found
+
 # BranchGLM 1.3.2
 
 -   Improving efficiency for the “branch and bound” and “switch branch

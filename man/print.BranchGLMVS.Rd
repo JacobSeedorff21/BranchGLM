@@ -4,7 +4,7 @@
 \alias{print.BranchGLMVS}
 \title{Print Method for BranchGLMVS}
 \usage{
-\method{print}{BranchGLMVS}(x, coefdigits = 4, digits = 0, ...)
+\method{print}{BranchGLMVS}(x, coefdigits = 4, digits = 2, ...)
 }
 \arguments{
 \item{x}{a \code{BranchGLMVS} object.}

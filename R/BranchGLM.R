@@ -33,6 +33,8 @@
 #' \item{\code{AIC}}{ the AIC of the fitted model}
 #' \item{\code{preds}}{ predictions from the fitted model}
 #' \item{\code{linpreds}}{ linear predictors from the fitted model}
+#' \item{\code{tol}}{ tolerance used to fit the model}
+#' \item{\code{maxit}}{ maximum number of iterations used to fit the model}
 #' \item{\code{formula}}{ formula used to fit the model}
 #' \item{\code{method}}{ iterative method used to fit the model}
 #' \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
@@ -59,6 +61,8 @@
 #' \item{\code{AIC}}{ the AIC of the fitted model}
 #' \item{\code{preds}}{ predictions from the fitted model}
 #' \item{\code{linpreds}}{ linear predictors from the fitted model}
+#' \item{\code{tol}}{ tolerance used to fit the model}
+#' \item{\code{maxit}}{ maximum number of iterations used to fit the model}
 #' 
 #' @description Fits generalized linear models via RcppArmadillo. Also has the 
 #' ability to fit the models with parallelization via OpenMP.
@@ -300,6 +304,10 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
     df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, 1, tol, maxit, 
                        GetInit) 
   }
+  
+  df$tol <- tol
+  df$maxit <- maxit
+  
   return(df)
 }
 
@@ -419,7 +427,7 @@ GetPreds <- function(XBeta, Link){
 #' @return The supplied \code{BranchGLM} object.
 #' @export
 
-print.BranchGLM <- function(x, coefdigits = 4, digits = 0, ...){
+print.BranchGLM <- function(x, coefdigits = 4, digits = 2, ...){
   if(length(coefdigits)!= 1  || !is.numeric(coefdigits) || coefdigits < 0){
     stop("coefdigits must be a non-negative number")
   }

@@ -4,7 +4,7 @@
 \alias{print.BranchGLM}
 \title{Print Method for BranchGLM}
 \usage{
-\method{print}{BranchGLM}(x, coefdigits = 4, digits = 0, ...)
+\method{print}{BranchGLM}(x, coefdigits = 4, digits = 2, ...)
 }
 \arguments{
 \item{x}{a \code{BranchGLM} object.}

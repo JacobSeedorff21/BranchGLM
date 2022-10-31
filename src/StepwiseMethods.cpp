@@ -78,7 +78,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
-  IntegerVector order(CurModel.n_elem, -1);
+  IntegerVector order(CurModel.n_elem, - 1);
   arma::ivec Order(order.begin(), order.size(), false, true);
   
   
@@ -114,19 +114,11 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
       break;
     }
   }
-  // Getting x matrix for best model found
-  checkUserInterrupt();
-  const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
   
-  // Fitting best model
-  List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                                 nthreads, tol, maxit);
-  
-  List FinalList = List::create(Named("fit") = helper,
-                                Named("order") = order,
-                                Named("model") = keep,
+  List FinalList = List::create(Named("order") = order,
                                 Named("numchecked") = numchecked,
-                                Named("bestmetric") = BestMetric);
+                                Named("bestmetric") = BestMetric, 
+                                Named("bestmodel") = keep);
   
 #ifdef _OPENMP
   omp_set_num_threads(1);
@@ -238,19 +230,10 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     }
   }
   
-  // Getting x matrix for best model found
-  const arma::mat Finalx = GetMatrix(&X, &BestModel, &Indices);
-  
-  
-  // Fitting best model
-  List helper =  BranchGLMFitCpp(&Finalx, &Y, &Offset, method, m, Link, Dist, 
-                                 nthreads, tol, maxit);
-  
-  List FinalList = List::create(Named("fit") = helper,
-                                Named("order") = order,
-                                Named("model") = keep,
+  List FinalList = List::create(Named("order") = order,
                                 Named("numchecked") = numchecked,
-                                Named("bestmetric") = BestMetric);
+                                Named("bestmetric") = BestMetric, 
+                                Named("bestmodel") = keep);
   
 #ifdef _OPENMP
   omp_set_num_threads(1);

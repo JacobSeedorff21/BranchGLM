@@ -11,39 +11,11 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-```
-
-# Description
-
-**BranchGLM** is a package for fitting GLMs and performing variable selection. 
-Most functions in this package make use of RcppArmadillo 
-and some of them can also make use of OpenMP to perform parallel computations. 
-This vignette introduces the package, provides examples on how to use the 
-main functions in the package and also briefly describes the methods employed by the 
-functions.
-
-# Installation
-
-**BranchGLM** can be installed using the `install.packages()` function
-
-```{r, eval = FALSE}
-
-install.packages("BranchGLM")
-
-```
-
-It can also be installed via the `install_github()` function from the 
-**devtools** package.
-
-```{r, eval = FALSE}
-
-devtools::install_github("JacobSeedorff21/BranchGLM")
-
 ```
 
 # Fitting GLMs
@@ -60,193 +32,155 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 - The `method` argument is ignored for linear regression and the OLS solution is 
 used.
 
-## Examples
+## Initial values
 
-- An offset can be specified using `offset`, it should be a numeric vector.
+- Initial values for the coefficient estimates may be specified via the `init` 
+argument.
+- If no initial values are specified, then the initial values are taken to be 0 
+for the binomial and poisson families. The initial values for the gaussian and 
+gamma families are estimated via linear regression with the response variable 
+transformed by the link function.
+
+## Parallel computation
+
+- Parallel computation can be employed via openMP by setting the parallel argument 
+to `TRUE` and setting the `nthreads` argument to the desired number of threads used.
+- For smaller datasets this can actually slow down the model fitting process, so 
+parallel computation should only be used for larger datasets.
+
+# Families 
+## Gaussian
+
+- Permissible links for the gaussian family are 
+  - identity, which results in linear regression
+  - inverse
+  - log
+  - square root (sqrt)
+- The most commonly used link function for the gaussian family is the identity link.
+- The dispersion parameter for this family is estimated by using the mean square 
+error.
 
 ```{r}
-### Using mtcars
-
+# Loading in BranchGLM
 library(BranchGLM)
 
+# Fitting gaussian regression models for mtcars dataset
 cars <- mtcars
 
-### Fitting linear regression model with Fisher scoring
+## Identity link
+BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity")
 
-LinearFit <- BranchGLM(mpg ~ ., data = cars, family = "gaussian", link = "identity")
+```
 
-LinearFit
+## Gamma
 
-### Fitting gamma regression with inverse link with L-BFGS
+- Permissible links for the gamma family are 
+  - identity
+  - inverse, this is the canonical link for the gamma family
+  - log
+  - square root (sqrt)
+- The most commonly used link functions for the gamma family are inverse and log.
+- The dispersion parameter for this family is estimated via maximum likelihood,  
+similar to the `MASS::gamma.dispersion()` function.
 
-GammaFit <- BranchGLM(mpg ~ ., data = cars, family = "gamma", link = "inverse",
-                      method = "LBFGS", grads = 5)
+```{r}
+# Fitting gamma regression models for mtcars dataset
+## Inverse link
+GammaFit <- BranchGLM(mpg ~ ., data = cars, family = "gamma", link = "inverse")
+GammaFit
 
+## Log link
+GammaFit <- BranchGLM(mpg ~ ., data = cars, family = "gamma", link = "log")
 GammaFit
 
 ```
 
-## Useful functions
+## Poisson
 
-- **BranchGLM** also has many utility functions for GLMs such as
-  - `coef()` to extract the coefficients
-  - `logLik()` to extract the log likelihood
-  - `AIC()` to extract the AIC
-  - `BIC()` to extract the BIC
-  - `predict()` to obtain predictions from the fitted model
-- The coefficients, standard errors, wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
+- Permissible links for the poisson family are 
+  - identity
+  - log, this is the canonical link for the poisson family
+  - square root (sqrt)
+- The most commonly used link function for the poisson family is the log link.
+- The dispersion parameter for this family is always 1.
 
 ```{r}
-### Predict method
+# Fitting poisson regression models for warpbreaks dataset
+warp <- warpbreaks
 
-predict(GammaFit)
-
-### Accessing coefficients matrix
-
-GammaFit$coefficients
+## Log link
+BranchGLM(breaks ~ ., data = warp, family = "poisson", link = "log")
 
 ```
 
-# Performing variable selection
+## Binomial
 
-- Forward selection, backward elimination, and branch and bound selection can be done using `VariableSelection()`.
-- `VariableSelection()` can accept either a `BranchGLM` object or a formula along with the data and the desired family and link to perform the variable selection.
-- Available metrics are AIC and BIC, which are used to compare models and to select the best model.
-- `VariableSelection()` returns the final model and some other information about the search.
-- Note that `VariableSelection()` will properly handle interaction terms.
-- `keep` can also be specified if any set of variables are desired to be kept in every model.
-
-## Stepwise methods
-
-- Forward selection and backward elimination are both stepwise variable selection methods.
-- They are not guaranteed to find the best model or even a good model, but they are very fast.
-- Forward selection is recommended if the number of variables is greater than the number of observations or if many of the larger models don't converge.
-- Parallel computation can be used for the methods, but is generally only necessary 
-for large datasets.
-
-### Forward selection example
+- Permissible links for the binomial family are 
+  - cloglog
+  - log
+  - logit, this is the canonical link for the binomial family
+  - probit
+- The most commonly used link functions for the binomial family are logit and probit.
+- The dispersion parameter for this family is always 1.
 
 ```{r}
-### Forward selection with mtcars
+# Fitting binomial regression models for toothgrowth dataset
+Data <- ToothGrowth
 
-VariableSelection(GammaFit, type = "forward")
+## Logit link
+BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
+
+## Probit link
+BranchGLM(supp ~ ., data = Data, family = "binomial", link = "probit")
 
 ```
 
-### Backward elimination example
+### Functions for binomial GLMs
 
-```{r}
-### Backward elimination with mtcars
-
-VariableSelection(GammaFit, type = "backward")
-
-```
-
-## Branch and bound
-
-- The Branch and bound methods can be much slower than the stepwise methods, but 
-they are guaranteed to find the best model.
-- The branch and bound methods can be much faster than an exhaustive search and can also be made many times faster if parallel computation is used.
-- One way to judge how much faster the branch and bound algorithm is compared to an exhaustive search is to look at the ratio of the number of models fit against the total number of possible models.
-  - If this ratio is close to 1, then it is performing poorly and has to fit almost every model, if it is close to 0, then it is performing well and ruled out many models without having to fit them.
-
-### Branch and bound example
-
-- If `showprogress` is true, then progress of the branch and bound algorithm will be reported occasionally.
-- Parallel computation can be used with these methods and can lead to very large speedups.
-
-```{r}
-### Branch and bound with mtcars
-
-VariableSelection(GammaFit, type = "branch and bound", showprogress = FALSE)
-
-### Can also use a formula and data
-
-FormulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
-                               link = "inverse", type = "branch and bound",
-                               showprogress = FALSE)
-
-### Number of models fit divided by the number of possible models
-
-FormulaVS$numchecked / 2^(length(FormulaVS$variables))
-
-### Extracting final model
-
-FormulaVS$finalmodel
-
-```
-
-## Using keep
-
-- Specifying variables via `keep` will ensure that those variables are kept through the selection process.
-
-```{r}
-### Example of using keep
-
-VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
-                               link = "inverse", type = "branch and bound",
-                               keep = c("hp", "cyl"), metric = "AIC",
-                               showprogress = FALSE)
-
-```
-
-## Convergence issues
-
-- It is not recommended to use branch and bound if the upper models do not converge since it can make the algorithm very slow.
-- Sometimes when using backwards selection and all the upper models that are tested 
-do not converge, no final model can be selected.
-- For these reasons, if there are convergence issues it is recommended to use forward selection.
-
-# Utility functions for binomial GLMs
-
-- **BranchGLM** also has some utility functions for binomial GLMs
+- **BranchGLM** has some utility functions for binomial GLMs
   - `Table()` creates a confusion matrix based on the predicted classes and observed classes
   - `ROC()` creates an ROC curve which can be plotted with `plot()`
   - `AUC()` and `Cindex()` calculate the area under the ROC curve
   - `MultipleROCCurves()` allows for the plotting of multiple ROC curves on the same plot
 
-## Table
+#### Table
 
 ```{r}
-### Predicting if a car gets at least 18 mpg
-
-catData <- ToothGrowth
-
-catFit <- BranchGLM(supp ~ ., data = catData, family = "binomial", link = "logit")
+# Fitting logistic regression model for toothgrowth dataset
+catFit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
 
 Table(catFit)
 
 ```
 
-## ROC
+#### ROC
 
 ```{r}
-
+# Creating ROC curve
 catROC <- ROC(catFit)
 
 plot(catROC, main = "ROC Curve", col = "indianred")
 
 ```
 
-## Cindex/AUC
+#### Cindex/AUC
 
 ```{r}
-
+# Getting Cindex/AUC
 Cindex(catFit)
 
 AUC(catFit)
 
 ```
 
-## MultipleROCPlots
+#### MultipleROCPlots
 
 ```{r, fig.width = 4, fig.height = 4}
-### Showing ROC plots for logit, probit, and cloglog
-
-probitFit <- BranchGLM(supp ~ . ,data = catData, family = "binomial", 
+# Showing ROC plots for logit, probit, and cloglog
+probitFit <- BranchGLM(supp ~ . ,data = Data, family = "binomial", 
                        link = "probit")
 
-cloglogFit <- BranchGLM(supp ~ . ,data = catData, family = "binomial", 
+cloglogFit <- BranchGLM(supp ~ . ,data = Data, family = "binomial", 
                        link = "cloglog")
 
 MultipleROCCurves(catROC, ROC(probitFit), ROC(cloglogFit), 
@@ -254,7 +188,7 @@ MultipleROCCurves(catROC, ROC(probitFit), ROC(cloglogFit),
 
 ```
 
-## Using predictions
+#### Using predictions
 
 - For each of the methods used in this section predicted probabilities and observed
 classes can also be supplied instead of the `BranchGLM` object.
@@ -263,10 +197,30 @@ classes can also be supplied instead of the `BranchGLM` object.
 
 preds <- predict(catFit)
 
-Table(preds, catData$supp)
+Table(preds, Data$supp)
 
-AUC(preds, catData$supp)
+AUC(preds, Data$supp)
 
-ROC(preds, catData$supp) |> plot(main = "ROC Curve", col = "deepskyblue")
+ROC(preds, Data$supp) |> plot(main = "ROC Curve", col = "deepskyblue")
+
+```
+
+
+# Useful functions
+
+- **BranchGLM** has many utility functions for GLMs such as
+  - `coef()` to extract the coefficients
+  - `logLik()` to extract the log likelihood
+  - `AIC()` to extract the AIC
+  - `BIC()` to extract the BIC
+  - `predict()` to obtain predictions from the fitted model
+- The coefficients, standard errors, wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
+
+```{r}
+# Predict method
+predict(GammaFit)
+
+# Accessing coefficients matrix
+GammaFit$coefficients
 
 ```

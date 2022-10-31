@@ -91,6 +91,8 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
 \item{\code{linpreds}}{ linear predictors from the fitted model}
+\item{\code{tol}}{ tolerance used to fit the model}
+\item{\code{maxit}}{ maximum number of iterations used to fit the model}
 \item{\code{formula}}{ formula used to fit the model}
 \item{\code{method}}{ iterative method used to fit the model}
 \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
@@ -117,6 +119,8 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
 \item{\code{linpreds}}{ linear predictors from the fitted model}
+\item{\code{tol}}{ tolerance used to fit the model}
+\item{\code{maxit}}{ maximum number of iterations used to fit the model}
 }
 \description{
 Fits generalized linear models via RcppArmadillo. Also has the 

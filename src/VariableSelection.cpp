@@ -48,7 +48,7 @@ public:
       double next_print = 100 * (float)cur_size / (float)max_size;
       if(display_progress){
         Rcout << "Checked " << next_print << "% of all possible models"  << std::endl;
-        Rcout << "Found best model"  << std::endl << std::endl;
+        Rcout << "Found best models"  << std::endl << std::endl;
         }
   }
 };
@@ -64,10 +64,12 @@ double GetMetric(const arma::mat* X, double logLik,
   
   if(metric == "AIC"){
     value = -2 * logLik + 2 * k;
-  }else if(metric == "AICc"){
-    value = -2 * logLik + 2 * k + (2 * k + 2 * pow(k, 2)) / (X->n_rows - k - 1);
-  }else if(metric == "BIC"){
+  }
+  else if(metric == "BIC"){
     value = -2 * logLik + log(X->n_rows) * k;
+  }
+  else if(metric == "HQIC"){
+    value = -2 * logLik + 2 * log(log(X->n_rows)) * k;
   }
   
   return(value);
@@ -111,10 +113,12 @@ double BoundHelper(const arma::mat* X, double logLik,
   
   if(metric == "AIC"){
     value = -2 * logLik + 2 * k;
-  }else if(metric == "AICc"){
-    value = -2 * logLik + 2 * k + (2 * k + 2 * pow(k, 2)) / (X->n_rows - k - 1);
-  }else if(metric == "BIC"){
+  }
+  else if(metric == "BIC"){
     value = -2 * logLik + log(X->n_rows) * k;
+  }
+  else if(metric == "HQIC"){
+    value = -2 * logLik + 2 * log(log(X->n_rows)) * k;
   }
   
   return(value);
@@ -135,12 +139,12 @@ double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double Lowe
   
   if(metric == "AIC"){
     value =  LowerBound  + 2 * k;
-  }else if(metric == "AICc"){
-    unsigned int newk = minsize - k;
-    value = LowerBound + 2 * k - (2 * newk + 2 * pow(newk, 2)) / (X->n_rows - newk - 1) + 
-      (2 * minsize + 2 * pow(minsize, 2)) / (X->n_rows - minsize - 1);
-  }else if(metric == "BIC"){
+  }
+  else if(metric == "BIC"){
     value = LowerBound + log(X->n_rows) * k;
+  }
+  else if(metric == "HQIC"){
+    value = LowerBound + 2 * log(log(X->n_rows)) * k;
   }
   return(value);
 }
@@ -320,13 +324,12 @@ double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* Cur
   // Calculating lower bound from metricVal and maxsize/minsize
   if(metric == "AIC"){
     value =  metricVal  - 2 * int (maxsize - minsize);
-  }else if(metric == "AICc"){
-    // Need to fix this method, but it's not currently used anyways
-    int newk = -(maxsize - minsize);
-    value = metricVal + 2 * maxsize - (2 * newk + 2 * pow(newk, 2)) / (X->n_rows - newk - 1) + 
-      (2 * minsize + 2 * pow(minsize, 2)) / (X->n_rows - minsize - 1);
-  }else if(metric == "BIC"){
+  }
+  else if(metric == "BIC"){
     value = metricVal - log(X->n_rows) * int (maxsize - minsize);
+  }
+  else if(metric == "HQIC"){
+    value = metricVal - 2 * log(log(X->n_rows)) * int (maxsize - minsize);
   }
   
   return(value);
@@ -458,6 +461,9 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   }
   else if(metric == "BIC"){
     MetricVal = log(X->n_rows);
+  }
+  else if(metric == "HQIC"){
+    MetricVal = 2 * log(log(X->n_rows));
   }
   
   return(NewBound + MetricVal);

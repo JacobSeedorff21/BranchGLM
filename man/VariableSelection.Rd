@@ -17,6 +17,8 @@ VariableSelection(object, ...)
   method = "Fisher",
   type = "forward",
   metric = "AIC",
+  bestmodels = 1,
+  cutoff = 0,
   keep = NULL,
   maxsize = NULL,
   grads = 10,
@@ -33,6 +35,8 @@ VariableSelection(object, ...)
   object,
   type = "forward",
   metric = "AIC",
+  bestmodels = 1,
+  cutoff = 0,
   keep = NULL,
   maxsize = NULL,
   method = "Fisher",
@@ -52,7 +56,8 @@ VariableSelection(object, ...)
 
 \item{data}{a dataframe with the response and predictor variables.}
 
-\item{family}{distribution used to model the data, one of "gaussian", "gamma", "binomial", or "poisson".}
+\item{family}{distribution used to model the data, one of "gaussian", "gamma", 
+"binomial", or "poisson".}
 
 \item{link}{link used to link mean structure to linear predictors. One of
 "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".}
@@ -60,19 +65,33 @@ VariableSelection(object, ...)
 \item{offset}{offset vector, by default the zero vector is used.}
 
 \item{method}{one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
-for forward selection and branch and bound selection since they will typically 
+for forward selection and branch and bound methods since they will typically 
 fit many models with a small number of covariates.}
 
 \item{type}{one of "forward", "backward", "branch and bound", "backward branch and bound", 
-or "switch branch and bound" to indicate which type of variable selection to perform.}
+or "switch branch and bound" to indicate the type of variable selection to perform. 
+The default value is "forward". The branch and bound methods are guaranteed to 
+find the best models according to the metric while "forward" and "backward" are 
+heuristic approaches that may not find the optimal model.}
 
-\item{metric}{metric used to choose model, the default is "AIC", but "BIC" is also available.}
+\item{metric}{metric used to choose the best models, the default is "AIC", 
+but "BIC" and "HQIC" are also available. AIC is the Akaike information criterion, 
+BIC is the bayesian information criterion, and HQIC is the Hannan-Quinn information 
+criterion.}
 
-\item{keep}{vector of names to denote variables that must be in the model.}
+\item{bestmodels}{number of the best models to find according to the chosen metric, 
+the default is 1. This is only used for the branch and bound methods.}
+
+\item{cutoff}{this is a non-negative number which indicates that the function 
+should return all models that have a metric value within cutoff of the 
+best metric value. The default value is 0 and only one of this or bestmodels 
+should be specified. This is only used for the branch and bound methods.}
+
+\item{keep}{vector of names to denote variables that must be in the models.}
 
 \item{maxsize}{maximum number of variables to consider in a single model, the 
 default is the total number of variables. This number adds onto any variables specified in keep. 
-This argument only works for \code{method = "forward"} and \code{method = "branch and bound"}.}
+This argument only works for \code{type = "forward"} and \code{type = "branch and bound"}.}
 
 \item{grads}{number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.}
 
@@ -80,44 +99,49 @@ This argument only works for \code{method = "forward"} and \code{method = "branc
 
 \item{nthreads}{number of threads used with OpenMP, only used if \code{parallel = TRUE}.}
 
-\item{tol}{tolerance used to determine model convergence.}
+\item{tol}{tolerance used to determine model convergence when fitting GLMs.}
 
-\item{maxit}{maximum number of iterations performed. The default for 
+\item{maxit}{maximum number of iterations performed when fitting GLMs. The default for 
 Fisher's scoring is 50 and for the other methods the default is 200.}
 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
-\item{showprogress}{whether to show progress updates for branch and bound.}
+\item{showprogress}{whether to show progress updates for branch and bound methods.}
 }
 \value{
 A \code{BranchGLMVS} object which is a list with the following components
-\item{\code{finalmodel}}{ the final \code{BranchGLM} model selected}
-\item{\code{variables}}{ a vector corresponding to the selected variables}
+\item{\code{initmodel}}{ the supplied \code{BranchGLM} object or a fake \code{BranchGLM}
+object if a formula is supplied}
 \item{\code{numchecked}}{ number of models fit}
+\item{\code{names}}{ character vector of the names of the predictor variables}
 \item{\code{order}}{ the order the variables were added to the model or removed from the model, this is not included for branch and bound selection}
 \item{\code{type}}{ type of variable selection employed}
-\item{\code{keep}}{ character vector of variables kept in each model, NULL if none specified}
-\item{\code{metric}}{ metric used to select model}
-\item{\code{bestmetric}}{ the best metric found in the search}
+\item{\code{metric}}{ metric used to select best models}
+\item{\code{bestmodels}}{ numeric matrix used to describe the best models}
+\item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search}
 }
 \description{
 Performs forward selection, backward elimination, 
-and branch and bound variable selection for generalized linear models.
+and efficient best subsets variable selection with information criterion for 
+generalized linear models. Best subsets selection is performed with branch and 
+bound algorithms to greatly speed up the process.
 }
 \details{
-The model in the formula or the formula from the fitted model is 
+The supplied formula or the formula from the fitted model is 
 treated as the upper model. The variables specified in keep along with an 
 intercept (if included in formula) is the lower model. When an intercept is 
 included in the model formula it is kept in each model. Factor 
 variables are either kept in their entirety or entirely removed.
 
+
 The branch and bound method makes use of an efficient branch and bound algorithm 
-to find the optimal model. This is will find the best model according to the metric and 
+to find the optimal models. This is will find the best models according to the metric and 
 can be much faster than an exhaustive search and can be made even faster with 
 parallel computation. The backward branch and bound method is very similar to 
-the branch and bound method, except it tends to be faster when the best model 
-contains most of the variables. The switch branch and bound method is a 
-combination of the two methods and is typically very fast.
+the branch and bound method, except it tends to be faster when the best models 
+contain most of the variables. The switch branch and bound method is a 
+combination of the two methods and is typically the fastest of the 3 branch and 
+bound methods. 
 
 Fisher's scoring is recommended for branch and bound selection and forward selection.
 L-BFGS may be faster for backward elimination, especially when there are many variables.
@@ -128,16 +152,51 @@ All observations that have any missing values in the upper model are removed.
 Data <- iris
 Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 
-### Doing branch and bound selection 
-VariableSelection(Fit, type = "branch and bound", metric = "BIC")
+# Doing branch and bound selection 
+VS <- VariableSelection(Fit, type = "branch and bound", metric = "BIC", 
+bestmodels = 10, showprogress = FALSE)
+VS
 
-### Now doing it in parallel (although it isn't necessary for this dataset)
-VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metric = "BIC")
+## Getting summary of the process
+Summ <- summary(VS)
+Summ
 
-### Using a formula
-VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
-link = "identity", metric = "BIC", type = "branch and bound")
+## Plotting the BIC of the best models
+plot(Summ, type = "b")
 
-### Using the keep argument
-VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", metric = "BIC")
+## Plotting the variables in the best models
+plot(Summ, ptype = "variables")
+
+## Getting the best model according to BIC
+FinalModel <- fit(Summ, which = 1)
+FinalModel
+
+# Now doing it in parallel (although it isn't necessary for this dataset)
+parVS <- VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metric = "BIC", 
+bestmodels = 10, showprogress = FALSE)
+
+## Getting the best model according to BIC
+Summ <- summary(parVS)
+FinalModel <- fit(Summ, which = 1)
+FinalModel
+
+# Using a formula
+formVS <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
+link = "identity", metric = "BIC", type = "branch and bound", bestmodels = 10, showprogress = FALSE)
+
+## Getting the best model according to BIC
+Summ <- summary(formVS)
+FinalModel <- fit(Summ, which = 1)
+FinalModel
+
+# Using the keep argument
+keepVS <- VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", 
+metric = "BIC", bestmodels = 10, showprogress = FALSE)
+keepVS
+
+## Getting the fifth best model according to BIC when keeping Petal.Width in every model
+Summ <- summary(keepVS)
+FinalModel <- fit(Summ, which = 5)
+FinalModel
+
 }

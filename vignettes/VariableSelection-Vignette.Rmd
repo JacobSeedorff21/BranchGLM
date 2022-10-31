@@ -1,0 +1,193 @@
+---
+title: "VariableSelection Vignette"
+output: 
+  rmarkdown::html_vignette:
+    toc: TRUE
+    number_sections: TRUE
+
+vignette: >
+  %\VignetteIndexEntry{VariableSelection Vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Performing variable selection
+
+- Forward selection, backward elimination, and branch and bound selection can be done using `VariableSelection()`.
+- `VariableSelection()` can accept either a `BranchGLM` object or a formula along with the data and the desired family and link to perform the variable selection.
+- Available metrics are AIC, BIC and HQIC, which are used to compare models and to select the best models.
+- `VariableSelection()` returns some information about the search, more detailed 
+information about the best models can be seen by using the `summary()` function.
+- Note that `VariableSelection()` will properly handle interaction terms and 
+categorical variables.
+- `keep` can also be specified if any set of variables are desired to be kept in every model.
+
+## Metrics
+
+- The 3 different metrics available for comparing models are the following
+  - Akaike information criterion (AIC), which typically results in models that are 
+  useful for prediction
+    - $AIC = -2logLik + 2 * p$
+  - Bayesian information criterion (BIC), which results in models that are more 
+  parsimonious than those selected by AIC
+    - $BIC = -2logLik + \log{(n)} * p$
+  - Hannan-Quinn information criterion (HQIC), which is in the middle of AIC and BIC
+    - $HQIC = -2logLik + 2 * \log({\log{(n)})} * p$
+
+## Stepwise methods
+
+- Forward selection and backward elimination are both stepwise variable selection methods.
+- They are not guaranteed to find the best model or even a good model, but they are very fast.
+- Forward selection is recommended if the number of variables is greater than the number of observations or if many of the larger models don't converge.
+- These methods will only return 1 best model.
+- Parallel computation can be used for the methods, but is generally only necessary 
+for large datasets.
+
+### Forward selection example
+
+```{r}
+# Loading BranchGLM package
+library(BranchGLM)
+
+# Fitting gamma regression model
+cars <- mtcars
+
+# Fitting gamma regression with inverse link
+GammaFit <- BranchGLM(mpg ~ ., data = cars, family = "gamma", link = "inverse")
+
+# Forward selection with mtcars
+forwardVS <- VariableSelection(GammaFit, type = "forward")
+forwardVS
+
+## Getting final model
+fit(summary(forwardVS), which = 1)
+
+
+```
+
+### Backward elimination example
+
+```{r}
+# Backward elimination with mtcars
+backwardVS <- VariableSelection(GammaFit, type = "backward")
+backwardVS
+
+## Getting final model
+fit(summary(backwardVS), which = 1)
+
+```
+
+## Branch and bound
+
+- The branch and bound methods can be much slower than the stepwise methods, but 
+they are guaranteed to find the best models.
+- The branch and bound methods are typically much faster than an exhaustive search and can also be made even faster if parallel computation is used.
+
+### Branch and bound example
+
+- If `showprogress` is true, then progress of the branch and bound algorithm will be reported occasionally.
+- Parallel computation can be used with these methods and can lead to very large speedups.
+
+```{r}
+# Branch and bound with mtcars
+VS <- VariableSelection(GammaFit, type = "branch and bound", showprogress = FALSE)
+VS
+
+## Getting final model
+fit(summary(VS), which = 1)
+
+```
+
+- A formula with the data and the necessary BranchGLM fitting information can 
+also be used instead of supplying a `BranchGLM` object. 
+
+```{r}
+# Can also use a formula and data
+formulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
+                               link = "inverse", type = "branch and bound",
+                               showprogress = FALSE, metric = "AIC")
+formulaVS
+
+## Getting final model
+fit(summary(formulaVS), which = 1)
+
+```
+
+### Using bestmodels
+
+- The bestmodels argument can be used to find the top k models according to the 
+metric.
+
+```{r, fig.height = 4, fig.width = 6}
+# Finding top 10 models
+formulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
+                               link = "inverse", type = "branch and bound",
+                               showprogress = FALSE, metric = "AIC", 
+                               bestmodels = 10)
+formulaVS
+
+## Getting summary and plotting results
+formulasumm <- summary(formulaVS) 
+plot(formulasumm, type = "b")
+plot(formulasumm, ptype = "variables")
+
+## Getting best model
+fit(formulasumm, which = 1)
+
+```
+
+### Using cutoff
+
+- The cutoff argument can be used to find all models that have a metric value 
+that is within cutoff of the minimum metric value found.
+
+```{r, fig.height = 4, fig.width = 6}
+# Finding all models with a AIC within 2 of the best model
+formulaVS <- VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
+                               link = "inverse", type = "branch and bound",
+                               showprogress = FALSE, metric = "AIC", 
+                               cutoff = 2)
+formulaVS
+
+## Getting summary and plotting results
+formulasumm <- summary(formulaVS) 
+plot(formulasumm, type = "b")
+plot(formulasumm, ptype = "variables")
+
+```
+
+## Using keep
+
+- Specifying variables via `keep` will ensure that those variables are kept through the selection process.
+
+```{r, fig.height = 4, fig.width = 6}
+# Example of using keep
+keepVS <- VariableSelection(mpg ~ . ,data = cars, family = "gamma", 
+                               link = "inverse", type = "branch and bound",
+                               keep = c("hp", "cyl"), metric = "AIC",
+                               showprogress = FALSE, bestmodels = 10)
+keepVS
+
+## Getting summary and plotting results
+keepsumm <- summary(keepVS) 
+plot(keepsumm, type = "b")
+plot(keepsumm, ptype = "variables")
+
+## Getting final model
+fit(keepsumm, which = 1)
+
+```
+
+## Convergence issues
+
+- It is not recommended to use branch and bound if the upper models do not converge since it can make the algorithm very slow.
+- Sometimes when using backwards selection and all the upper models that are tested 
+do not converge, no final model can be selected.
+- For these reasons, if there are convergence issues it is recommended to use forward selection.
