@@ -132,7 +132,7 @@ double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double Lowe
   double value = 0;
   unsigned int k = 0;
   for(unsigned int i = 0; i < indices->n_elem; i++){
-    if(indices->at(i) == (cur - 1)){
+    if(indices->at(i) == (cur)){
       k++;
     }
   }
@@ -198,7 +198,7 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
   else{
     Iter = ParFisherScoringGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
   }
-  if(Iter == -2){
+  if(Iter <= 0){
     return(arma::datum::inf);
   }
   
@@ -304,32 +304,27 @@ double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* Cur
   
   // If metricVal is infinite, then return -inf as the lower bound
   if(metricVal == arma::datum::inf){
-    return(-metricVal);
+    return(-arma::datum::inf);
   }
   
-  // Getting the minimum size of this set of regressions
-  arma::ivec CurModel2 = *CurModel;
-  for(unsigned int i = 0; i <= cur; i++){
-    CurModel2.at(NewOrder->at(i)) = 2;
+  // Getting lower model
+  arma::ivec lowerModel = *CurModel;
+  for(unsigned int i = 0; i < cur; i++){
+    lowerModel(NewOrder->at(i)) = 0;
   }
-  
-  unsigned int minsize = maxsize;
+  arma::mat xLower = GetMatrix(X, &lowerModel, indices);
+  unsigned int minsize = xLower.n_cols;
   double value = 0;
-  for(unsigned int i = 0; i < indices->n_elem; i++){
-    if(CurModel2.at(indices->at(i)) == 2){
-      minsize--;
-    }
-  }
   
   // Calculating lower bound from metricVal and maxsize/minsize
   if(metric == "AIC"){
-    value =  metricVal  - 2 * int (maxsize - minsize);
+    value =  metricVal  - 2 * maxsize + 2 * minsize;
   }
   else if(metric == "BIC"){
-    value = metricVal - log(X->n_rows) * int (maxsize - minsize);
+    value = metricVal - log(X->n_rows) * maxsize + log(X->n_rows) * minsize;
   }
   else if(metric == "HQIC"){
-    value = metricVal - 2 * log(log(X->n_rows)) * int (maxsize - minsize);
+    value = metricVal - 2 * log(log(X->n_rows)) * maxsize + 2 * log(log(X->n_rows)) * minsize;
   }
   
   return(value);
@@ -405,7 +400,7 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   }
   
   // Checking for non-invertible fisher info
-  if(Iter == -2){
+  if(Iter < 0){
     return(LowerBound);
   }
   
@@ -446,11 +441,6 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   else{
     Metrics->at(0) = GetMetric(&xTemp, LogLik, Dist, metric);
   } 
-  
-  // Checking for failed convergence 
-  if(Iter == -1){
-    return(LowerBound);
-  }
   
   // Getting bound if model converged
   double NewBound = BoundHelper(&xTemp, LogLik, Dist, metric, minsize);

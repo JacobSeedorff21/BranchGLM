@@ -476,11 +476,11 @@ VariableSelection.BranchGLM <- function(object, type = "forward", metric = "AIC"
     }
     
     # Only returning best models that have a finite metric value
-    bestInd <- which(is.finite(df$bestmetrics))
+    bestInd <- is.finite(df$bestmetrics)
     
     # Only returning best models that are not the null model
-    newInd <- which(colSums(abs(df$bestmodels)) != 0)
-    bestInd <- union(bestInd, newInd)
+    newInd <- colSums(abs(df$bestmodels)) != 0
+    bestInd <- (newInd + bestInd) == 2
     
     
     
