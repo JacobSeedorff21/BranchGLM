@@ -8,6 +8,7 @@ README.md
 ^cran-comments\.Rmd$
 ^README-linear-1.png$
 ^README-logistic-1.png$
+^README_images$
 ^LICENSE\.md$
 ^ToDo.txt$
 ^CRAN-SUBMISSION$
