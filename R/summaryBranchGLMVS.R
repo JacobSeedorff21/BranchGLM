@@ -150,8 +150,11 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' @param x a \code{summary.BranchGLMVS} object.
 #' @param ptype the type of plot to produce, look at details for more explanation.
 #' @param marx value used to determine how large to make margin of x-axis, this is 
-#' only for ptype = "variables". If variable names are cut-off, consider increasing this, 
-#' the default value is 7.
+#' only for ptype = "variables". If variable names are cut-off, consider increasing this 
+#' from the default value of 7.
+#' @param addLines boolean value to indicate whether or not to add black lines to 
+#' separate the models for ptype = "variables". This is typically useful for smaller 
+#' amounts of models, but can be annoying if there are many models.
 #' @param ... arguments passed to the generic plot methods.
 #' @details The different values for ptype are as follows
 #' \itemize{
@@ -180,7 +183,7 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' @return This only produces a plot, nothing is returned.
 #' @export
 
-plot.summary.BranchGLMVS <- function(x, ptype = "metrics", marx = 7, ...){
+plot.summary.BranchGLMVS <- function(x, ptype = "metrics", marx = 7, addLines = TRUE, ...){
   if(ptype == "metrics"){
     plot(1:nrow(x$results), x$results[, x$metric], 
          xlab = "Rank", ylab = x$metric, 
@@ -221,14 +224,18 @@ plot.summary.BranchGLMVS <- function(x, ptype = "metrics", marx = 7, ...){
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
             main = paste0("Best Models Ranked by ", x$metric), 
-            col = c("deepskyblue", "indianred", "forestgreen"))
+            col = c("deepskyblue", "indianred", "forestgreen"), ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded", "Kept"), 
              fill = c("deepskyblue", "indianred", "forestgreen"), xpd = TRUE)
     }
     
     # Adding lines
-    abline(v = x1 + 0.5, h = y + 0.5)
+    if(addLines){
+      abline(v = x1 + 0.5, h = y + 0.5)
+    }else{
+      abline(v = x1 + 0.5)
+    }
     
     # Adding axis labels
     axis(1, at = x1, labels = Names, line = 1, las = 2)

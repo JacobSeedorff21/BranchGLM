@@ -4,7 +4,7 @@
 \alias{plot.summary.BranchGLMVS}
 \title{Plot Method for summary.BranchGLMVS}
 \usage{
-\method{plot}{summary.BranchGLMVS}(x, ptype = "metrics", marx = 7, ...)
+\method{plot}{summary.BranchGLMVS}(x, ptype = "metrics", marx = 7, addLines = TRUE, ...)
 }
 \arguments{
 \item{x}{a \code{summary.BranchGLMVS} object.}
@@ -12,8 +12,12 @@
 \item{ptype}{the type of plot to produce, look at details for more explanation.}
 
 \item{marx}{value used to determine how large to make margin of x-axis, this is 
-only for ptype = "variables". If variable names are cut-off, consider increasing this, 
-the default value is 7.}
+only for ptype = "variables". If variable names are cut-off, consider increasing this 
+from the default value of 7.}
+
+\item{addLines}{boolean value to indicate whether or not to add black lines to 
+separate the models for ptype = "variables". This is typically useful for smaller 
+amounts of models, but can be annoying if there are many models.}
 
 \item{...}{arguments passed to the generic plot methods.}
 }
