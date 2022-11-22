@@ -73,7 +73,7 @@ Times <- microbenchmark("BranchGLM" = {BranchGLM(y ~ ., data = df,
 autoplot(Times, log = FALSE)
 ```
 
-![](README-linear-1.png)<!-- -->
+![](README_images/linear-1.png)<!-- -->
 
 ### Logistic regression
 
@@ -129,7 +129,7 @@ Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial
 autoplot(Times, log = FALSE)
 ```
 
-![](README-logistic-1.png)<!-- -->
+![](README_images/logistic-1.png)<!-- -->
 
 ## Variable selection
 
@@ -145,40 +145,68 @@ df <- LogisticSimul(1000, 15, .5, sd = .5)
 
 ## Times
 ### Timing branch and bound
-system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
+BranchTime <- system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "branch and bound", showprogress = FALSE,
+                  type = "switch branch and bound", showprogress = FALSE,
                   parallel = FALSE, nthreads = 8, method = "Fisher", 
                   bestmodels = 10))
+
+BranchTime
 ```
 
     ##    user  system elapsed 
-    ##    0.22    0.00    0.22
+    ##    0.24    0.00    0.23
 
 ``` r
-res <- summary(BranchVS)
-
 Xy <- cbind(df[,-1], df[,1])
 
 ### Timing exhaustive search
-system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 10))
+ExhaustiveTime <- system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 10))
+ExhaustiveTime
 ```
 
     ##    user  system elapsed 
-    ##  131.37    0.39  131.84
+    ##  151.79    0.57  152.50
+
+Finding the top 10 logistic regression models for this simulated dataset
+with 15 variables with the branch and bound method is about 663.04 times
+faster than an exhaustive search.
 
 ### Checking results
 
 ``` r
 ## Results
 ### Checking if both methods give same results
-all(names(coef(BranchVS$finalmodel)) == names(coef(BestVS$BestModel)))
+BranchModel <- fit(summary(BranchVS))
+ExhaustiveModel <- BestVS$BestModel
+identical(names(coef(BranchModel)),  names(coef(ExhaustiveModel)))
 ```
 
     ## [1] TRUE
 
-The branch and bound method can be many times faster than an exhaustive
-search and is still guaranteed to find the optimal model.
+Hence the two methods result in the same best model and the branch and
+bound method was much faster than an exhaustive search.
+
+### Visualization
+
+There is also a convenient way to visualize the top models with the
+**BranchGLM** package.
+
+``` r
+# Getting summary of model selection process
+summ <- summary(BranchVS)
+
+## Plotting models
+plot(summ, type = "b")
+```
+
+![](README_images/visualization-1.png)<!-- -->
+
+``` r
+plot(summ, ptype = "variables")
+```
+
+![](README_images/visualization-2.png)<!-- -->
 
 ## Parallel computation
 
@@ -188,35 +216,46 @@ bound algorithm, especially when the number of variables is large.
 ### Non-parallel time
 
 ``` r
+# Setting seed and simulating data
 set.seed(871980)
-
 df <- LogisticSimul(1000, 40, .5, sd = .5)
 
-system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
+# Performing branch and bound
+SerialTime <- system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
                   type = "switch branch and bound", showprogress = FALSE,
                   parallel = FALSE, nthreads = 8, method = "Fisher"))
+
+SerialTime
 ```
 
     ##    user  system elapsed 
-    ##   47.46    0.55   48.05
+    ##   57.54    0.48   58.08
 
 ### Parallel time
 
 ``` r
-system.time(ParBranchVS <- VariableSelection(y ~ ., data = df, 
+# Performing parallel branch and bound
+ParallelTime <- system.time(ParBranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
                   type = "switch branch and bound", showprogress = FALSE,
                   parallel = TRUE, nthreads = 12, method = "Fisher"))
+
+ParallelTime
 ```
 
     ##    user  system elapsed 
-    ##  114.67    0.39   12.66
+    ##  120.83    0.39   13.41
+
+Finding the top logistic regression model for this simulated dataset
+with 40 variables with parallel computation is about 4.33 times faster
+than without parallel computation.
 
 ### Checking results
 
 ``` r
-all(names(coef(BranchVS$finalmodel)) == names(coef(ParBranchVS$finalmodel)))
+# Checking if 
+identical(summary(BranchVS)$results, summary(ParBranchVS)$results)
 ```
 
     ## [1] TRUE
