@@ -155,7 +155,7 @@ BranchTime
 ```
 
     ##    user  system elapsed 
-    ##    0.24    0.00    0.23
+    ##    0.26    0.00    0.26
 
 ``` r
 Xy <- cbind(df[,-1], df[,1])
@@ -166,10 +166,10 @@ ExhaustiveTime
 ```
 
     ##    user  system elapsed 
-    ##  151.79    0.57  152.50
+    ##  183.34    0.61  184.09
 
 Finding the top 10 logistic regression models for this simulated dataset
-with 15 variables with the branch and bound method is about 663.04 times
+with 15 variables with the branch and bound method is about 708.04 times
 faster than an exhaustive search.
 
 ### Checking results
@@ -230,7 +230,7 @@ SerialTime
 ```
 
     ##    user  system elapsed 
-    ##   57.54    0.48   58.08
+    ##   67.20    0.72   68.00
 
 ### Parallel time
 
@@ -245,10 +245,10 @@ ParallelTime
 ```
 
     ##    user  system elapsed 
-    ##  120.83    0.39   13.41
+    ##  237.74    0.92   25.10
 
 Finding the top logistic regression model for this simulated dataset
-with 40 variables with parallel computation is about 4.33 times faster
+with 40 variables with parallel computation is about 2.71 times faster
 than without parallel computation.
 
 ### Checking results
