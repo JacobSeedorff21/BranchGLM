@@ -5,6 +5,11 @@ BranchGLM News
 
 - Fixing bug in `VariableSelection()` when using the switch branch and
   bound method where duplicate models are returned
+- Fixing bug in `VariableSelection()` when using the switch branch and
+  bound method or branch and bound method where factor variables were
+  handled incorrectly
+- No longer allowing models that failed to converge to be one of the top
+  models in the `VariableSelection()` function
 
 # BranchGLM 2.0.0
 
