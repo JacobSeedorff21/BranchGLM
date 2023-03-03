@@ -3,6 +3,7 @@
 #include <cmath>
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/trigamma.hpp>
+#include <boost/math/distributions/normal.hpp>
 #ifdef _OPENMP
 # include <omp.h>
 #endif
@@ -70,13 +71,13 @@ arma::vec LinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offset,
   else if(Link == "cloglog"){
 #pragma omp parallel for
     for(unsigned int i = 0; i < Offset->n_elem; i++){
-      mu.at(i) = exp(-exp(XBeta.at(i)));
+      mu.at(i) = 1 - exp(-exp(XBeta.at(i)));
     }
   }
   else if(Link == "inverse"){
 #pragma omp parallel for
     for(unsigned int i = 0; i < Offset->n_elem; i++){
-      mu.at(i) = -1 / (XBeta.at(i));
+      mu.at(i) = 1 / (XBeta.at(i));
     }
   }
   else if(Link == "identity"){
@@ -118,13 +119,13 @@ arma::vec DerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Of
   else if(Link == "cloglog"){
 #pragma omp parallel for
     for(unsigned int i = 0; i < mu->n_elem; i++){
-      Deriv.at(i) = mu->at(i) * log(mu->at(i));
+      Deriv.at(i) = -(1 - mu->at(i)) * log(1 - mu->at(i));
     }
   }
   else if(Link == "inverse"){
 #pragma omp parallel for
     for(unsigned int i = 0; i < mu->n_elem; i++){
-      Deriv.at(i) = pow(mu->at(i), 2);
+      Deriv.at(i) = -pow(mu->at(i), 2);
     }
   }
   else if(Link == "identity"){
@@ -615,7 +616,8 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
 
 // Linear regression used when SEs need to be calculated
 int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
-              const arma::vec* offset, arma::vec* SE1, unsigned int nthreads){
+              const arma::vec* offset, arma::vec* SE1, arma::mat* InfoInv,
+              unsigned int nthreads){
   
   // Creating initial mat and calculating X'X
   arma::mat FinalMat(x->n_cols, x->n_cols);
@@ -634,6 +636,7 @@ int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
   
   // Calculating beta and beta variances
   *beta = InvXX * x->t() * (*y - *offset);
+  *InfoInv = InvXX;
   *SE1 = arma::diagvec(InvXX);
   return(1);
 } 
@@ -686,7 +689,7 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
       alpha = 1;
       dispersion2 = dispersion;
       dispersion += score / info;
-      while(dispersion <= 0){
+      while(dispersion <= 0 && alpha > tol){
         alpha /= 2;
         dispersion -= alpha * score / info; 
       }
@@ -706,17 +709,48 @@ void getInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y,
              const arma::vec* Offset, std::string Dist, std::string Link, 
              unsigned int nthreads){
   
-  if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
-    arma::vec NewY = log(*Y);
+  if(Link == "log"){
+    arma::vec NewY = *Y;
+    NewY = log(NewY.replace(0, 1e-4));
     LinRegCppShort(beta, X, &NewY, Offset, nthreads);
-  }else if(Link == "inverse" && (Dist == "gamma" || Dist == "gaussian")){
-    const arma::vec NewY = -1 / (*Y);
+    
+  }else if(Link == "inverse"){
+    arma::vec NewY = *Y;
+    NewY = 1 / (NewY.replace(0, 1e-4));
     LinRegCppShort(beta, X, &NewY, Offset, nthreads);
-  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian"|| Dist == "poisson")){
+    
+  }else if(Link == "sqrt"){
     const arma::vec NewY = sqrt(*Y);
     LinRegCppShort(beta, X, &NewY, Offset, nthreads);
-  }else if(Link == "identity" && (Dist == "gamma" || Dist == "poisson")){
+    
+  }else if(Link == "identity" && (Dist != "gaussian")){
     LinRegCppShort(beta, X, Y, Offset, nthreads);
+    
+  }else if(Link == "logit"){
+    arma::vec NewY = *Y;
+    NewY = NewY.clamp(1e-4, 1 - 1e-4);
+    NewY = log(NewY / (1 - NewY));
+    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+    
+  }else if(Link == "probit"){
+    arma::vec NewY = *Y;
+    double val0 = boost::math::quantile(boost::math::normal(0.0, 1.0), 1e-4);
+    double val1 = boost::math::quantile(boost::math::normal(0.0, 1.0), 1 - 1e-4);
+    for(unsigned int i = 0; i < NewY.n_elem; i++){
+      if(NewY.at(i) == 0){
+        NewY.at(i) = val0;
+      }else{
+        NewY.at(i) = val1;
+      }
+    }
+    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+    
+  }else if(Link == "cloglog"){
+    arma::vec NewY = *Y;
+    NewY = NewY.clamp(1e-4, 1 - 1e-4);
+    NewY = log(-log(1 - NewY));
+    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+    
   }
 }
 
@@ -734,6 +768,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::vec Init(init.begin(), init.size(), false, true);
   arma::vec beta = Init;
   arma::mat Info(beta.n_elem, beta.n_elem);
+  arma::mat InfoInv(beta.n_elem, beta.n_elem);
   arma::vec SE1(beta.n_elem);
   
   // Initializing doubles
@@ -750,7 +785,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   
   // Fitting model
   if(Dist == "gaussian" && Link == "identity"){
-    Iter = LinRegCpp(&beta, &X, &Y, &Offset, &SE1, nthreads);
+    Iter = LinRegCpp(&beta, &X, &Y, &Offset, &SE1, &InfoInv, nthreads);
   }else if(method == "BFGS"){
     Iter = BFGSGLMCpp(&beta, &X, &Y, &Offset, Link, Dist, tol, maxit);
   }
@@ -778,7 +813,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     
     // Calculating info and initaliazing inverse info
     Info = FisherInfoCpp(&X, &Deriv, &Var);
-    arma::mat InfoInv = Info;
+    InfoInv = Info;
     
     // Calculating inverse info and returning error if not invertible
     if(!arma::inv_sympd(InfoInv, Info)){
@@ -789,7 +824,9 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     SE1 = arma::diagvec(InfoInv);
   }
   
+  // Getting SE
   NumericVector SE = NumericVector(SE1.begin(), SE1.end());
+  NumericMatrix vcov = NumericMatrix(InfoInv.n_rows, InfoInv.n_cols, InfoInv.begin());
   
   // Converting variances to SEs
   SE = sqrt(SE);
@@ -810,8 +847,8 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   dispersion = GetDispersion(&X, &Y, &mu, LogLik, Dist, tol);
   
   // Checking for valid dispersion parameter
-  if(dispersion <= 0){
-    stop("dispersion parameter was estimated to be non-positive");
+  if(dispersion <= 0 || std::isinf(dispersion)){
+    stop("dispersion parameter was estimated to be non-positive or infinite");
   }
   
   if(Dist == "gaussian"){
@@ -832,6 +869,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   
   // Calculating SE with dispersion parameter
   SE = sqrt(dispersion) * SE;
+  vcov = vcov * dispersion;
   
   // Calculating z-values
   NumericVector z = NumericVector(beta.begin(), beta.end()) / SE;
@@ -859,133 +897,6 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                             Named("resDev") = resDev,
                             Named("AIC") = AIC,
                             Named("preds") = NumericVector(mu.begin(), mu.end()),
-                            Named("linPreds") = linPreds1);
-}
-
-// Model fitting function for final model for variable selection functions
-List BranchGLMFitCpp(const arma::mat* X, const arma::vec* Y, const arma::vec* Offset,
-                     std::string method,  unsigned int m, std::string Link, std::string Dist,
-                     unsigned int nthreads, double tol, int maxit, bool GetInit = true){
-  
-  
-  // Initializing vectors and matrices
-  arma::vec beta(X->n_cols, arma::fill::zeros);
-  arma::mat Info(beta.n_elem, beta.n_elem);
-  arma::vec SE1(beta.n_elem);
-  // Initializing doubles
-  double Iter;
-  double dispersion = 1;
-  // Getting initial values
-  if(GetInit){
-    getInit(&beta, X, Y, Offset, Dist, Link, nthreads);
-  }
-  
-  // Fitting model
-  if(Dist == "gaussian" && Link == "identity"){
-    Iter = LinRegCpp(&beta, X, Y, Offset, &SE1, nthreads);
-  }else if(method == "BFGS"){
-    Iter = BFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
-  }
-  else if(method == "LBFGS"){
-    Iter = LBFGSGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit, m);
-  }
-  else{
-    Iter = FisherScoringGLMCpp(&beta, X, Y, Offset, Link, Dist, tol, maxit);
-  }
-  
-  // Checking for non-invertible fisher info error
-  if(Iter == -2){
-    stop("Algorithm failed to converge because the fisher info was not invertible");
-  }
-  
-  // Calculating means
-  arma::vec mu = LinkCpp(X, &beta, Offset, Link, Dist);
-  
-  // Calculating variances for betas for non-linear regression
-  if(Dist != "gaussian" || Link != "identity"){
-    
-    // Calculating derivatives, and variances to be used for info
-    arma::vec Deriv = DerivativeCpp(X, &beta, Offset, &mu, Link, Dist);
-    arma::vec Var = Variance(&mu, Dist);
-    
-    // Calculating info and initaliazing inverse info
-    Info = FisherInfoCpp(X, &Deriv, &Var);
-    arma::mat InfoInv = Info;
-    
-    // Calculating inverse info and returning error if not invertible
-    if(!arma::inv_sympd(InfoInv, Info)){
-      stop("Fisher info for final model not invertible");
-    }
-    
-    // Calculating variances which are later converted to SEs
-    SE1 = arma::diagvec(InfoInv);
-  }
-  
-  NumericVector SE = NumericVector(SE1.begin(), SE1.end());
-  
-  // Converting variances to SEs
-  SE = sqrt(SE);
-  
-  // Returning results
-  double satLogLik = LogLikelihoodSat(X, Y, Dist);
-  double LogLik = -LogLikelihoodCpp(X, Y, &mu, Dist);
-  double resDev = -2 * (LogLik - satLogLik);
-  double AIC = -2 * LogLik + 2 * X->n_cols;
-  
-  NumericVector beta1 = NumericVector(beta.begin(), beta.end());
-  
-  arma::vec linPreds = *X * beta + *Offset;
-  
-  NumericVector linPreds1 = NumericVector(linPreds.begin(), linPreds.end());
-  
-  // Getting dispersion parameter
-  dispersion = GetDispersion(X, Y, &mu, LogLik, Dist, tol);
-  
-  // Checking for valid dispersion parameter
-  if(dispersion <= 0){
-    stop("dispersion parameter was estimated to be non-positive");
-  }
-  
-  if(Dist == "gaussian"){
-    double temp = Y->n_elem/2 * log(2*M_PI*dispersion);
-    LogLik = LogLik / dispersion - temp;
-    AIC = -2 * LogLik + 2 * (X->n_cols + 1);
-  }
-  else if(Dist == "poisson"){
-    LogLik -=  LogFact(Y);
-    AIC = -2 * LogLik + 2 * (X->n_cols);
-  }else if(Dist == "gamma"){
-    double shape = 1 / dispersion;
-    LogLik = shape * LogLik + 
-      X->n_rows * (shape * log(shape) - lgamma(shape)) + 
-      (shape - 1) * arma::accu(log(*Y));
-    AIC = -2 * LogLik + 2 * (X->n_cols + 1);
-  }
-  
-  // Calculating SE with dispersion parameter
-  SE = sqrt(dispersion) * SE;
-  
-  // Calculating z-values
-  NumericVector z = NumericVector(beta.begin(), beta.end()) / SE;
-  NumericVector p(z.length());
-  
-  // Calculating p-values
-  if(Dist == "gaussian" || Dist == "gamma"){
-    p = 2 * pt(abs(z), X->n_rows - X->n_cols, false, false);
-  }
-  else{
-    p = 2 * pnorm(abs(z), 0, 1, false, false);
-  }
-  
-  return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
-                            Named("SE") = SE,
-                            Named("z") = z, 
-                            Named("p-values") = p),
-                            Named("iterations") = Iter,
-                            Named("dispersion") = dispersion,
-                            Named("logLik") =  LogLik,
-                            Named("resDev") = resDev,
-                            Named("AIC") = AIC,
-                            Named("preds") = NumericVector(mu.begin(), mu.end()),
-                            Named("linPreds") = linPreds1);
+                            Named("linPreds") = linPreds1, 
+                            Named("vcov") = vcov);
 }
