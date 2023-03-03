@@ -83,16 +83,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   
   // Getting X'WX
-  arma::mat XTWX;
-  if(Dist == "gaussian" || Dist == "gamma"){
-    XTWX = X.t() * X;
-  }else{
-    arma::vec beta(X.n_cols, arma::fill::zeros);
-    arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
-    arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
-    arma::vec Var = Variance(&mu, Dist);
-    XTWX = FisherInfoCpp(&X, &Deriv, &Var);
-  }
+  arma::mat XTWX = X.t() * X;
   
   // Creating necessary scalars
   double BestMetric = arma::datum::inf;
@@ -198,16 +189,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   
   // Getting X'WX
-  arma::mat XTWX;
-  if(Dist == "gaussian" || Dist == "gamma"){
-    XTWX = X.t() * X;
-  }else{
-    arma::vec beta(X.n_cols, arma::fill::zeros);
-    arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
-    arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
-    arma::vec Var = Variance(&mu, Dist);
-    XTWX = FisherInfoCpp(&X, &Deriv, &Var);
-  }
+  arma::mat XTWX = X.t() * X;
   
   // Creating necessary scalars
   double BestMetric = arma::datum::inf;

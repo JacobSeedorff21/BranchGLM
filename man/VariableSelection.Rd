@@ -15,7 +15,7 @@ VariableSelection(object, ...)
   link,
   offset = NULL,
   method = "Fisher",
-  type = "forward",
+  type = "branch and bound",
   metric = "AIC",
   bestmodels = 1,
   cutoff = 0,
@@ -33,7 +33,7 @@ VariableSelection(object, ...)
 
 \method{VariableSelection}{BranchGLM}(
   object,
-  type = "forward",
+  type = "branch and bound",
   metric = "AIC",
   bestmodels = 1,
   cutoff = 0,
@@ -70,7 +70,7 @@ fit many models with a small number of covariates.}
 
 \item{type}{one of "forward", "backward", "branch and bound", "backward branch and bound", 
 or "switch branch and bound" to indicate the type of variable selection to perform. 
-The default value is "forward". The branch and bound methods are guaranteed to 
+The default value is "branch and bound". The branch and bound methods are guaranteed to 
 find the best models according to the metric while "forward" and "backward" are 
 heuristic approaches that may not find the optimal model.}
 
@@ -119,6 +119,7 @@ object if a formula is supplied}
 \item{\code{metric}}{ metric used to select best models}
 \item{\code{bestmodels}}{ numeric matrix used to describe the best models}
 \item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search}
+\item{\code{cutoff}}{ the supplied cutoff}
 }
 \description{
 Performs forward selection, backward elimination, 
@@ -164,9 +165,6 @@ Summ
 ## Plotting the BIC of the best models
 plot(Summ, type = "b")
 
-## Plotting the variables in the best models
-plot(Summ, ptype = "variables")
-
 ## Getting the best model according to BIC
 FinalModel <- fit(Summ, which = 1)
 FinalModel
@@ -176,8 +174,7 @@ parVS <- VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metr
 bestmodels = 10, showprogress = FALSE)
 
 ## Getting the best model according to BIC
-Summ <- summary(parVS)
-FinalModel <- fit(Summ, which = 1)
+FinalModel <- fit(parVS, which = 1)
 FinalModel
 
 # Using a formula
@@ -185,18 +182,16 @@ formVS <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian",
 link = "identity", metric = "BIC", type = "branch and bound", bestmodels = 10, showprogress = FALSE)
 
 ## Getting the best model according to BIC
-Summ <- summary(formVS)
-FinalModel <- fit(Summ, which = 1)
+FinalModel <- fit(formVS, which = 1)
 FinalModel
 
 # Using the keep argument
 keepVS <- VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width", 
-metric = "BIC", bestmodels = 10, showprogress = FALSE)
+metric = "BIC", bestmodels = 5, showprogress = FALSE)
 keepVS
 
 ## Getting the fifth best model according to BIC when keeping Petal.Width in every model
-Summ <- summary(keepVS)
-FinalModel <- fit(Summ, which = 5)
+FinalModel <- fit(keepVS, which = 5)
 FinalModel
 
 }

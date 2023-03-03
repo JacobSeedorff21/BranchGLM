@@ -190,7 +190,6 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
     Iter = ParLinRegCppShort(&beta, X, &NewXTWX, Y, Offset);
   }else if(method == "BFGS"){
     Iter = ParBFGSGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
-    
   }
   else if(method == "LBFGS"){
     Iter = ParLBFGSGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, m, UseXTWX);
@@ -205,8 +204,7 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
   arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
   double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
   double dispersion = GetDispersion(X, Y, &mu, LogLik, Dist, tol);
-  
-  if(dispersion <= 0 || std::isnan(LogLik)){
+  if(dispersion <= 0 || std::isnan(LogLik) || std::isinf(dispersion)){
     return(arma::datum::inf);
   }
   
@@ -410,7 +408,7 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   double dispersion = GetDispersion(&xTemp, Y, &mu, LogLik, Dist, tol);
   
   // Checking for non-positive dispersion
-  if(dispersion <= 0){
+  if(dispersion <= 0 || std::isinf(dispersion)){
     return(LowerBound);
   }
   

@@ -215,16 +215,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   
   // Getting X'WX
-  arma::mat XTWX;
-  if(Dist == "gaussian" || Dist == "gamma"){
-    XTWX = X.t() * X;
-  }else{
-    arma::vec beta(X.n_cols, arma::fill::zeros);
-    arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
-    arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
-    arma::vec Var = Variance(&mu, Dist);
-    XTWX = FisherInfoCpp(&X, &Deriv, &Var);
-  }
+  arma::mat XTWX = X.t() * X;
   
   // Creating necessary scalars
   unsigned int numchecked = 1;
@@ -449,16 +440,7 @@ List BackwardBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector o
   CurModel.replace(0, 1);
   
   // Getting X'WX
-  arma::mat XTWX;
-  if(Dist == "gaussian" || Dist == "gamma"){
-    XTWX = X.t() * X;
-  }else{
-    arma::vec beta(X.n_cols, arma::fill::zeros);
-    arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
-    arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
-    arma::vec Var = Variance(&mu, Dist);
-    XTWX = FisherInfoCpp(&X, &Deriv, &Var);
-  }
+  arma::mat XTWX = X.t() * X;
   
   // Setting number of threads if OpenMP is defined
 #ifdef _OPENMP
@@ -668,8 +650,8 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
       
       // Updating numchecked and potentially updating the best model based on upper models
       (*numchecked) += arma::accu(Counts2);
-      sorted = sort_index(Metrics2);
       UpdateBestMetrics(BestModels, BestMetrics, &NewModels, &Metrics2, cutoff);
+      Metrics2.at(0) = UpperMetric;
       
       // Checking for user interrupt
       checkUserInterrupt();
@@ -775,7 +757,6 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
     }
     
     // Updating numchecked and potentially updating the best model
-    *numchecked += arma::accu(Counts);
     arma::uvec sorted = sort_index(Metrics);
     NewOrder2 = NewOrder2(sorted);
     UpdateBestMetrics(BestModels, BestMetrics, &NewModels, &Metrics, cutoff);
@@ -796,7 +777,6 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
     
     // Defining Bounds to store the lower bounds
     arma::vec Bounds(Metrics.n_elem - 1);
-    arma::uvec Counts2(Metrics.n_elem - 1, arma::fill::zeros);
     
   // Computing lower bounds
 #pragma omp parallel for schedule(dynamic)
@@ -826,7 +806,7 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
     }
     
     // Updating numchecked
-    (*numchecked) += arma::accu(Counts2);
+    (*numchecked) += arma::accu(Counts);
     
     // Checking for user interrupt
     checkUserInterrupt();
@@ -892,6 +872,7 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
       // Checking if we need to update bounds
       sorted = sort_index(Lower);
       UpdateBestMetrics(BestModels, BestMetrics, &NewModels, &Lower, cutoff);
+      Lower.at(0) = LowerMetric;
       
       // Performing the branching
       if(revNewOrder2.n_elem > 2){
@@ -956,16 +937,7 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
   
   
   // Getting X'WX
-  arma::mat XTWX;
-  if(Dist == "gaussian" || Dist == "gamma"){
-    XTWX = X.t() * X;
-  }else{
-    arma::vec beta(X.n_cols, arma::fill::zeros);
-    arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
-    arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
-    arma::vec Var = Variance(&mu, Dist);
-    XTWX = FisherInfoCpp(&X, &Deriv, &Var);
-  }
+  arma::mat XTWX = X.t() * X;
   
   // Creating necessary scalars
   unsigned int numchecked = 0;

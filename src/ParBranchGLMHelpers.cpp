@@ -1,5 +1,6 @@
 #include <RcppArmadillo.h>
 #include "CrossProducts.h"
+#include <boost/math/distributions/normal.hpp>
 #include <cmath>
 using namespace Rcpp;
 
@@ -40,10 +41,10 @@ arma::vec ParLinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offse
     mu = arma::normcdf(XBeta);
   }
   else if(Link == "cloglog"){
-    mu = exp(-exp(XBeta));
+    mu = 1 - exp(-exp(XBeta));
   }
   else if(Link == "inverse"){
-    mu = -1 / (XBeta);
+    mu = 1 / (XBeta);
   }
   else if(Link == "identity"){
     mu = XBeta;
@@ -76,10 +77,10 @@ arma::vec ParDerivativeCpp(const arma::mat* X, arma::vec* beta, const arma::vec*
     Deriv = arma::normpdf(*X * *beta + *Offset);
   }
   else if(Link == "cloglog"){
-    Deriv = *mu % log(*mu);
+    Deriv = -(1 - *mu) % log(1 - *mu);
   }
   else if(Link == "inverse"){
-    Deriv = pow(*mu, 2);
+    Deriv = -pow(*mu, 2);
   }
   else if(Link == "identity"){
     Deriv.fill(1);
@@ -501,9 +502,7 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
   double f1 = ParLogLikelihoodCpp(X, Y, &mu, Dist);
   double alpha;
   double t;
-  
   while(arma::norm(g1) > tol){
-    
     // Checks if we've reached maxit iterations and stops if we have
     if(k >= maxit){ 
       k = -1;
@@ -518,7 +517,6 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
       return(-2);
     }
     t = -arma::dot(g1, p);
-    
     
     // Finding alpha with backtracking linesearch using strong wolfe conditions
     // This function also calculates mu, Deriv, Var, and g1 for the selected step size
@@ -563,23 +561,55 @@ void PargetInit(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX, cons
                 const arma::vec* Offset, std::string Dist, std::string Link, 
                 bool* UseXTWX){
   
-  if(Dist != "gamma" && (Dist != "gaussian" || Dist == "identity")){
-    // Do nothing since we don't find initial values for these families
-  }
-  else if(Link == "log" && (Dist == "gamma" || Dist == "gaussian")){
-    arma::vec NewY = log(*Y);
+  if(Link == "log"){
+    arma::vec NewY = *Y;
+    NewY = log(NewY.replace(0, 1e-4));
     ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
     *UseXTWX = false;
-  }else if(Link == "inverse" && (Dist == "gamma" || Dist == "gaussian")){
-    const arma::vec NewY = -1 / (*Y);
+    
+  }else if(Link == "inverse"){
+    arma::vec NewY = *Y;
+    NewY = 1 / (NewY.replace(0, 1e-4));
     ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
     *UseXTWX = false;
-  }else if(Link == "sqrt" && (Dist == "gamma" || Dist == "gaussian")){
+    
+  }else if(Link == "sqrt"){
     const arma::vec NewY = sqrt(*Y);
     ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
     *UseXTWX = false;
-  }else if(Link == "identity" && (Dist == "gamma")){
+    
+  }else if(Link == "identity" && Dist != "gaussian"){
     ParLinRegCppShort(beta, X, XTWX, Y, Offset);
     *UseXTWX = false;
+    
+  }else if(Link == "logit"){
+    arma::vec NewY = *Y;
+    NewY = NewY.clamp(1e-4, 1 - 1e-4);
+    NewY = log(NewY / (1 - NewY));
+    ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
+    *UseXTWX = false;
+    
+  }else if(Link == "probit"){
+    arma::vec NewY = *Y;
+    double val0 = boost::math::quantile(boost::math::normal(0.0, 1.0), 1e-4);
+    double val1 = boost::math::quantile(boost::math::normal(0.0, 1.0), 1 - 1e-4);
+    for(unsigned int i = 0; i < NewY.n_elem; i++){
+      if(NewY.at(i) == 0){
+        NewY.at(i) = val0;
+      }else{
+        NewY.at(i) = val1;
+      }
+    }
+    ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
+    *UseXTWX = false;
+    
+  }else if(Link == "cloglog"){
+    arma::vec NewY = *Y;
+    NewY = NewY.clamp(1e-4, 1 - 1e-4);
+    NewY = log(-log(1 - NewY));
+    ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
+    *UseXTWX = false;
+    
   }
+  
 }
