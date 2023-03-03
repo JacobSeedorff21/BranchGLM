@@ -1,6 +1,18 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.1.0
+
+- Fixing bug in `VariableSelection()` when using formulas of the form
+  `y ~ . - variable`
+- Changing default type for `VariableSelection()` to be “branch and
+  bound”
+- Adding vcov and confint methods for `BranchGLM` objects
+- Adding plot method for objects resulting from `confint.BranchGLM()`
+- Adding coef and predict methods for `BranchGLMVS` objects
+- Fixing bug that caused the switch branch and bound type in
+  `VariableSelection()` to be slower
+
 # BranchGLM 2.0.1
 
 - Fixing bug in `VariableSelection()` when using the switch branch and

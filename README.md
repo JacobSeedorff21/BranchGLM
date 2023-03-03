@@ -141,7 +141,7 @@ is a comparison of runtimes with the `bestglm()` function from the
 library(bestglm)
 set.seed(33391)
 
-df <- LogisticSimul(1000, 15, .5, sd = .5)
+df <- LogisticSimul(1000, 15, .5, sd = 0.5)
 
 ## Times
 ### Timing branch and bound
@@ -149,27 +149,27 @@ BranchTime <- system.time(BranchVS <- VariableSelection(y ~ ., data = df,
                                       family = "binomial", link = "logit",
                   type = "switch branch and bound", showprogress = FALSE,
                   parallel = FALSE, nthreads = 8, method = "Fisher", 
-                  bestmodels = 10))
+                  bestmodels = 10, metric = "AIC"))
 
 BranchTime
 ```
 
     ##    user  system elapsed 
-    ##    0.26    0.00    0.26
+    ##    0.19    0.00    0.19
 
 ``` r
-Xy <- cbind(df[,-1], df[,1])
-
 ### Timing exhaustive search
-ExhaustiveTime <- system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", TopModels = 10))
+Xy <- cbind(df[,-1], df[,1])
+ExhaustiveTime <- system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", 
+                                                TopModels = 10))
 ExhaustiveTime
 ```
 
     ##    user  system elapsed 
-    ##  183.34    0.61  184.09
+    ##  130.64    0.30  135.83
 
 Finding the top 10 logistic regression models for this simulated dataset
-with 15 variables with the branch and bound method is about 708.04 times
+with 15 variables with the branch and bound method is about 714.89 times
 faster than an exhaustive search.
 
 ### Checking results
@@ -230,7 +230,7 @@ SerialTime
 ```
 
     ##    user  system elapsed 
-    ##   67.20    0.72   68.00
+    ##   52.11    0.75   56.56
 
 ### Parallel time
 
@@ -245,10 +245,10 @@ ParallelTime
 ```
 
     ##    user  system elapsed 
-    ##  237.74    0.92   25.10
+    ##    6.42    0.03   15.27
 
 Finding the top logistic regression model for this simulated dataset
-with 40 variables with parallel computation is about 2.71 times faster
+with 40 variables with parallel computation is about 3.7 times faster
 than without parallel computation.
 
 ### Checking results

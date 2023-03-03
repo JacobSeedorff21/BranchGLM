@@ -36,10 +36,8 @@ used.
 
 - Initial values for the coefficient estimates may be specified via the `init` 
 argument.
-- If no initial values are specified, then the initial values are taken to be 0 
-for the binomial and poisson families. The initial values for the gaussian and 
-gamma families are estimated via linear regression with the response variable 
-transformed by the link function.
+- If no initial values are specified, then the initial values are estimated 
+via linear regression with the response variable transformed by the link function.
 
 ## Parallel computation
 
