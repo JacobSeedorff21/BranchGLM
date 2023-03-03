@@ -9,9 +9,9 @@
 \arguments{
 \item{object}{a \code{BranchGLM} object.}
 
-\item{newdata}{a dataframe, if not specified the data the model was fit on is used.}
+\item{newdata}{a dataframe, if not specified then the data the model was fit on is used.}
 
-\item{type}{one of "linpreds" or "response", if not specified "response" is used.}
+\item{type}{one of "linpreds" or "response", if not specified then "response" is used.}
 
 \item{...}{further arguments passed to or from other methods.}
 }

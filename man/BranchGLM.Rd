@@ -87,6 +87,7 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
+\item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
 \item{\code{resdev}}{ the residual deviance of the fitted model}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
@@ -95,6 +96,7 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{maxit}}{ maximum number of iterations used to fit the model}
 \item{\code{formula}}{ formula used to fit the model}
 \item{\code{method}}{ iterative method used to fit the model}
+\item{\code{grads}}{ number of gradients used to approximate inverse information for L-BFGS}
 \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
 \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
 \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
@@ -158,6 +160,7 @@ all of the methods for \code{BranchGLM} objects such as \code{predict} or
 Data <- iris
 ### Using BranchGLM
 BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+
 ### Using BranchGLM.fit
 x <- model.matrix(Sepal.Length ~ ., data = Data)
 y <- Data$Sepal.Length
