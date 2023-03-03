@@ -29,6 +29,7 @@
 #' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
 #' \item{\code{logLik}}{ the log-likelihood of the fitted model}
+#' \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
 #' \item{\code{resdev}}{ the residual deviance of the fitted model}
 #' \item{\code{AIC}}{ the AIC of the fitted model}
 #' \item{\code{preds}}{ predictions from the fitted model}
@@ -37,6 +38,7 @@
 #' \item{\code{maxit}}{ maximum number of iterations used to fit the model}
 #' \item{\code{formula}}{ formula used to fit the model}
 #' \item{\code{method}}{ iterative method used to fit the model}
+#' \item{\code{grads}}{ number of gradients used to approximate inverse information for L-BFGS}
 #' \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
 #' \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
 #' \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
@@ -97,6 +99,7 @@
 #' Data <- iris
 #' ### Using BranchGLM
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' 
 #' ### Using BranchGLM.fit
 #' x <- model.matrix(Sepal.Length ~ ., data = Data)
 #' y <- Data$Sepal.Length
@@ -209,12 +212,18 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   
   df$xlev <- .getXlevels(df$terms, mf)
   
+  df$grads <- grads
+  
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
   if(family == "gaussian" || family == "gamma"){
     colnames(df$coefficients)[3] <- "t"
   }
+  
+  # Setting names for vcov
+  rownames(df$vcov) <- colnames(df$vcov) <- colnames(x)
+  
   structure(df, class = "BranchGLM")
 }
 
@@ -332,6 +341,15 @@ logLik.BranchGLM <- function(object, ...){
   return(val)
 }
 
+#' Extract covariance matrix
+#' @param object a \code{BranchGLM} object.
+#' @param ... further arguments passed to or from other methods.
+#' @return A numeric matrix which is the covariance matrix of the beta coefficients.
+#' @export
+vcov.BranchGLM <- function(object, ...){
+  return(object$vcov)
+}
+
 #' Extract Coefficients
 #' @param object a \code{BranchGLM} object.
 #' @param ... further arguments passed to or from other methods.
@@ -346,8 +364,8 @@ coef.BranchGLM <- function(object, ...){
 
 #' Predict Method for BranchGLM Objects
 #' @param object a \code{BranchGLM} object.
-#' @param newdata a dataframe, if not specified the data the model was fit on is used.
-#' @param type one of "linpreds" or "response", if not specified "response" is used.
+#' @param newdata a dataframe, if not specified then the data the model was fit on is used.
+#' @param type one of "linpreds" or "response", if not specified then "response" is used.
 #' @param ... further arguments passed to or from other methods.
 #' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
 #' Offset variables are ignored for predictions on new data.
