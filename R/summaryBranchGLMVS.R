@@ -77,9 +77,9 @@ summary.BranchGLMVS <- function(object, ...){
   return(structure(MyList, class = "summary.BranchGLMVS"))
 }
 
-#' Fits GLMs for summary.BranchGLMVS objects
+#' Fits GLMs for summary.BranchGLMVS and BranchGLMVS objects
 #' @name fit
-#' @param object a \code{summary.BranchGLMVS} object.
+#' @param object a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.
 #' @param which a positive integer indicating which model to fit, 
 #' the default is to fit the first model .
 #' @param keepData Whether or not to store a copy of data and design matrix, the default 
@@ -109,7 +109,7 @@ summary.BranchGLMVS <- function(object, ...){
 #' EighthModel <- fit(Summ, which = 8)
 #' EighthModel
 #' 
-#' @return An object of class \code{\link{BranchGLM}}. 
+#' @return An object of class \link{BranchGLM}. 
 #' @export
 #' 
 fit <- function(object, ...) {
@@ -123,10 +123,11 @@ fit.summary.BranchGLMVS <- function(object, which = 1, keepData = TRUE, keepY = 
      which != as.integer(which)){
     stop("which must be a positive integer denoting the rank of the model to fit")
   }
-  Model <- object$initmodel
-  FinalModel <- BranchGLM(object$formulas[[which]], data = Model$data, family = Model$family, 
-                          link = Model$link, method = Model$method, 
-                          tol = Model$tol, maxit = Model$maxit, 
+  FinalModel <- BranchGLM(object$formulas[[which]], data = object$initmodel$data, 
+                          family = object$initmodel$family, link = object$initmodel$link, 
+                          offset = object$initmodel$offset,
+                          method = object$initmodel$method, 
+                          tol = object$initmodel$tol, maxit = object$initmodel$maxit, 
                           keepData = keepData, keepY = keepY)
   
   return(FinalModel)
@@ -146,20 +147,23 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
   return(invisible(x))
 }
 
-#' Plot Method for summary.BranchGLMVS
-#' @param x a \code{summary.BranchGLMVS} object.
+#' Plot Method for summary.BranchGLMVS and BranchGLMVS objects
+#' @param x a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.
 #' @param ptype the type of plot to produce, look at details for more explanation.
 #' @param marx value used to determine how large to make margin of x-axis, this is 
-#' only for ptype = "variables". If variable names are cut-off, consider increasing this 
+#' only for the "variables" plot. If variable names are cut-off, consider increasing this 
 #' from the default value of 7.
-#' @param addLines boolean value to indicate whether or not to add black lines to 
+#' @param addLines logical value to indicate whether or not to add black lines to 
 #' separate the models for ptype = "variables". This is typically useful for smaller 
 #' amounts of models, but can be annoying if there are many models.
-#' @param ... arguments passed to the generic plot methods.
+#' @param type what type of plot to draw for the "metrics" plot, see more details 
+#' at \link{par}.
+#' @param ... arguments passed to the generic plot and image methods.
 #' @details The different values for ptype are as follows
 #' \itemize{
 #'  \item "metrics" for a plot that displays the metric values ordered by rank
 #'  \item "variables" for a plot that displays which variables are in each of the top models
+#'  \item "both" for both plots
 #' }
 #' @examples
 #' Data <- iris
@@ -177,19 +181,19 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' ## Plotting the BIC of the best models
 #' plot(Summ, type = "b")
 #' 
-#' ## Plotting the variables in the best models
-#' plot(Summ, ptype = "variables")
-#' 
-#' @return This only produces a plot, nothing is returned.
+#' @return This only produces plots, nothing is returned.
 #' @export
 
-plot.summary.BranchGLMVS <- function(x, ptype = "metrics", marx = 7, addLines = TRUE, ...){
-  if(ptype == "metrics"){
+plot.summary.BranchGLMVS <- function(x, ptype = "both", marx = 7, addLines = TRUE, 
+                                     type = "b", ...){
+  if(ptype == "metrics" || ptype == "both"){
     plot(1:nrow(x$results), x$results[, x$metric], 
          xlab = "Rank", ylab = x$metric, 
-         main = paste0("Best Models Ranked by ", x$metric), 
+         main = paste0("Best Models Ranked by ", x$metric),
+         type = type,
          ...)
-  }else if(ptype == "variables"){
+  }
+  if(ptype == "variables" || ptype == "both"){
     # This is inspired by the plot.regsubsets function
     n <- length(x$formulas)
     Names <- colnames(x$results)[-ncol(x$results)]
@@ -199,7 +203,7 @@ plot.summary.BranchGLMVS <- function(x, ptype = "metrics", marx = 7, addLines = 
     z[z == "yes"] <- 0
     z <- apply(z, 2, as.numeric)
     if(is.matrix(z)){
-    z <- t(z)
+      z <- t(z)
     }else{
       z <- matrix(z, nrow = length(z))
     }
@@ -208,7 +212,8 @@ plot.summary.BranchGLMVS <- function(x, ptype = "metrics", marx = 7, addLines = 
     
     # Creating image  
     oldmar <- par("mar")
-    par(mar = c(marx, 5, 3, 8) + 0.1)
+    on.exit(par(mar = oldmar))
+    par(mar = c(marx, 5, 3, 6) + 0.1)
     
     if(all(z != 2)){
       # Do this if there were no variable kept
@@ -243,9 +248,6 @@ plot.summary.BranchGLMVS <- function(x, ptype = "metrics", marx = 7, addLines = 
     
     # Adding y-axis title, this is used to avoid overlapping of axis title and labels
     mtext(paste0("Rank According to ", x$metric), side = 2, line = 4)
-    
-    # Resetting mar
-    par(mar = oldmar)
     
   }else{
     stop("supplied ptype is not currently supported")
