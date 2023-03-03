@@ -1023,6 +1023,8 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
     SwitchBackwardBranch(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &UpperModel, &BestModels, 
                            &BestMetrics, &numchecked, &Indices, tol, maxit, NewOrder.n_elem - 1, metric, 
                            LowerBound, &NewOrder, &p, CurMetric, cutoff);
+  }else{
+    p.update(2);
   }
   
   // Printing off final update

@@ -356,7 +356,12 @@ VariableSelection.BranchGLM <- function(object, type = "branch and bound", metri
   interactions <- attr(object$terms, "factors")[-1L, ]
   
   ## Removing rows with all zeros
-  interactions <- interactions[apply(interactions, 1, function(x){sum(x) > 0}),]
+  if(is.matrix(interactions)){
+    interactions <- interactions[apply(interactions, 1, function(x){sum(x) > 0}),]
+  }else{
+    ### This only happens when only 1 variable is included
+    interactions <- matrix(1, nrow = 1, ncol = 1)
+  }
   
   ## Setting maxit
   if(is.null(maxit)){
