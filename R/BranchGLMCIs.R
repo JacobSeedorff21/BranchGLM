@@ -1,6 +1,8 @@
 #' Likelihood Ratio Confidence Intervals for Beta Coefficients
 #' @param object a \code{BranchGLM} object.
-#' @param level desired confidence level.
+#' @param parm a specification of which parameters are to be given confidence intervals, 
+#' either a vector of numbers or a vector of names. If missing, all parameters are considered.
+#' @param level the confidence level required.
 #' @param parallel whether or not to make use of parallelization via OpenMP.
 #' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
 #' @param ... further arguments passed from other methods.
@@ -24,8 +26,17 @@
 #' plot(CIs, mary = 7, cex.y = 0.9)
 #' 
 #' @export
-confint.BranchGLM <- function(object, level = 0.95, 
+confint.BranchGLM <- function(object, parm, level = 0.95, 
                               parallel = FALSE, nthreads = 8, ...){
+  # Using parm
+  if(missing(parm)){
+    parm <- 1:ncol(object$x)
+  }else if(is.character(parm)){
+    parm <- match(parm, colnames(object$x), nomatch = 0L)
+  }else if(any(parm > ncol(object$x))){
+    stop("numbers in parm must be less than or equal to the number of parameters")
+  }
+  
   # Getting SEs for make initial values for CIs
   a <- (1 - level) / 2
   coefs <- coef(object)
@@ -38,7 +49,8 @@ confint.BranchGLM <- function(object, level = 0.95,
   
   # Getting LR CIs
   metrics <- rep(object$AIC, ncol(object$x))
-  model <- matrix(rep(1, ncol(object$x)), ncol = 1)
+  model <- matrix(rep(-1, ncol(object$x)), ncol = 1)
+  model[parm] <- 1
   res <- MetricIntervalCpp(object$x, object$y, object$offset, 
                            1:ncol(object$x) - 1, rep(1, ncol(object$x)), model, 
                            object$method, object$grads, object$link, object$family, 
@@ -54,17 +66,17 @@ confint.BranchGLM <- function(object, level = 0.95,
   CIs <- cbind(res$LowerBounds, res$UpperBounds)
   rownames(CIs) <- colnames(object$x)
   colnames(CIs) <- c(paste0(round(a, 3) * 100, "%"), paste0(round(1 - a, 3) * 100, "%"))
-  return(structure(list("CIs" = CIs, "level" = level, "MLE" = coefs), 
+  return(structure(list("CIs" = CIs[parm, , drop = FALSE], "level" = level, "MLE" = coefs[parm]), 
                    class = "BranchGLMCIs"))
 }
 
 #' Print Method for BranchGLMCIs Objects
-#' @param object a \code{BranchGLMCIs} object.
+#' @param x a \code{BranchGLMCIs} object.
 #' @param digits number of significant digits to display.
 #' @param ... further arguments passed from other methods.
 #' @return The supplied \code{BranchGLMCIs} object.
 #' @export
-print.BranchGLMCIs <- function(object, digits = 4, ...){
+print.BranchGLMCIs <- function(x, digits = 4, ...){
   print(signif(object$CIs, digits = digits))
   invisible(object)
 }
