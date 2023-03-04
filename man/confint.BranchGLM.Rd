@@ -4,12 +4,15 @@
 \alias{confint.BranchGLM}
 \title{Likelihood Ratio Confidence Intervals for Beta Coefficients}
 \usage{
-\method{confint}{BranchGLM}(object, level = 0.95, parallel = FALSE, nthreads = 8, ...)
+\method{confint}{BranchGLM}(object, parm, level = 0.95, parallel = FALSE, nthreads = 8, ...)
 }
 \arguments{
 \item{object}{a \code{BranchGLM} object.}
 
-\item{level}{desired confidence level.}
+\item{parm}{a specification of which parameters are to be given confidence intervals, 
+either a vector of numbers or a vector of names. If missing, all parameters are considered.}
+
+\item{level}{the confidence level required.}
 
 \item{parallel}{whether or not to make use of parallelization via OpenMP.}
 

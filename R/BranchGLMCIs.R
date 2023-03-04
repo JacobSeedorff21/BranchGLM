@@ -77,8 +77,8 @@ confint.BranchGLM <- function(object, parm, level = 0.95,
 #' @return The supplied \code{BranchGLMCIs} object.
 #' @export
 print.BranchGLMCIs <- function(x, digits = 4, ...){
-  print(signif(object$CIs, digits = digits))
-  invisible(object)
+  print(signif(x$CIs, digits = digits))
+  invisible(x)
 }
 
 

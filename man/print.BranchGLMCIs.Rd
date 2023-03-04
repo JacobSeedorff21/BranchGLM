@@ -4,10 +4,10 @@
 \alias{print.BranchGLMCIs}
 \title{Print Method for BranchGLMCIs Objects}
 \usage{
-\method{print}{BranchGLMCIs}(object, digits = 4, ...)
+\method{print}{BranchGLMCIs}(x, digits = 4, ...)
 }
 \arguments{
-\item{object}{a \code{BranchGLMCIs} object.}
+\item{x}{a \code{BranchGLMCIs} object.}
 
 \item{digits}{number of significant digits to display.}
 
