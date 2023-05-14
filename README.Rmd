@@ -188,7 +188,6 @@ summ <- summary(BranchVS)
 
 ## Plotting models
 plot(summ, type = "b")
-plot(summ, ptype = "variables")
 
 ```
 

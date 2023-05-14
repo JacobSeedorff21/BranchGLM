@@ -1,6 +1,17 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.1.1
+
+- Adding multiple new arguments to `plot.summary.BranchGLMVS()` and
+  `plot.BranchGLMVS()`
+- Changing estimate of dispersion for gaussian GLMs to be the MLE
+  instead of the unbiased estimator
+- Adding keepintercept argument to `VariableSelection()` to specify
+  whether the intercept should be kept or not
+- Removing standard errors and p-values from output of `fit()` since
+  these are biased due to the variable selection process
+
 # BranchGLM 2.1.0
 
 - Fixing bug in `VariableSelection()` when using formulas of the form
