@@ -13,7 +13,7 @@ void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const a
           const arma::imat* Interactions, std::string method, int m, std::string Link, std::string Dist,
           arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
           unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
-          arma::ivec* indices, double tol, int maxit, std::string metric){
+          arma::ivec* indices, double tol, int maxit, const arma::vec* pen){
   
   arma::vec Metrics(CurModel->n_elem, arma::fill::zeros);
   Metrics.fill(arma::datum::inf);
@@ -31,7 +31,7 @@ void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const a
         Counts.at(j) = 1;
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
-                   tol, maxit, metric);
+                   tol, maxit, pen);
       }
     }
   }
@@ -62,7 +62,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                 std::string Link, std::string Dist,
                 unsigned int nthreads, double tol, int maxit,
                 IntegerVector keep, 
-                unsigned int steps, std::string metric){
+                unsigned int steps, NumericVector pen){
   
 #ifdef _OPENMP
   omp_set_num_threads(nthreads);
@@ -72,6 +72,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
@@ -88,7 +89,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   // Creating necessary scalars
   double BestMetric = arma::datum::inf;
   BestMetric = MetricHelper(&xTemp, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, 
-                               tol, maxit, metric);
+                               tol, maxit, &Pen);
   unsigned int numchecked = 0;
   
   
@@ -98,7 +99,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     bool flag = true;
     CurModel = BestModel;
     add1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
-         &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
+         &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, &Pen);
     
     // Stopping process if no better model is found
     if(flag){
@@ -123,7 +124,7 @@ void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const 
            const arma::imat* Interactions, std::string method, int m, std::string Link, std::string Dist,
            arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
            unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
-           arma::ivec* indices, double tol, int maxit, std::string metric){
+           arma::ivec* indices, double tol, int maxit, const arma::vec* pen){
   
   arma::vec Metrics(CurModel->n_elem);
   arma::ivec Counts(CurModel->n_elem, arma::fill::zeros);
@@ -139,7 +140,7 @@ void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const 
         Counts.at(j) = 1;
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
-                   tol, maxit, metric);
+                   tol, maxit, pen);
       }
     }
   }
@@ -168,7 +169,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                  std::string method, int m,
                  std::string Link, std::string Dist,
                  unsigned int nthreads, double tol, int maxit,
-                 IntegerVector keep, unsigned int steps, std::string metric){
+                 IntegerVector keep, unsigned int steps, NumericVector pen){
   
 #ifdef _OPENMP
   omp_set_num_threads(nthreads);
@@ -178,6 +179,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
@@ -194,7 +196,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   // Creating necessary scalars
   double BestMetric = arma::datum::inf;
   BestMetric = MetricHelper(&xTemp, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, tol, maxit,
-                               metric);
+                            &Pen);
   
   unsigned int numchecked = 0;
   
@@ -204,7 +206,7 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     bool flag = true;
     CurModel = BestModel;
     drop1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
-          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, metric);
+          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, &Pen);
     
     // Stopping the process if no better model is found
     if(flag){
