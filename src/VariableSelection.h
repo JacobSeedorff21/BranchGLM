@@ -37,24 +37,18 @@ public:
   }
 };
 
-double GetMetric(const arma::mat* X, double logLik, 
-                 std::string Dist, std::string metric);
-
 arma::mat GetMatrix(const arma::mat* X, arma::ivec* CurModel, 
-                    arma::ivec* Indices);
-
-double BoundHelper(const arma::mat* X, double logLik, 
-                   std::string Dist, std::string metric, int minsize);
+                    const arma::ivec* Indices);
 
 double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double LowerBound, 
-                   std::string metric, int minsize);
+                   const arma::vec* pen);
 
 double MetricHelper(const arma::mat* X, const arma::mat* XTWX, 
                     const arma::vec* Y, const arma::vec* Offset,
                     const arma::ivec* Indices, const arma::ivec* CurModel,
                     std::string method, 
                     int m, std::string Link, std::string Dist,
-                    double tol, int maxit, std::string metric);
+                    double tol, int maxit, const arma::vec* pen);
 
 bool CheckModel(const arma::ivec* CurModel, const arma::imat* Interactions);
 
@@ -68,14 +62,14 @@ bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder,
 
 double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* CurModel,
                         arma::uvec* NewOrder, unsigned int cur, double metricVal, 
-                        std::string metric, unsigned int maxsize);
+                        const arma::vec* pen, unsigned int maxsize);
 
 double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
                 std::string method, int m, std::string Link, std::string Dist,
                 arma::ivec* CurModel,  arma::ivec* indices, 
                 double tol, int maxit,
-                std::string metric, unsigned int cur, int minsize,
-                arma::uvec* NewOrder, double LowerBound, double CurMetric,
+                const arma::vec* pen, unsigned int cur, int minsize,
+                arma::uvec* NewOrder, double LowerBound,
                 arma::vec* Metrics, bool DoAnyways = false);
 
 #endif
