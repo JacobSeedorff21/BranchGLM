@@ -50,7 +50,7 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
             arma::ivec* CurModel, arma::imat* BestModels, arma::vec* BestMetrics, 
             unsigned int* numchecked, arma::ivec* indices, double tol, 
             int maxit, 
-            int maxsize, unsigned int cur, std::string metric, 
+            int maxsize, unsigned int cur, const arma::vec* pen, 
             double LowerBound, arma::uvec* NewOrder, Progress* p, double cutoff){
   
   // Checking for user interrupt
@@ -65,6 +65,7 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
     metricCutoff = BestMetrics->at(0) + cutoff;
   }
   
+  
   // Continuing branching process if lower bound is smaller than the best observed metric
   if(LowerBound < metricCutoff && maxsize > 0){
     
@@ -73,25 +74,24 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
     p->print();
     
     // Creating vectors to be used later on
-    arma::uvec NewOrder2(NewOrder->n_elem - cur);
-    arma::vec Metrics(NewOrder->n_elem - cur);
-    arma::uvec Counts(NewOrder->n_elem - cur, arma::fill::zeros);
+    arma::uvec NewOrder2 = NewOrder->subvec(cur, NewOrder->n_elem - 1);
+    arma::vec Metrics(NewOrder2.n_elem);
+    arma::uvec Counts(NewOrder2.n_elem, arma::fill::zeros);
     arma::imat NewModels(CurModel->n_elem, NewOrder2.n_elem, arma::fill::zeros);
     
     // Getting metric values
 #pragma omp parallel for schedule(dynamic) 
     for(unsigned int j = 0; j < NewOrder2.n_elem; j++){
       arma::ivec CurModel2 = *CurModel;
-      CurModel2.at(NewOrder->at(j + cur)) = 1;
+      CurModel2.at(NewOrder2.at(j)) = 1;
       NewModels.col(j) = CurModel2;
-      NewOrder2.at(j) = NewOrder->at(j + cur);
       if(CheckModel(&CurModel2, Interactions)){
         // Only fitting model if it is valid
         Counts.at(j) = 1;
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, 
                    method, m, Link, Dist, 
-                   tol, maxit, metric);
+                   tol, maxit, pen);
       }
       else{
         // If model is not valid then set metric value to infinity
@@ -132,19 +132,17 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
       // Getting lower bounds
     #pragma omp parallel for schedule(dynamic)
       for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
-        arma::ivec CurModel2 = *CurModel;
-        if(!flag && CheckModels(&CurModel2, &NewOrder2, Interactions, j + 1)){
+        if(!flag && CheckModels(CurModel, &NewOrder2, Interactions, j + 1)){
           // Only need to calculate bounds if this set of models is valid
           if(j > 0){
             Counts2.at(j) = 1;
           
-            arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
+            arma::mat xTemp = GetMatrix(X, CurModel, indices);
           
             // Getting lower bound of model without current variable necessarily included
-            Bounds.at(j) = GetBound(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2,
-                         indices, tol, maxit, metric, 
-                         j, xTemp.n_cols, &NewOrder2, LowerBound, 
-                         Metrics.at(j), &Metrics);
+            Bounds.at(j) = GetBound(X, XTWX, Y, Offset, method, m, Link, Dist, CurModel,
+                         indices, tol, maxit, pen, j, xTemp.n_cols, &NewOrder2, LowerBound, &Metrics);
+            Bounds.at(j) += min(*pen);
             }
           else{
             // Don't need to recalculate this
@@ -156,8 +154,7 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
           }
           else{
             // Updating bound
-            Bounds.at(j) = UpdateBound(X, indices, NewOrder2.at(j), Bounds.at(j), 
-                      metric, arma::accu(*CurModel != 0));
+            Bounds.at(j) += pen->at(NewOrder2.at(j));
           }
         }
       }
@@ -173,7 +170,7 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
         arma::ivec CurModel2 = *CurModel;
         CurModel2.at(NewOrder2.at(j)) = 1;
         Branch(X, XTWX, Y, Offset, Interactions, method, m, Link, Dist, &CurModel2, BestModels, 
-               BestMetrics, numchecked, indices, tol, maxit, maxsize - 1, j + 1, metric, 
+               BestMetrics, numchecked, indices, tol, maxit, maxsize - 1, j + 1, pen, 
                Bounds.at(j), &NewOrder2, p, cutoff);
       }
     }
@@ -194,13 +191,14 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                        std::string method, int m,
                        std::string Link, std::string Dist,
                        unsigned int nthreads, double tol, int maxit, 
-                       IntegerVector keep, int maxsize, std::string metric,
+                       IntegerVector keep, int maxsize, NumericVector pen,
                        bool display_progress, unsigned int NumBest, double cutoff){
   
   // Creating necessary vectors/matrices
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
   arma::imat BestModels(keep.size(), NumBest, arma::fill::zeros);
@@ -220,7 +218,6 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   // Creating necessary scalars
   unsigned int numchecked = 1;
   unsigned int size = 0;
-  
   
   // Setting number of threads if OpenMP is available
 #ifdef _OPENMP
@@ -254,7 +251,7 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   // Fitting initial model
   double CurMetric = MetricHelper(&xTemp, &XTWX, &Y, &Offset, &Indices, 
                                      &CurModel, method, m, Link, Dist, 
-                                     tol, maxit, metric);
+                                     tol, maxit, &Pen);
   
   // Updating BestMetric is CurMetric is better
   if(CurMetric < BestMetrics.at(0)){
@@ -267,16 +264,15 @@ List BranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   arma::vec Metrics(1);
   Metrics.at(0) = arma::datum::inf;
   LowerBound = GetBound(&X, &XTWX, &Y, &Offset, method, m, Link, Dist, &CurModel,
-                        &Indices, tol, maxit, metric, 
-                        0, sum(abs(CurModel)), &NewOrder, LowerBound, 
-                        CurMetric, &Metrics, true);
+                        &Indices, tol, maxit, &Pen, 
+                        0, sum(abs(CurModel)), &NewOrder, LowerBound, &Metrics, true);
   
   // Incrementing numchecked
   numchecked++;
   
   // Starting branching process
   Branch(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModels, 
-            &BestMetrics, &numchecked, &Indices, tol, maxit, maxsize, 0, metric, 
+            &BestMetrics, &numchecked, &Indices, tol, maxit, maxsize, 0, &Pen, 
             LowerBound, &NewOrder, &p, cutoff);
   
   // Printing off final update
@@ -300,7 +296,7 @@ void BackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* 
                     std::string method, int m, std::string Link, std::string Dist,
                     arma::ivec* CurModel, arma::imat* BestModels, arma::vec* BestMetrics, 
                     unsigned int* numchecked, arma::ivec* indices, double tol, 
-                    int maxit, unsigned int cur, std::string metric, 
+                    int maxit, unsigned int cur, const arma::vec* pen, 
                     double LowerBound, arma::uvec* NewOrder, Progress* p, double cutoff){
   
   // Checking for user interrupt
@@ -341,7 +337,7 @@ void BackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* 
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2,
                                           method, m, Link, Dist, 
-                                          tol, maxit, metric);
+                                          tol, maxit, pen);
       }
     }
     
@@ -377,12 +373,11 @@ void BackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* 
           Counts2(j - 1) = 1;
           Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2,
                   method, m, Link, Dist, 
-                  tol, maxit, metric);
+                  tol, maxit, pen);
         }
         
         Metrics.at(j) = BackwardGetBound(X, indices, &CurModel2, &NewOrder2, 
-                   j, Metrics.at(j), metric, 
-                   xTemp.n_cols);
+                   j, Metrics.at(j), pen, xTemp.n_cols);
       }
       else{
         // If this set of models is invalid then set bound to infinity so no branching is done
@@ -401,7 +396,7 @@ void BackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* 
       arma::ivec CurModel2 = *CurModel;
       CurModel2.at(NewOrder2.at(j)) = 0;
       BackwardBranch(X, XTWX, Y, Offset, Interactions, method, m, Link, Dist, &CurModel2, BestModels, 
-                     BestMetrics, numchecked, indices, tol, maxit, j - 1, metric, 
+                     BestMetrics, numchecked, indices, tol, maxit, j - 1, pen, 
                      Metrics.at(j), &NewOrder2, p, cutoff);
     }
   }
@@ -421,13 +416,14 @@ List BackwardBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector o
                                std::string method, int m,
                                std::string Link, std::string Dist,
                                unsigned int nthreads, double tol, int maxit, 
-                               IntegerVector keep, std::string metric,
+                               IntegerVector keep, NumericVector pen,
                                bool display_progress, unsigned int NumBest, double cutoff){
   
   // Creating necessary vectors/matrices
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
   arma::imat BestModels(keep.size(), NumBest, arma::fill::zeros);
@@ -474,7 +470,7 @@ List BackwardBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector o
   // Fitting model with all variables included
   double CurMetric = MetricHelper(&X, &XTWX, &Y, &Offset, &Indices, &CurModel,
                                      method, m, Link, Dist, 
-                                     tol, maxit, metric);
+                                     tol, maxit, &Pen);
   
   // Updating BestMetric and BestModel if CurMetric is better than BestMetric
   if(CurMetric < BestMetrics.at(0)){
@@ -487,12 +483,12 @@ List BackwardBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector o
   
   // Getting lower bound for all models
   double LowerBound = BackwardGetBound(&X, &Indices, &CurModel, &NewOrder, 
-                                          NewOrder.n_elem, CurMetric, metric, 
+                                          NewOrder.n_elem, CurMetric, &Pen, 
                                           X.n_cols);
   
   // Starting the branching process
   BackwardBranch(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModels, 
-                    &BestMetrics, &numchecked, &Indices, tol, maxit, NewOrder.n_elem - 1, metric, 
+                    &BestMetrics, &numchecked, &Indices, tol, maxit, NewOrder.n_elem - 1, &Pen, 
                     LowerBound, &NewOrder, &p, cutoff);
   
   // Printing off final update
@@ -517,7 +513,7 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
                              std::string method, int m, std::string Link, std::string Dist,
                              arma::ivec* CurModel, arma::imat* BestModels, arma::vec* BestMetrics, 
                              unsigned int* numchecked, arma::ivec* indices, double tol, 
-                             int maxit, unsigned int cur, std::string metric, 
+                             int maxit, unsigned int cur, const arma::vec* pen, 
                              double LowerBound, arma::uvec* NewOrder, Progress* p, 
                              double LowerMetric, double cutoff);
 
@@ -527,7 +523,7 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
                std::string method, int m, std::string Link, std::string Dist,
                arma::ivec* CurModel, arma::imat* BestModels, arma::vec* BestMetrics, 
                unsigned int* numchecked, arma::ivec* indices, double tol, 
-               int maxit, unsigned int cur, std::string metric, 
+               int maxit, unsigned int cur, const arma::vec* pen, 
                double LowerBound, arma::uvec* NewOrder, Progress* p, 
                double UpperMetric, double cutoff){
   
@@ -568,7 +564,7 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         Metrics(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, 
                    method, m, Link, Dist, 
-                   tol, maxit, metric);
+                   tol, maxit, pen);
       }
       else{
         // If model is not valid then set metric value to infinity
@@ -628,9 +624,9 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
           
             // Getting lower bound of model without current variable necessarily included
             Bounds.at(j) = GetBound(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2,
-                      indices, tol, maxit, metric, 
-                      j, xTemp.n_cols, &NewOrder2, LowerBound, 
-                      Metrics.at(j), &Metrics2);
+                      indices, tol, maxit, pen, 
+                      j, xTemp.n_cols, &NewOrder2, LowerBound, &Metrics2);
+            Bounds.at(j) += min(*pen);
           }
           else{
             // Don't need to recalculate this
@@ -643,7 +639,7 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
           }
           else{
             // Updating bound
-            Bounds.at(j) = UpdateBound(X, indices, NewOrder2.at(j), Bounds.at(j), metric, arma::accu(*CurModel != 0));
+            Bounds.at(j) += pen->at(NewOrder2.at(j));
           }
         }
       }
@@ -678,7 +674,7 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
         if(Metrics.at(j) > Metrics2.at(j - 1)){
           // If upper model is better than lower model then call backward
         SwitchBackwardBranch(X, XTWX, Y, Offset, Interactions, method, m, Link, Dist, &UpperModel, BestModels, 
-                                BestMetrics, numchecked, indices, tol, maxit, j - 1, metric, 
+                                BestMetrics, numchecked, indices, tol, maxit, j - 1, pen, 
                                 Bounds.at(j - 1), &revNewOrder2, p, Metrics.at(j), cutoff);
         }else{
           // Creating new current model for next call to forward branch
@@ -687,7 +683,7 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
           
           // If lower model is better than upper model then call forward
           SwitchForwardBranch(X, XTWX, Y, Offset, Interactions, method, m, Link, Dist, &CurModel2, BestModels, 
-                                  BestMetrics, numchecked, indices, tol, maxit, NewOrder2.n_elem - j, metric, 
+                                  BestMetrics, numchecked, indices, tol, maxit, NewOrder2.n_elem - j, pen, 
                                   Bounds.at(j - 1), &NewOrder2, p, Metrics2.at(j - 1), cutoff);
         }
       }
@@ -707,7 +703,7 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
                        std::string method, int m, std::string Link, std::string Dist,
                        arma::ivec* CurModel, arma::imat* BestModels, arma::vec* BestMetrics, 
                        unsigned int* numchecked, arma::ivec* indices, double tol, 
-                       int maxit, unsigned int cur, std::string metric, 
+                       int maxit, unsigned int cur, const arma::vec* pen, 
                        double LowerBound, arma::uvec* NewOrder, Progress* p, 
                        double LowerMetric, double cutoff){
   
@@ -748,7 +744,7 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
         arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
         Metrics(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2,
                    method, m, Link, Dist, 
-                   tol, maxit, metric);
+                   tol, maxit, pen);
       }
       else{
         // Assigning infinity to metric value if model is not valid
@@ -793,11 +789,10 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
           Counts.at(j - 1) = 1;
           Metrics(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2,
                   method, m, Link, Dist, 
-                  tol, maxit, metric);
+                  tol, maxit, pen);
         }
         Bounds(j - 1) = BackwardGetBound(X, indices, &CurModel2, &NewOrder2, 
-               j, Metrics(j), metric, 
-               xTemp.n_cols);
+               j, Metrics(j), pen, xTemp.n_cols);
       }
       else{
         // If this set of models is invalid then set bound to infinity so no branching is done
@@ -846,23 +841,11 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
             arma::mat xTemp = GetMatrix(X, &NewLowerModel, indices);
             Lower.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &NewLowerModel,
                                          method, m, Link, Dist, 
-                                         tol, maxit, metric);
+                                         tol, maxit, pen);
           }
           
           // Tightening lower bound since we fit lower model
-          double MetricVal = 0;
-          
-          if(metric == "AIC"){
-            MetricVal = 2;
-          }
-          else if(metric == "BIC"){
-            MetricVal = log(X->n_rows);
-          }
-          else if(metric == "HQIC"){
-            MetricVal = 2 * log(log(X->n_rows));
-          }
-          
-          Bounds.at(j) += MetricVal;
+          Bounds.at(j) += min(*pen);
         }
       }
       
@@ -884,7 +867,7 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
           if(Metrics.at(j) > Lower.at(j)){
             // If Lower model has better metric value than upper model use forward
           SwitchForwardBranch(X, XTWX, Y, Offset, Interactions, method, m, Link, Dist, &LowerModel, BestModels, 
-                            BestMetrics, numchecked, indices, tol, maxit, j + 1, metric, 
+                            BestMetrics, numchecked, indices, tol, maxit, j + 1, pen, 
                             Bounds.at(j), &revNewOrder2, p, Metrics.at(j), cutoff);
           }
           else{
@@ -895,7 +878,7 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
             // If upper model has better metric value than lower model use backward
             SwitchBackwardBranch(X, XTWX, Y, Offset, Interactions, method, m, Link, Dist, &CurModel2, BestModels, 
                                    BestMetrics, numchecked, indices, tol, maxit, 
-                                   revNewOrder2.n_elem - 2 - j, metric, 
+                                   revNewOrder2.n_elem - 2 - j, pen, 
                                    Bounds.at(j), &NewOrder2, p, Lower.at(j), cutoff);
           }
         }
@@ -918,7 +901,7 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
                              std::string method, int m,
                              std::string Link, std::string Dist,
                              unsigned int nthreads, double tol, int maxit, 
-                             IntegerVector keep, std::string metric,
+                             IntegerVector keep, NumericVector pen,
                              bool display_progress, unsigned int NumBest, 
                              double cutoff){
   
@@ -926,6 +909,7 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
   arma::imat BestModels(keep.size(), NumBest, arma::fill::zeros);
@@ -976,7 +960,7 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
   double CurMetric = MetricHelper(&xTemp, &XTWX, &Y, &Offset, &Indices, 
                                        &CurModel, method, m, Link, Dist, 
-                                       tol, maxit, metric);
+                                       tol, maxit, &Pen);
   
   // Updating BestMetric and BestModel if CurMetric is better than BestMetric
   if(CurMetric < BestMetrics.at(0)){
@@ -992,8 +976,8 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
   arma::vec Metrics(1);
   Metrics.at(0) = arma::datum::inf;
   LowerBound = GetBound(&X, &XTWX, &Y, &Offset, method, m, Link, Dist, &CurModel,
-                           &Indices, tol, maxit, metric, 
-                           0, sum(abs(CurModel)), &NewOrder, LowerBound, CurMetric, 
+                           &Indices, tol, maxit, &Pen, 
+                           0, sum(abs(CurModel)), &NewOrder, LowerBound, 
                            &Metrics, true);
   // Defining Upper model
   arma::ivec UpperModel = CurModel;
@@ -1011,7 +995,7 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
   if(Metrics.at(0) < CurMetric && NewOrder.n_elem > 1){
     // Branching forward if lower model has better metric value than upper model
     SwitchForwardBranch(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModels, 
-            &BestMetrics, &numchecked, &Indices, tol, maxit, 0, metric, 
+            &BestMetrics, &numchecked, &Indices, tol, maxit, 0, &Pen, 
             LowerBound, &NewOrder, &p, Metrics.at(0), cutoff);
   }else if(NewOrder.n_elem > 1){
     // Branching backward if upper model has better metric value than lower model
@@ -1021,7 +1005,7 @@ List SwitchBranchAndBoundCpp(NumericMatrix x, NumericVector y, NumericVector off
     }
     
     SwitchBackwardBranch(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &UpperModel, &BestModels, 
-                           &BestMetrics, &numchecked, &Indices, tol, maxit, NewOrder.n_elem - 1, metric, 
+                           &BestMetrics, &numchecked, &Indices, tol, maxit, NewOrder.n_elem - 1, &Pen, 
                            LowerBound, &NewOrder, &p, CurMetric, cutoff);
   }else{
     p.update(2);
