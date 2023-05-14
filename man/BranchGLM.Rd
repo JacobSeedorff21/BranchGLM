@@ -18,6 +18,7 @@ BranchGLM(
   tol = 1e-06,
   maxit = NULL,
   init = NULL,
+  fit = TRUE,
   contrasts = NULL,
   keepData = TRUE,
   keepY = TRUE
@@ -68,6 +69,10 @@ Fisher's scoring is 50 and for the other methods the default is 200.}
 \item{init}{initial values for the betas, if not specified then they are automatically 
 selected.}
 
+\item{fit}{a logical value to indicate whether to fit the model or not. Setting 
+this to false will make it so no coefficients matrix or variance-covariance 
+matrix are returned.}
+
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
 \item{keepData}{Whether or not to store a copy of data and design matrix, the default 
@@ -88,7 +93,7 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
 \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
-\item{\code{resdev}}{ the residual deviance of the fitted model}
+\item{\code{resDev}}{ the residual deviance of the fitted model}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
 \item{\code{linpreds}}{ linear predictors from the fitted model}
@@ -101,6 +106,7 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
 \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
 \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
+\item{\code{mf}}{ the model frame, not included if \code{keepData = FALSE}}
 \item{\code{numobs}}{ number of observations in the design matrix}
 \item{\code{names}}{ names of the variables}
 \item{\code{yname}}{ name of y variable}
@@ -117,7 +123,8 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
-\item{\code{resdev}}{ the residual deviance of the fitted model}
+\item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
+\item{\code{resDev}}{ the residual deviance of the fitted model}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
 \item{\code{linpreds}}{ linear predictors from the fitted model}

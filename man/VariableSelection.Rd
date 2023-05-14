@@ -20,6 +20,7 @@ VariableSelection(object, ...)
   bestmodels = 1,
   cutoff = 0,
   keep = NULL,
+  keepintercept = TRUE,
   maxsize = NULL,
   grads = 10,
   parallel = FALSE,
@@ -38,13 +39,10 @@ VariableSelection(object, ...)
   bestmodels = 1,
   cutoff = 0,
   keep = NULL,
+  keepintercept = TRUE,
   maxsize = NULL,
-  method = "Fisher",
-  grads = 10,
   parallel = FALSE,
   nthreads = 8,
-  tol = 1e-06,
-  maxit = NULL,
   showprogress = TRUE,
   ...
 )
@@ -89,6 +87,9 @@ should be specified. This is only used for the branch and bound methods.}
 
 \item{keep}{vector of names to denote variables that must be in the models.}
 
+\item{keepintercept}{whether to keep the intercept in all models, only used if 
+an intercept is included in the formula.}
+
 \item{maxsize}{maximum number of variables to consider in a single model, the 
 default is the total number of variables. This number adds onto any variables specified in keep. 
 This argument only works for \code{type = "forward"} and \code{type = "branch and bound"}.}
@@ -120,6 +121,7 @@ object if a formula is supplied}
 \item{\code{bestmodels}}{ numeric matrix used to describe the best models}
 \item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search}
 \item{\code{cutoff}}{ the supplied cutoff}
+\item{\code{keep}}{ vector of which variables are kept through the selection process}
 }
 \description{
 Performs forward selection, backward elimination, 
@@ -130,9 +132,8 @@ bound algorithms to greatly speed up the process.
 \details{
 The supplied formula or the formula from the fitted model is 
 treated as the upper model. The variables specified in keep along with an 
-intercept (if included in formula) is the lower model. When an intercept is 
-included in the model formula it is kept in each model. Factor 
-variables are either kept in their entirety or entirely removed.
+intercept (if included in formula and keepintercept = TRUE) is the lower model. 
+Factor variables are either kept in their entirety or entirely removed.
 
 
 The branch and bound method makes use of an efficient branch and bound algorithm 

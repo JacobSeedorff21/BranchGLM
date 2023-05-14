@@ -30,7 +30,8 @@ see more about this at \link{par}.}
 \item{cex.y}{font size used for variable names on y-axis.}
 
 \item{decreasing}{a logical value indicating if confidence intervals should be 
-displayed in decreasing or increasing order according to points.}
+displayed in decreasing or increasing order according to points. Can use NA 
+if no ordering is desired.}
 
 \item{...}{further arguments passed to default plot method.}
 }

@@ -5,25 +5,46 @@
 \alias{plot.summary.BranchGLMVS}
 \title{Plot Method for summary.BranchGLMVS and BranchGLMVS objects}
 \usage{
-\method{plot}{BranchGLMVS}(x, ptype = "both", marx = 7, addLines = TRUE, type = "b", ...)
+\method{plot}{BranchGLMVS}(
+  x,
+  ptype = "both",
+  marnames = 7,
+  addLines = TRUE,
+  type = "b",
+  horiz = FALSE,
+  cex.names = 1,
+  ...
+)
 
-\method{plot}{summary.BranchGLMVS}(x, ptype = "both", marx = 7, addLines = TRUE, type = "b", ...)
+\method{plot}{summary.BranchGLMVS}(
+  x,
+  ptype = "both",
+  marnames = 7,
+  addLines = TRUE,
+  type = "b",
+  horiz = FALSE,
+  cex.names = 1,
+  ...
+)
 }
 \arguments{
 \item{x}{a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.}
 
 \item{ptype}{the type of plot to produce, look at details for more explanation.}
 
-\item{marx}{value used to determine how large to make margin of x-axis, this is 
-only for the "variables" plot. If variable names are cut-off, consider increasing this 
-from the default value of 7.}
+\item{marnames}{value used to determine how large to make margin of axis with variable 
+names, this is only for the "variables" plot. If variable names are cut-off, 
+consider increasing this from the default value of 7.}
 
 \item{addLines}{logical value to indicate whether or not to add black lines to 
-separate the models for ptype = "variables". This is typically useful for smaller 
+separate the models for the "variables" plot. This is typically useful for smaller 
 amounts of models, but can be annoying if there are many models.}
 
-\item{type}{what type of plot to draw for the "metrics" plot, see more details 
-at \link{par}.}
+\item{type}{what type of plot to draw for the "metrics" plot, see more details at \link{plot.default}.}
+
+\item{horiz}{whether models should be displayed horizontally or vertically in the "variables" plot.}
+
+\item{cex.names}{how big to make variable names in the "variables" plot.}
 
 \item{...}{arguments passed to the generic plot and image methods.}
 }

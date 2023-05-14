@@ -6,11 +6,11 @@
 \alias{fit.summary.BranchGLMVS}
 \title{Fits GLMs for summary.BranchGLMVS and BranchGLMVS objects}
 \usage{
-\method{fit}{BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, ...)
+\method{fit}{BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, useNA = FALSE, ...)
 
 fit(object, ...)
 
-\method{fit}{summary.BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, ...)
+\method{fit}{summary.BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, useNA = FALSE, ...)
 }
 \arguments{
 \item{object}{a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.}
@@ -25,6 +25,9 @@ is TRUE. If this is FALSE, then the results from this cannot be used inside of \
 this is FALSE, then the binomial GLM helper functions may not work and this 
 cannot be used inside of \code{VariableSelection}.}
 
+\item{useNA}{Whether or not to use observations that had missing values in the 
+full model, but not for this specific model. The default is FALSE.}
+
 \item{...}{further arguments passed to other methods.}
 }
 \value{
@@ -36,6 +39,9 @@ Fits GLMs for summary.BranchGLMVS and BranchGLMVS objects
 \details{
 The information needed to fit the GLM is taken from the original information 
 supplied to the \code{VariableSelection} function.
+
+The fitted models do not have standard errors or p-values since these are 
+biased due to the selection process.
 }
 \examples{
 Data <- iris
