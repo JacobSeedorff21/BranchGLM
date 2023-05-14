@@ -48,14 +48,17 @@ confint.BranchGLM <- function(object, parm, level = 0.95,
   }
   
   # Getting LR CIs
+  if(object$family == "gaussian" || object$family == "gamma"){
+    object$AIC <- object$AIC - 2
+  }
   metrics <- rep(object$AIC, ncol(object$x))
   model <- matrix(rep(-1, ncol(object$x)), ncol = 1)
   model[parm] <- 1
   res <- MetricIntervalCpp(object$x, object$y, object$offset, 
                            1:ncol(object$x) - 1, rep(1, ncol(object$x)), model, 
                            object$method, object$grads, object$link, object$family, 
-                           nthreads, object$tol, object$maxit, "AIC", coefs, SEs,
-                           metrics, object$AIC + qchisq(level, 1), 
+                           nthreads, object$tol, object$maxit, rep(2, ncol(object$x)), coefs, SEs,
+                           metrics, qchisq(level, 1), object$AIC,
                            "ITP")
   
   # Replacing infinities with NA
@@ -138,7 +141,8 @@ plot.BranchGLMCIs <- function(x, which = "all", mary = 5, ...){
 #' see more about this at \link{par}.
 #' @param cex.y font size used for variable names on y-axis.
 #' @param decreasing a logical value indicating if confidence intervals should be 
-#' displayed in decreasing or increasing order according to points.
+#' displayed in decreasing or increasing order according to points. Can use NA 
+#' if no ordering is desired.
 #' @param ... further arguments passed to default plot method.
 #' @return This only produces a plot, nothing is returned.
 #' @examples 
@@ -172,7 +176,11 @@ plotCI <- function(CIs, points = NULL, ylab = "", las = 2, cex.y = 1,
   }
     
   # Getting order of points
-  ind <- order(points, decreasing = decreasing)
+  if(!is.na(decreasing)){
+    ind <- order(points, decreasing = decreasing)
+  }else{
+    ind <- 1:length(points)
+  }
   if(!is.matrix(CIs)){
     CIs <- matrix(CIs, ncol = 1, dimnames = list(NULL, names(CIs)))
   }
@@ -188,8 +196,7 @@ plotCI <- function(CIs, points = NULL, ylab = "", las = 2, cex.y = 1,
        ...)
   
   ## Creating confidence intervals
-  segments(y0 = 1:ncol(quants), x0 = quants[1, ], x1 = points)
-  segments(y0 = 1:ncol(quants), x0 = points, x1 = quants[2, ])
+  segments(y0 = 1:ncol(quants), x0 = quants[1, ], x1 = quants[2, ])
   segments(y0 = 1:ncol(quants) - 0.25, x0 = quants[1, ], y1 = 1:ncol(quants) + 0.25)
   segments(y0 = 1:ncol(quants) - 0.25, x0 = quants[2, ], y1 = 1:ncol(quants) + 0.25)
   
