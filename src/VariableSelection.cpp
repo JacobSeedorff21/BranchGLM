@@ -52,31 +52,10 @@ public:
         }
   }
 };
-// Gets metric for given log likelihood and x matrix
-double GetMetric(const arma::mat* X, double logLik, 
-                 std::string Dist, std::string metric){
-  
-  double value = 0;
-  unsigned int k = X->n_cols;
-  if(Dist == "gaussian" || Dist == "gamma"){
-    k++;
-  }
-  
-  if(metric == "AIC"){
-    value = -2 * logLik + 2 * k;
-  }
-  else if(metric == "BIC"){
-    value = -2 * logLik + log(X->n_rows) * k;
-  }
-  else if(metric == "HQIC"){
-    value = -2 * logLik + 2 * log(log(X->n_rows)) * k;
-  }
-  
-  return(value);
-}
+
 // Gets matrix for a given model
 arma::mat GetMatrix(const arma::mat* X, arma::ivec* CurModel, 
-                    arma::ivec* Indices){
+                    const arma::ivec* Indices){
   
   // Getting size of matrix and the desired columns
   double Size = 0;
@@ -102,34 +81,11 @@ arma::mat GetMatrix(const arma::mat* X, arma::ivec* CurModel,
   return(xTemp);
 }
 
-double BoundHelper(const arma::mat* X, double logLik, 
-                   std::string Dist, std::string metric, int minsize){
-  
-  double value = 0;
-  unsigned int k = minsize;
-  if(Dist == "gaussian" || Dist == "gamma"){
-    k++;
-  }
-  
-  if(metric == "AIC"){
-    value = -2 * logLik + 2 * k;
-  }
-  else if(metric == "BIC"){
-    value = -2 * logLik + log(X->n_rows) * k;
-  }
-  else if(metric == "HQIC"){
-    value = -2 * logLik + 2 * log(log(X->n_rows)) * k;
-  }
-  
-  return(value);
-}
-
 // Updates bound if upper model is the same as it was for the previous lower bound, 
 // is also a naive bound checked before calculating better lower bound
 double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double LowerBound, 
-                   std::string metric, int minsize){
+                   const arma::vec* pen){
   
-  double value = 0;
   unsigned int k = 0;
   for(unsigned int i = 0; i < indices->n_elem; i++){
     if(indices->at(i) == (cur)){
@@ -137,16 +93,7 @@ double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double Lowe
     }
   }
   
-  if(metric == "AIC"){
-    value =  LowerBound  + 2 * k;
-  }
-  else if(metric == "BIC"){
-    value = LowerBound + log(X->n_rows) * k;
-  }
-  else if(metric == "HQIC"){
-    value = LowerBound + 2 * log(log(X->n_rows)) * k;
-  }
-  return(value);
+  return(LowerBound + pen->at(cur));
 }
 
 // Function used to fit models and calculate desired metric
@@ -155,7 +102,7 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
                     const arma::ivec* Indices, const arma::ivec* CurModel,
                     std::string method, 
                     int m, std::string Link, std::string Dist,
-                    double tol, int maxit, std::string metric){
+                    double tol, int maxit, const arma::vec* pen){
   
   // If x has more columns than rows, then we cannot fit any model
   if(X->n_cols > X->n_rows){
@@ -197,6 +144,7 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
   else{
     Iter = ParFisherScoringGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
   }
+  
   if(Iter <= 0){
     return(arma::datum::inf);
   }
@@ -224,7 +172,8 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
   if(std::isnan(LogLik)){
     return(arma::datum::inf);
   }
-  return(GetMetric(X, LogLik, Dist, metric));
+  
+  return(-2 * LogLik + arma::accu(pen->elem(find(*CurModel != 0))));
 }
 
 // Function used to check if given model is valid, i.e. if lower order terms are 
@@ -298,7 +247,7 @@ bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder,
 // need to use that and minimum number of variables to get bound
 double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* CurModel,
                         arma::uvec* NewOrder, unsigned int cur, double metricVal, 
-                        std::string metric, unsigned int maxsize){
+                        const arma::vec* pen, unsigned int maxsize){
   
   // If metricVal is infinite, then return -inf as the lower bound
   if(metricVal == arma::datum::inf){
@@ -310,37 +259,26 @@ double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* Cur
   for(unsigned int i = 0; i < cur; i++){
     lowerModel(NewOrder->at(i)) = 0;
   }
-  arma::mat xLower = GetMatrix(X, &lowerModel, indices);
-  unsigned int minsize = xLower.n_cols;
-  double value = 0;
   
-  // Calculating lower bound from metricVal and maxsize/minsize
-  if(metric == "AIC"){
-    value =  metricVal  - 2 * maxsize + 2 * minsize;
-  }
-  else if(metric == "BIC"){
-    value = metricVal - log(X->n_rows) * maxsize + log(X->n_rows) * minsize;
-  }
-  else if(metric == "HQIC"){
-    value = metricVal - 2 * log(log(X->n_rows)) * maxsize + 2 * log(log(X->n_rows)) * minsize;
-  }
-  
-  return(value);
+  // arma::mat xLower = GetMatrix(X, &lowerModel, indices);
+  // unsigned int minsize = xLower.n_cols;
+  return(metricVal - arma::accu(pen->elem(find(*CurModel != 0))) + 
+         arma::accu(pen->elem(find(lowerModel != 0))));
 }
 
 
 // Fits upper model for a set of models and calculates the bound for the desired metric
 double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
                 std::string method, int m, std::string Link, std::string Dist,
-                arma::ivec* CurModel,  arma::ivec* indices, 
+                arma::ivec* CurModel, arma::ivec* indices, 
                 double tol, int maxit,
-                std::string metric, unsigned int cur, int minsize,
-                arma::uvec* NewOrder, double LowerBound, double CurMetric,
+                const arma::vec* pen, unsigned int cur, int minsize,
+                arma::uvec* NewOrder, double LowerBound,
                 arma::vec* Metrics, bool DoAnyways = false){
   
   // Checking if we need to fit model for upper bound and updating bounds if we don't need to
   if(cur == 0 && !DoAnyways){
-    return(UpdateBound(X, indices, NewOrder->at(cur), LowerBound, metric, minsize));
+    return(LowerBound + pen->at(NewOrder->at(cur)));
   }
   
   // Creating vector for the upper model
@@ -364,9 +302,6 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
       NewInd.at(count++) = i;
     }
   }
-  
-  
-  
   // Defining Iter
   int Iter;
   
@@ -433,26 +368,9 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   }
   
   // Updating metric value
-  if(cur > 0){
-    Metrics->at(cur) = GetMetric(&xTemp, LogLik, Dist, metric);
-  }
-  else{
-    Metrics->at(0) = GetMetric(&xTemp, LogLik, Dist, metric);
-  } 
+  Metrics->at(cur) = -2 * LogLik + arma::accu(pen->elem(find(UpperModel != 0)));
   
   // Getting bound if model converged
-  double NewBound = BoundHelper(&xTemp, LogLik, Dist, metric, minsize);
-  double MetricVal = 0;
-  
-  if(metric == "AIC"){
-    MetricVal = 2;
-  }
-  else if(metric == "BIC"){
-    MetricVal = log(X->n_rows);
-  }
-  else if(metric == "HQIC"){
-    MetricVal = 2 * log(log(X->n_rows));
-  }
-  
-  return(NewBound + MetricVal);
+  double NewBound = -2 * LogLik + arma::accu(pen->elem(find(*CurModel != 0)));
+  return(NewBound);
 }
