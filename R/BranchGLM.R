@@ -16,6 +16,9 @@
 #' Fisher's scoring is 50 and for the other methods the default is 200.
 #' @param init initial values for the betas, if not specified then they are automatically 
 #' selected.
+#' @param fit a logical value to indicate whether to fit the model or not. Setting 
+#' this to false will make it so no coefficients matrix or variance-covariance 
+#' matrix are returned.
 #' @param keepData Whether or not to store a copy of data and design matrix, the default 
 #' is TRUE. If this is FALSE, then the results from this cannot be used inside of \code{VariableSelection}.
 #' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
@@ -30,7 +33,7 @@
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
 #' \item{\code{logLik}}{ the log-likelihood of the fitted model}
 #' \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
-#' \item{\code{resdev}}{ the residual deviance of the fitted model}
+#' \item{\code{resDev}}{ the residual deviance of the fitted model}
 #' \item{\code{AIC}}{ the AIC of the fitted model}
 #' \item{\code{preds}}{ predictions from the fitted model}
 #' \item{\code{linpreds}}{ linear predictors from the fitted model}
@@ -43,6 +46,7 @@
 #' \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
 #' \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
 #' \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
+#' \item{\code{mf}}{ the model frame, not included if \code{keepData = FALSE}}
 #' \item{\code{numobs}}{ number of observations in the design matrix}
 #' \item{\code{names}}{ names of the variables}
 #' \item{\code{yname}}{ name of y variable}
@@ -59,7 +63,8 @@
 #' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
 #' \item{\code{logLik}}{ the log-likelihood of the fitted model}
-#' \item{\code{resdev}}{ the residual deviance of the fitted model}
+#' \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
+#' \item{\code{resDev}}{ the residual deviance of the fitted model}
 #' \item{\code{AIC}}{ the AIC of the fitted model}
 #' \item{\code{preds}}{ predictions from the fitted model}
 #' \item{\code{linpreds}}{ linear predictors from the fitted model}
@@ -109,7 +114,7 @@
 BranchGLM <- function(formula, data, family, link, offset = NULL, 
                     method = "Fisher", grads = 10,
                     parallel = FALSE, nthreads = 8, 
-                    tol = 1e-6, maxit = NULL, init = NULL, 
+                    tol = 1e-6, maxit = NULL, init = NULL, fit = TRUE, 
                     contrasts = NULL, keepData = TRUE,
                     keepY = TRUE){
   
@@ -132,13 +137,14 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(length(grads) != 1 || !is.numeric(grads) || as.integer(grads) <= 0){
     stop("grads must be a positive integer")
   }
+  
   ### Evaluating arguments
   mf <- match.call(expand.dots = FALSE)
   m <- match(c("formula", "data", "offset"), names(mf), 0L)
   mf <- mf[c(1L, m)]
   mf$drop.unused.levels <- TRUE
   mf$na.action <- "na.omit"
-  mf[[1L]] <- as.name("model.frame")
+  mf[[1L]] <- quote(model.frame)
   mf <- eval(mf, parent.frame())
   
   ## Getting data objects
@@ -169,12 +175,24 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     }
   }
   
+  ## Getting maxit
+  if(is.null(maxit)){
+    if(method == "Fisher"){
+      maxit = 50
+    }else{
+      maxit = 200
+    }
+  }
+  
   ### Using BranchGLM.fit to fit GLM
-  df <- BranchGLM.fit(x, y, family, link, offset, method, grads, parallel, nthreads, 
-                      init, maxit, tol)
+  if(fit){
+    df <- BranchGLM.fit(x, y, family, link, offset, method, grads, parallel, nthreads, 
+                        init, maxit, tol)
   
-  row.names(df$coefficients) <- colnames(x)
-  
+    row.names(df$coefficients) <- colnames(x)
+  }else{
+    df <- list("coefficients" = NULL)
+  }
   df$formula <- formula
   
   df$method <- method
@@ -188,6 +206,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(keepData){
     df$data <- data
     df$x <- x
+    df$mf <- mf
     df$offset <- offset
   }
   df$names <- attributes(terms(formula, data = data))$factors |>
@@ -214,15 +233,21 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   
   df$grads <- grads
   
+  df$tol <- tol
+  
+  df$maxit <- maxit
+  
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
-  if(family == "gaussian" || family == "gamma"){
+  if((family == "gaussian" || family == "gamma") && fit){
     colnames(df$coefficients)[3] <- "t"
   }
   
   # Setting names for vcov
-  rownames(df$vcov) <- colnames(df$vcov) <- colnames(x)
+  if(fit){
+    rownames(df$vcov) <- colnames(df$vcov) <- colnames(x)
+  }
   
   structure(df, class = "BranchGLM")
 }
@@ -403,7 +428,7 @@ predict.BranchGLM <- function(object, newdata = NULL, type = "response", ...){
                      xlev = object$xlev)
     x <- model.matrix(myterms, m, contrasts = object$contrasts)
     
-    if(ncol(x) != length(object$coefficients$Estimate)){
+    if(ncol(x) != length(coef(object))){
       stop("could not find all predictor variables in newdata")
     }else if(type == "linpreds"){
       drop(x %*% coef(object)) |> unname()
