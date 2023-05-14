@@ -671,7 +671,7 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
   
   if(Dist == "gaussian"){
     // Dispersion parameter for gaussian glm is the MSE
-    dispersion = arma::accu(pow(*Y - *mu, 2)) / (X->n_rows - X->n_cols);
+    dispersion = arma::accu(pow(*Y - *mu, 2)) / (X->n_rows);
   }else if(Dist == "gamma"){
     
     // Initializing values
@@ -900,3 +900,17 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                             Named("linPreds") = linPreds1, 
                             Named("vcov") = vcov);
 }
+
+// [[Rcpp::export]]
+double RLogLik(NumericMatrix x, NumericVector y, NumericVector offset, 
+               NumericVector beta, std::string Dist, std::string Link){
+  const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
+  const arma::vec Y(y.begin(), y.size(), false, true); 
+  const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  arma::vec Beta(beta.begin(), beta.size(), false, true);
+  
+  
+  arma::vec mu = LinkCpp(&X, &Beta, &Offset, Link, Dist);
+  return(LogLikelihoodCpp(&X, &Y, &mu, Dist));
+  
+} 
