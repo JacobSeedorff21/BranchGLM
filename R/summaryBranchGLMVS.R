@@ -42,8 +42,12 @@ summary.BranchGLMVS <- function(object, ...){
   BestModels[BestModels == -1] <- "kept"
   BestModels[BestModels == 0] <- "no"
   BestModels[BestModels == 1] <- "yes"
+    
+  # Creating data frame with results
   df <- data.frame(BestModels, object$bestmetrics)
   colnames(df) <- c(object$names, object$metric)
+  
+  # Creating formulas for each model
   Models <- object$bestmodels
   if(!is.matrix(Models)){
     # if Models is a vector, then change it to a matrix
@@ -169,6 +173,9 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' @param type what type of plot to draw for the "metrics" plot, see more details at \link{plot.default}. 
 #' @param horiz whether models should be displayed horizontally or vertically in the "variables" plot.
 #' @param cex.names how big to make variable names in the "variables" plot.
+#' @param cex.lab how big to make axis labels.
+#' @param cex.axis how big to make axis annotation.
+#' @param cex.legend how big to make legend labels.
 #' @param ... arguments passed to the generic plot and image methods.
 #' @details The different values for ptype are as follows
 #' \itemize{
@@ -195,10 +202,10 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' @return This only produces plots, nothing is returned.
 #' @export
 
-plot.summary.BranchGLMVS <- function(x, ptype = "both", 
-                                     marnames = 7, addLines = TRUE, 
+plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines = TRUE, 
                                      type = "b", horiz = FALSE,
-                                     cex.names = 1,
+                                     cex.names = 1, cex.lab = 1, 
+                                     cex.axis = 1, cex.legend = 1,
                                      ...){
   if(!ptype %in% c("metrics", "both", "variables")){
     stop("supplied ptype is not supported")
@@ -207,14 +214,14 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both",
     plot(1:nrow(x$results), x$results[, ncol(x$results)], 
          xlab = "Rank", ylab = x$metric, 
          main = paste0("Best Models Ranked by ", x$metric),
-         type = type,
+         type = type, cex.lab = cex.lab, cex.axis = cex.axis,
          ...)
   }
   if(ptype %in% c("variables", "both") && !horiz){
     # This is inspired by the plot.regsubsets function
     n <- length(x$formulas)
-    Names <- colnames(x$results)[-(ncol(x$results) + -1:0)]
-    z <- x$results[, -(ncol(x$results) + -1:0)]
+    Names <- colnames(x$results)[-(ncol(x$results))]
+    z <- x$results[, -(ncol(x$results))]
     z[z == "kept"] <- 2
     z[z == "no"] <- 1
     z[z == "yes"] <- 0
@@ -238,7 +245,8 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both",
             col = c("deepskyblue", "indianred"), ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded"), 
-             fill = c("deepskyblue", "indianred"), xpd = TRUE)
+             fill = c("deepskyblue", "indianred"), 
+             xpd = TRUE, cex = cex.legend)
     }else{
       # Do this if there were any kept variables
       image(x1, y, z, ylab = "", 
@@ -247,7 +255,8 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both",
             col = c("deepskyblue", "indianred", "forestgreen"), ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded", "Kept"), 
-             fill = c("deepskyblue", "indianred", "forestgreen"), xpd = TRUE)
+             fill = c("deepskyblue", "indianred", "forestgreen"), 
+             xpd = TRUE, cex = cex.legend)
     }
     
     # Adding lines
@@ -258,17 +267,17 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both",
     }
     
     # Adding axis labels
-    axis(1, at = x1, labels = x1, line = 1, las = 1)
+    axis(1, at = x1, labels = x1, line = 1, las = 1, cex.axis = cex.axis)
     axis(2, at = y, labels = Names, line = 1, las = 2, cex.axis = cex.names)
     
     # Adding y-axis title, this is used to avoid overlapping of axis title and labels
-    mtext(paste0("Rank According to ", x$metric), side = 1, line = 4)
+    mtext(paste0("Rank According to ", x$metric), side = 1, line = 4, cex = cex.lab)
     
   }else if(ptype %in% c("variables", "both") && horiz){
     # This is inspired by the plot.regsubsets function
     n <- length(x$formulas)
-    Names <- colnames(x$results)[-(ncol(x$results) + -1:0)]
-    z <- x$results[, -(ncol(x$results) + -1:0)]
+    Names <- colnames(x$results)[-(ncol(x$results))]
+    z <- x$results[, -(ncol(x$results))]
     z[z == "kept"] <- 2
     z[z == "no"] <- 1
     z[z == "yes"] <- 0
@@ -294,7 +303,8 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both",
             col = c("deepskyblue", "indianred"), ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded"), 
-             fill = c("deepskyblue", "indianred"), xpd = TRUE)
+             fill = c("deepskyblue", "indianred"), 
+             xpd = TRUE, cex = cex.legend)
     }else{
       # Do this if there were any kept variables
       image(x1, y, z, ylab = "", 
@@ -303,7 +313,8 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both",
             col = c("deepskyblue", "indianred", "forestgreen"), ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded", "Kept"), 
-             fill = c("deepskyblue", "indianred", "forestgreen"), xpd = TRUE)
+             fill = c("deepskyblue", "indianred", "forestgreen"),
+             xpd = TRUE, cex = cex.legend)
     }
     
     # Adding lines
@@ -315,10 +326,10 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both",
     
     # Adding axis labels
     axis(1, at = x1, labels = Names, line = 1, las = 2, cex.axis = cex.names)
-    axis(2, at = y, labels = y, line = 1, las = 2)
+    axis(2, at = y, labels = y, line = 1, las = 2, cex.axis = cex.axis)
     
     # Adding y-axis title, this is used to avoid overlapping of axis title and labels
-    mtext(paste0("Rank According to ", x$metric), side = 2, line = 4)
+    mtext(paste0("Rank According to ", x$metric), side = 2, line = 4, cex = cex.lab)
     
   }
 }

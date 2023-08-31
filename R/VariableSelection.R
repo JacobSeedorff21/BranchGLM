@@ -395,13 +395,15 @@ fit.BranchGLMVS <- function(object, which = 1, keepData = TRUE, keepY = TRUE, us
 
 #' @rdname plot.summary.BranchGLMVS 
 #' @export
-plot.BranchGLMVS <- function(x, ptype = "both", 
-                             marnames = 7, addLines = TRUE, 
+plot.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines = TRUE, 
                              type = "b", horiz = FALSE,
-                             cex.names = 1, 
+                             cex.names = 1, cex.lab = 1, 
+                             cex.axis = 1, cex.legend = 1,
                              ...){
-  plot(summary(x), ptype = ptype, marnames = marnames, addLines = addLines, 
-       type = type, horiz = horiz, cex.names = cex.names, 
+  plot(summary(x), ptype = ptype, marnames = marnames, 
+       addLines = addLines, type = type, horiz = horiz, 
+       cex.names = cex.names, cex.lab = cex.lab, 
+       cex.axis = cex.axis, cex.legend = cex.legend,
        ...)
 }
 

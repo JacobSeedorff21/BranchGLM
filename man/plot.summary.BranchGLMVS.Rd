@@ -13,6 +13,9 @@
   type = "b",
   horiz = FALSE,
   cex.names = 1,
+  cex.lab = 1,
+  cex.axis = 1,
+  cex.legend = 1,
   ...
 )
 
@@ -24,6 +27,9 @@
   type = "b",
   horiz = FALSE,
   cex.names = 1,
+  cex.lab = 1,
+  cex.axis = 1,
+  cex.legend = 1,
   ...
 )
 }
@@ -45,6 +51,12 @@ amounts of models, but can be annoying if there are many models.}
 \item{horiz}{whether models should be displayed horizontally or vertically in the "variables" plot.}
 
 \item{cex.names}{how big to make variable names in the "variables" plot.}
+
+\item{cex.lab}{how big to make axis labels.}
+
+\item{cex.axis}{how big to make axis annotation.}
+
+\item{cex.legend}{how big to make legend labels.}
 
 \item{...}{arguments passed to the generic plot and image methods.}
 }
