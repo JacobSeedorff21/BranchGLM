@@ -9,6 +9,106 @@
 #endif
 using namespace Rcpp;
 
+// Function used to fit models and calculate desired metric
+double MetricHelperWithBetas(const arma::mat* oldX, const arma::mat* XTWX, 
+                    const arma::vec* Y, const arma::vec* Offset,
+                    const arma::ivec* Indices, const arma::ivec* CurModel,
+                    std::string method, 
+                    int m, std::string Link, std::string Dist,
+                    double tol, int maxit, const arma::vec* pen,
+                    arma::vec* betas, arma::vec* SEs){
+  
+  // If x has more columns than rows, then we cannot fit any model
+  if(oldX->n_cols > oldX->n_rows){
+    return(arma::datum::inf);
+  }
+  
+  // Getting submatrix of XTWX
+  unsigned count = 0;
+  for(unsigned int i = 0; i < Indices->n_elem; i++){
+    if(CurModel->at(Indices->at(i)) != 0){
+      count++;
+    }
+  } 
+  arma::uvec NewInd(count);
+  count = 0;
+  for(unsigned int i = 0; i < Indices->n_elem; i++){
+    if(CurModel->at(Indices->at(i)) != 0){
+      NewInd.at(count++) = i;
+    }
+  } 
+  
+  arma::mat NewXTWX = XTWX->submat(NewInd, NewInd);
+  arma::mat X = oldX->cols(NewInd);
+  bool UseXTWX = true;
+  arma::vec beta(X.n_cols, arma::fill::zeros);
+  
+  // Getting initial values
+  PargetInit(&beta, &X, &NewXTWX, Y, Offset, Dist, Link, &UseXTWX);
+  
+  int Iter;
+  
+  if(Dist == "gaussian" && Link == "identity"){
+    Iter = ParLinRegCppShort(&beta, &X, &NewXTWX, Y, Offset);
+  }else if(method == "BFGS"){ 
+    Iter = ParBFGSGLMCpp(&beta, &X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+  } 
+  else if(method == "LBFGS"){
+    Iter = ParLBFGSGLMCpp(&beta, &X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, m, UseXTWX);
+  } 
+  else{
+    Iter = ParFisherScoringGLMCpp(&beta, &X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+  } 
+  
+  if(Iter <= 0){
+    return(arma::datum::inf);
+  } 
+  
+  arma::vec mu = ParLinkCpp(&X, &beta, Offset, Link, Dist);
+  double LogLik = -ParLogLikelihoodCpp(&X, Y, &mu, Dist);
+  double dispersion = GetDispersion(&X, Y, &mu, LogLik, Dist, tol);
+  if(dispersion <= 0 || std::isnan(LogLik) || std::isinf(dispersion)){
+    return(arma::datum::inf);
+  } 
+  
+  if(Dist == "gaussian"){
+    double temp = X.n_rows/2 * log(2*M_PI*dispersion);
+    LogLik = LogLik / dispersion - temp;
+  } 
+  else if(Dist == "poisson"){
+    LogLik -=  LogFact(Y);
+  } 
+  else if(Dist == "gamma"){
+    double shape = 1 / dispersion;
+    LogLik = shape * LogLik + 
+      X.n_rows * (shape * log(shape) - lgamma(shape)) +
+      (shape - 1) * arma::accu(log(*Y));
+  } 
+  if(std::isnan(LogLik)){
+    return(arma::datum::inf);
+  } 
+  
+  // Calculate SEs
+  // Calculating derivatives, and variances to be used for info
+  arma::vec Deriv = ParDerivativeCpp(&X, &beta, Offset, &mu, Link, Dist);
+  arma::vec Var = ParVariance(&mu, Dist);
+  
+  // Calculating info and initalizing inverse info
+  arma::mat Info = ParFisherInfoCpp(&X, &Deriv, &Var);
+  arma::mat InfoInv = Info;
+  
+  // Calculating inverse info and returning error if not invertible
+  if(arma::inv_sympd(InfoInv, Info)){
+    // Calculating SE
+    arma::vec SE = sqrt(arma::diagvec(InfoInv) * dispersion);
+    SEs->elem(NewInd) = SE;
+  }
+  // Getting betas
+  betas->elem(NewInd) = beta;
+  
+  return(-2 * LogLik + arma::accu(pen->elem(find(*CurModel != 0))));
+} 
+
 double NullHelper(double beta, const arma::mat* X, const arma::vec* Y, 
                   const arma::vec* Offset, double tol, std::string Link, std::string Dist, 
                   const arma::vec* pen){
@@ -142,6 +242,7 @@ double ITPMethod(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
     MetricVal3 = GetBest(X, XTWX, Y, Offset, Indices, 
                          method, m, Link, Dist, tol, maxit, pen, Models, cur, 
                          init3, goal, metrics);
+ 
     
     // Changing inits based on results
     if((MetricVal3 - goal) * (MetricVal2 - goal) > 0){
@@ -163,7 +264,6 @@ double ITPMethod(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
   if(iter >= 100){
     return(arma::datum::inf);
   }
-  
   return(init3);
 }
 
@@ -173,7 +273,7 @@ double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::ve
                        double tol, int maxit, const arma::vec* pen, const arma::imat* Models, unsigned int cur, 
                        double bound, double val, double init, double goal, 
                        const arma::vec* metrics,
-                       std::string rootMethod){
+                       std::string rootMethod, std::string direction){
   // Creating stuff
   double init1 = bound;
   double init2 = init;
@@ -193,6 +293,20 @@ double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::ve
                         method, m, Link, Dist, tol, maxit, pen, Models, cur, 
                         init2, goal, metrics);
     
+    //// Going backwards if we have gone too far and metric value is infinite
+    unsigned int newIter = 0;
+    while(std::isinf(MetricVal) && newIter < 10){
+      init2 = (init2 + init3) / 2;
+      MetricVal = GetBest(X, XTWX, Y, Offset, Indices, 
+                          method, m, Link, Dist, tol, maxit, pen, Models, cur, 
+                          init2, goal, metrics);
+      newIter++;
+    }
+    if(std::isinf(MetricVal)){
+      // Return infinity since secant step won't be defined
+      return(arma::datum::inf);
+    }
+    
     // Checking for bounds
     if((MetricVal3 - goal) * (MetricVal - goal) < 0 && rootMethod == "ITP"){
       // Switching to ITP method since we now have valid bounds
@@ -205,19 +319,17 @@ double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::ve
       MetricVal3 = MetricVal;
     }
     
-    if(MetricVal2 - MetricVal == 0 || std::isinf(MetricVal)){
-      // Return infinity since secant step won't be defined
-      return(arma::datum::inf);
-    }
-    
     // Updating beta value
     double tempinit = init2;
     init2 -= (MetricVal - goal) * (init2 - init1) / (MetricVal - MetricVal2);
     init1 = tempinit;
     
     // Making sure that init2 is in the right direction
-    if((init2 - init3) * (init1 - init3) < 0){
-      init2 = 2 * init1 - init3;
+    if(direction == "upper" && init2 < init3){
+      init2 = 2 * init3 - init2;
+    }
+    else if(direction == "lower" && init2 > init3){
+      init2 = 2 * init3 - init2;
     }
     
     // Incrementing iter
@@ -249,10 +361,10 @@ List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
   const arma::vec Pen(pen.begin(), pen.size(), false, true);
-  arma::vec Metrics(metrics.begin(), metrics.size(), false, true);
+  arma::vec Metrics(metrics.begin(), metrics.size(), true, true);
   const arma::vec MLE(mle.begin(), mle.size(), false, true);
   const arma::vec SE(se.begin(), se.size(), false, true);
-  const arma::vec Best(best.begin(), best.size(), false, true);
+  arma::vec Best(best.begin(), best.size(), true, true);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec Counts(num.begin(), num.size(), false, true);
   
@@ -271,33 +383,40 @@ List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   LowerVals.fill(-arma::datum::inf);
   
   // Changing best since we include 1 covariate as offset
-  best = best - min(Pen);
+  Best -= min(Pen);
   Metrics = Metrics - min(Pen);
   
   for(unsigned int j = 0; j < Models.n_rows; j += 2 * nthreads){
     unsigned int maxval = std::min(j + 2 * nthreads, Models.n_rows);
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
     for(unsigned int i = j; i < maxval; i++){
-      if(all(Models.row(i) != 1) || Counts.at(i) > 1){
+      if(Counts.at(i) > 1 || all(Models.row(i) == -1)){
         // Do nothing
-      }else{
+      }
+      else if(all(Models.row(i) != 1)){
+        // Set these intervals to be 0
+        UpperVals.at(i) = 0;
+        LowerVals.at(i) = 0;
+      }
+      else{
         unsigned int cur = as_scalar(arma::find(Indices == i));
         double curMLE = MLE.at(cur);
+        double curSE = SE.at(cur);
         UpperVals.at(i) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
                    method, m, Link, Dist, tol, maxit, &Pen, &Models, i, 
-                   curMLE, Best.at(i), curMLE + SE.at(i), 
-                   Best.at(i) + cutoff, &Metrics, rootMethod);
+                   curMLE, Best.at(i), curMLE + curSE, 
+                   Best.at(i) + cutoff, &Metrics, rootMethod, "upper");
         LowerVals.at(i) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
                      method, m, Link, Dist, tol, maxit, &Pen, &Models, i, 
-                     curMLE, Best.at(i), curMLE - SE.at(i), 
-                     Best.at(i) + cutoff, &Metrics, rootMethod);
+                     curMLE, Best.at(i), curMLE - curSE, 
+                     Best.at(i) + cutoff, &Metrics, rootMethod, "lower");
         
         // Checking to make sure they are on the correct side
         if(UpperVals.at(i) < curMLE){
            UpperVals.at(i) = arma::datum::inf;
         }
         if(LowerVals.at(i) > curMLE){
-           LowerVals.at(i) = arma::datum::inf;
+           LowerVals.at(i) = -arma::datum::inf;
         }
       }
     }
@@ -313,3 +432,93 @@ List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                                 Named("UpperBounds") = UpperVals);
   return(FinalList);
 }
+
+// Metric Interval
+// [[Rcpp::export]]
+List MetricIntervalsCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
+                       IntegerVector indices, IntegerVector num,
+                       IntegerMatrix models,
+                       std::string method, int m,
+                       std::string Link, std::string Dist,
+                       unsigned int nthreads, double tol, int maxit, 
+                       NumericVector pen, double Penalty, NumericVector best, double cutoff, 
+                       std::string rootMethod){
+  
+  // Creating necessary vectors/matrices
+  const arma::imat Models(models.begin(), models.rows(), models.cols(), false, true);
+  const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
+  const arma::vec Y(y.begin(), y.size(), false, true);
+  const arma::vec Offset(offset.begin(), offset.size(), false, true);
+  const arma::vec Pen(pen.begin(), pen.size(), false, true);
+  arma::vec Best(best.begin(), best.size(), true, true);
+  arma::ivec Indices(indices.begin(), indices.size(), false, true);
+  arma::ivec Counts(num.begin(), num.size(), false, true);
+  
+  // Setting number of threads if OpenMP is available
+#ifdef _OPENMP 
+  omp_set_num_threads(nthreads);
+#endif 
+  
+  // Getting X'WX
+  arma::mat XTWX = X.t() * X;
+  
+  // Getting metrics
+  arma::mat UpperVals(Models.n_rows, Models.n_cols);
+  UpperVals.fill(0);
+  arma::mat LowerVals(Models.n_rows, Models.n_cols);
+  LowerVals.fill(0);
+  
+  // Changing best since we include 1 covariate as offset
+  Best -= Penalty;
+#pragma omp parallel for schedule(dynamic) 
+  for(unsigned int k = 0; k < Models.n_cols; k++){
+    arma::vec MLE(X.n_cols, arma::fill::zeros);
+    arma::vec SE(X.n_cols, arma::fill::ones);
+    arma::ivec curModel = Models.col(k); 
+    double tempMetric = MetricHelperWithBetas(&X, &XTWX, &Y, &Offset, &Indices, 
+                                             &curModel, method, m, Link, Dist, tol, 
+                                             maxit, &Pen, &MLE, &SE) - Penalty;
+    const arma::vec curMetric(1, arma::fill::value(tempMetric));
+    
+    for(unsigned int i = 0; i < Models.n_rows; i++){
+      if(Counts.at(i) > 1 || curModel(i) == -1){
+        // Do nothing
+      } 
+      else if(curModel(i) != 1){
+        // Set these intervals to be 0
+        UpperVals(i, k) = 0;
+        LowerVals(i, k) = 0;
+      } 
+      else{
+        unsigned int cur = as_scalar(arma::find(Indices == i));
+        double curMLE = MLE.at(cur);
+        double curSE = 2 * SE.at(cur);
+        UpperVals(i, k) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
+                     method, m, Link, Dist, tol, maxit, &Pen, &curModel, i,  
+                     curMLE, Best.at(i), curMLE + curSE,  
+                     Best.at(i) + cutoff, &curMetric, rootMethod, "upper");
+        LowerVals(i, k) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
+                     method, m, Link, Dist, tol, maxit, &Pen, &curModel, i, 
+                     curMLE, Best.at(i), curMLE - curSE, 
+                     Best.at(i) + cutoff, &curMetric, rootMethod, "lower");
+        
+        // Checking to make sure they are on the correct side
+        if(UpperVals(i, k) < curMLE){
+          UpperVals(i, k) = arma::datum::inf; 
+        } 
+        if(LowerVals(i, k) > curMLE){
+          LowerVals(i, k) = -arma::datum::inf;
+        } 
+      }
+    }
+  } 
+  
+  // Setting number of threads to 1 if OpenMP is available
+#ifdef _OPENMP 
+  omp_set_num_threads(1);
+#endif 
+  
+  List FinalList = List::create(Named("LowerBounds") = LowerVals, 
+                                Named("UpperBounds") = UpperVals);
+  return(FinalList);
+} 
