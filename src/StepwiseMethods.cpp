@@ -76,6 +76,7 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
+  BestModel.replace(1, 0);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
@@ -183,12 +184,12 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
   arma::ivec BestModel(keep.begin(), keep.size(), false, true);
+  BestModel.replace(0, 1);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel = BestModel;
   arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
   IntegerVector order(CurModel.n_elem, - 1);
   arma::ivec Order(order.begin(), order.size(), false, true);
-  
   
   // Getting X'WX
   arma::mat XTWX = X.t() * X;
@@ -202,7 +203,6 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   // Performing Backward elimination
   for(unsigned int i = 0; i < steps; i++){
-    
     bool flag = true;
     CurModel = BestModel;
     drop1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
