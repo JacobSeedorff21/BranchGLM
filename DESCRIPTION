@@ -2,7 +2,7 @@ Package: BranchGLM
 Type: Package
 Title: Efficient Branch and Bound Variable Selection for GLMs using 'RcppArmadillo'
 Version: 2.1.2
-Date: 2023-08-30
+Date: 2023-08-31
 Authors@R: person("Jacob", "Seedorff", , "jwseedorff@uiowa.edu", role = c("aut", "cre"))
 Maintainer: Jacob Seedorff <jwseedorff@uiowa.edu>
 URL: https://github.com/JacobSeedorff21/BranchGLM
