@@ -1,6 +1,15 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.1.2
+
+- Adding new cex arguments to `plot.summary.BranchGLMVS()` and
+  `plot.BranchGLMVS()` to allow for more control over text size
+- Fixing bug in the “variables” plot from `plot.summary.BranchGLMVS()`
+  that resulted in one of the variables being removed
+- Fixing bug in root-finding algorithm for finding confidence intervals
+  with `confint.BranchGLM()`
+
 # BranchGLM 2.1.1
 
 - Adding multiple new arguments to `plot.summary.BranchGLMVS()` and

@@ -25,6 +25,10 @@ MetricIntervalCpp <- function(x, y, offset, indices, num, models, method, m, Lin
     .Call(`_BranchGLM_MetricIntervalCpp`, x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, metrics, rootMethod)
 }
 
+MetricIntervalsCpp <- function(x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, Penalty, best, cutoff, rootMethod) {
+    .Call(`_BranchGLM_MetricIntervalsCpp`, x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, Penalty, best, cutoff, rootMethod)
+}
+
 ForwardCpp <- function(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen) {
     .Call(`_BranchGLM_ForwardCpp`, x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen)
 }
