@@ -97,18 +97,13 @@ double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double Lowe
 }
 
 // Function used to fit models and calculate desired metric
-double MetricHelper(const arma::mat* X, const arma::mat* XTWX, 
+double MetricHelper(const arma::mat* OldX, const arma::mat* XTWX, 
                     const arma::vec* Y, const arma::vec* Offset,
                     const arma::ivec* Indices, const arma::ivec* CurModel,
                     std::string method, 
                     int m, std::string Link, std::string Dist,
-                    double tol, int maxit, const arma::vec* pen){
-  
-  // If x has more columns than rows, then we cannot fit any model
-  if(X->n_cols > X->n_rows){
-    return(arma::datum::inf);
-  }
-  
+                    double tol, int maxit, const arma::vec* pen, 
+                    unsigned int cur, arma::mat* betaMat){
   // Getting submatrix of XTWX
   unsigned count = 0;
   for(unsigned int i = 0; i < Indices->n_elem; i++){
@@ -124,40 +119,41 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
     }
   }
   
+  
   arma::mat NewXTWX = XTWX->submat(NewInd, NewInd);
+  arma::mat X = OldX->cols(NewInd);
   bool UseXTWX = true;
-  arma::vec beta(X->n_cols, arma::fill::zeros);
+  arma::vec beta(X.n_cols, arma::fill::zeros);
   
   // Getting initial values
-  PargetInit(&beta, X, &NewXTWX, Y, Offset, Dist, Link, &UseXTWX);
-  
+  PargetInit(&beta, &X, &NewXTWX, Y, Offset, Dist, Link, &UseXTWX);
   int Iter;
   
   if(Dist == "gaussian" && Link == "identity"){
-    Iter = ParLinRegCppShort(&beta, X, &NewXTWX, Y, Offset);
+    Iter = ParLinRegCppShort(&beta, &X, &NewXTWX, Y, Offset);
   }else if(method == "BFGS"){
-    Iter = ParBFGSGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+    Iter = ParBFGSGLMCpp(&beta, &X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
   }
   else if(method == "LBFGS"){
-    Iter = ParLBFGSGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, m, UseXTWX);
+    Iter = ParLBFGSGLMCpp(&beta, &X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, m, UseXTWX);
   }
   else{
-    Iter = ParFisherScoringGLMCpp(&beta, X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+    Iter = ParFisherScoringGLMCpp(&beta, &X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
   }
   
   if(Iter <= 0){
     return(arma::datum::inf);
   }
   
-  arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
-  double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
-  double dispersion = GetDispersion(X, Y, &mu, LogLik, Dist, tol);
+  arma::vec mu = ParLinkCpp(&X, &beta, Offset, Link, Dist);
+  double LogLik = -ParLogLikelihoodCpp(&X, Y, &mu, Dist);
+  double dispersion = GetDispersion(&X, Y, &mu, LogLik, Dist, tol);
   if(dispersion <= 0 || std::isnan(LogLik) || std::isinf(dispersion)){
     return(arma::datum::inf);
   }
   
   if(Dist == "gaussian"){
-    double temp = X->n_rows/2 * log(2*M_PI*dispersion);
+    double temp = X.n_rows/2 * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
   }
   else if(Dist == "poisson"){
@@ -166,13 +162,14 @@ double MetricHelper(const arma::mat* X, const arma::mat* XTWX,
   else if(Dist == "gamma"){
     double shape = 1 / dispersion;
     LogLik = shape * LogLik + 
-      X->n_rows * (shape * log(shape) - lgamma(shape)) + 
+      X.n_rows * (shape * log(shape) - lgamma(shape)) + 
       (shape - 1) * arma::accu(log(*Y));
   }
   if(std::isnan(LogLik)){
     return(arma::datum::inf);
   }
-  
+  // Getting beta
+  betaMat->submat(NewInd, arma::uvec(1, arma::fill::value(cur))) = beta;
   return(-2 * LogLik + arma::accu(pen->elem(find(*CurModel != 0))));
 }
 
@@ -247,7 +244,7 @@ bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder,
 // need to use that and minimum number of variables to get bound
 double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* CurModel,
                         arma::uvec* NewOrder, unsigned int cur, double metricVal, 
-                        const arma::vec* pen, unsigned int maxsize){
+                        const arma::vec* pen){
   
   // If metricVal is infinite, then return -inf as the lower bound
   if(metricVal == arma::datum::inf){
@@ -261,7 +258,6 @@ double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* Cur
   }
   
   // arma::mat xLower = GetMatrix(X, &lowerModel, indices);
-  // unsigned int minsize = xLower.n_cols;
   return(metricVal - arma::accu(pen->elem(find(*CurModel != 0))) + 
          arma::accu(pen->elem(find(lowerModel != 0))));
 }
@@ -272,9 +268,9 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
                 std::string method, int m, std::string Link, std::string Dist,
                 arma::ivec* CurModel, arma::ivec* indices, 
                 double tol, int maxit,
-                const arma::vec* pen, unsigned int cur, int minsize,
+                const arma::vec* pen, unsigned int cur,
                 arma::uvec* NewOrder, double LowerBound,
-                arma::vec* Metrics, bool DoAnyways = false){
+                arma::vec* Metrics, arma::mat* betaMat, bool DoAnyways = false){
   
   // Checking if we need to fit model for upper bound and updating bounds if we don't need to
   if(cur == 0 && !DoAnyways){
@@ -310,11 +306,6 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   bool UseXTWX = true;
   arma::mat xTemp = X->cols(NewInd);
   arma::vec beta(xTemp.n_cols, arma::fill::zeros);
-  
-  // Can't fit model if there are more columns than rows
-  if(xTemp.n_cols > xTemp.n_rows){
-    return(LowerBound);
-  }
   
   // Getting initial values
   PargetInit(&beta, &xTemp, &NewXTWX, Y, Offset, Dist, Link, &UseXTWX);
@@ -369,6 +360,7 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   
   // Updating metric value
   Metrics->at(cur) = -2 * LogLik + arma::accu(pen->elem(find(UpperModel != 0)));
+  betaMat->submat(NewInd, arma::uvec(1, arma::fill::value(cur))) = beta;
   
   // Getting bound if model converged
   double NewBound = -2 * LogLik + arma::accu(pen->elem(find(*CurModel != 0)));

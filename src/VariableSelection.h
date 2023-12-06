@@ -43,12 +43,12 @@ arma::mat GetMatrix(const arma::mat* X, arma::ivec* CurModel,
 double UpdateBound(const arma::mat* X, arma::ivec* indices, int cur, double LowerBound, 
                    const arma::vec* pen);
 
-double MetricHelper(const arma::mat* X, const arma::mat* XTWX, 
+double MetricHelper(const arma::mat* OldX, const arma::mat* XTWX, 
                     const arma::vec* Y, const arma::vec* Offset,
                     const arma::ivec* Indices, const arma::ivec* CurModel,
                     std::string method, 
                     int m, std::string Link, std::string Dist,
-                    double tol, int maxit, const arma::vec* pen);
+                    double tol, int maxit, const arma::vec* pen, unsigned int cur, arma::mat* betaMat);
 
 bool CheckModel(const arma::ivec* CurModel, const arma::imat* Interactions);
 
@@ -62,14 +62,14 @@ bool BackwardCheckModels(const arma::ivec* CurModel, arma::uvec* NewOrder,
 
 double BackwardGetBound(const arma::mat* X, arma::ivec* indices, arma::ivec* CurModel,
                         arma::uvec* NewOrder, unsigned int cur, double metricVal, 
-                        const arma::vec* pen, unsigned int maxsize);
+                        const arma::vec* pen);
 
 double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
                 std::string method, int m, std::string Link, std::string Dist,
                 arma::ivec* CurModel,  arma::ivec* indices, 
                 double tol, int maxit,
-                const arma::vec* pen, unsigned int cur, int minsize,
+                const arma::vec* pen, unsigned int cur,
                 arma::uvec* NewOrder, double LowerBound,
-                arma::vec* Metrics, bool DoAnyways = false);
+                arma::vec* Metrics, arma::mat* betaMat, bool DoAnyways = false);
 
 #endif

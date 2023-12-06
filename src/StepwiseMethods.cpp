@@ -11,7 +11,7 @@ using namespace Rcpp;
 // Given a current model, this finds the best variable to add to the model
 void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
           const arma::imat* Interactions, std::string method, int m, std::string Link, std::string Dist,
-          arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+          arma::ivec* CurModel, arma::vec* BestModel, double* BestMetric, 
           unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
           arma::ivec* indices, double tol, int maxit, const arma::vec* pen){
   
@@ -19,6 +19,7 @@ void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const a
   Metrics.fill(arma::datum::inf);
   arma::ivec Counts(CurModel->n_elem, arma::fill::zeros);
   checkUserInterrupt();
+  arma::mat NewModels(X->n_cols, CurModel->n_elem, arma::fill::zeros);
   
   // Adding each variable one at a time and calculating metric for each model
 #pragma omp parallel for schedule(dynamic, 1)
@@ -29,9 +30,8 @@ void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const a
       if(CheckModel(&CurModel2, Interactions)){
         // This model is valid, so we fit it
         Counts.at(j) = 1;
-        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
-        Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
-                   tol, maxit, pen);
+        Metrics.at(j) = MetricHelper(X, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
+                   tol, maxit, pen, j, &NewModels);
       }
     }
   }
@@ -44,9 +44,8 @@ void add1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const a
   double NewMetric = Metrics.at(BestVar);
   checkUserInterrupt();
   if(NewMetric < *BestMetric){
-    arma::ivec CurModel2 = *CurModel;
-    CurModel2.at(BestVar) = 1;
-    *BestModel = CurModel2;
+    CurModel->at(BestVar) = 1;
+    *BestModel = NewModels.col(BestVar);
     *BestMetric = NewMetric;
     *flag = false;
     order->at(i) = BestVar;
@@ -75,11 +74,10 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
-  arma::ivec BestModel(keep.begin(), keep.size(), false, true);
-  BestModel.replace(1, 0);
+  arma::vec BestModel(X.n_cols, 1, arma::fill::zeros);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
-  arma::ivec CurModel = BestModel;
-  arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  arma::ivec CurModel(keep.begin(), keep.size(), false, true);
+  CurModel.replace(1, 0);
   IntegerVector order(CurModel.n_elem, - 1);
   arma::ivec Order(order.begin(), order.size(), false, true);
   
@@ -89,16 +87,16 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   // Creating necessary scalars
   double BestMetric = arma::datum::inf;
-  BestMetric = MetricHelper(&xTemp, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, 
-                               tol, maxit, &Pen);
-  unsigned int numchecked = 0;
-  
+  arma::mat betaMat(X.n_cols, 1, arma::fill::zeros);
+  BestMetric = MetricHelper(&X, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, 
+                               tol, maxit, &Pen, 0, &betaMat);
+  BestModel = betaMat.col(0);
+  unsigned int numchecked = 1;
   
   // Performing forward selection
   for(unsigned int i = 0; i < steps; i++){
     checkUserInterrupt();
     bool flag = true;
-    CurModel = BestModel;
     add1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
          &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, &Pen);
     
@@ -111,7 +109,8 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   List FinalList = List::create(Named("order") = order,
                                 Named("numchecked") = numchecked,
                                 Named("bestmetric") = BestMetric, 
-                                Named("bestmodel") = keep);
+                                Named("bestmodel") = CurModel, 
+                                Named("beta") = BestModel);
   
 #ifdef _OPENMP
   omp_set_num_threads(1);
@@ -123,13 +122,14 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
 // Given a current model, this finds the best variable to remove
 void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
            const arma::imat* Interactions, std::string method, int m, std::string Link, std::string Dist,
-           arma::ivec* CurModel, arma::ivec* BestModel, double* BestMetric, 
+           arma::ivec* CurModel, arma::vec* BestModel, double* BestMetric, 
            unsigned int* numchecked, bool* flag, arma::ivec* order, unsigned int i,
            arma::ivec* indices, double tol, int maxit, const arma::vec* pen){
   
   arma::vec Metrics(CurModel->n_elem);
   arma::ivec Counts(CurModel->n_elem, arma::fill::zeros);
   Metrics.fill(arma::datum::inf);
+  arma::mat NewModels(X->n_cols, CurModel->n_elem, arma::fill::zeros);
   
   // Removing each variable one at a time and calculating metric for each model
 #pragma omp parallel for schedule(dynamic, 1)
@@ -139,9 +139,8 @@ void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const 
       CurModel2.at(j) = 0;
       if(CheckModel(&CurModel2, Interactions)){
         Counts.at(j) = 1;
-        arma::mat xTemp = GetMatrix(X, &CurModel2, indices);
-        Metrics.at(j) = MetricHelper(&xTemp, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
-                   tol, maxit, pen);
+        Metrics.at(j) = MetricHelper(X, XTWX, Y, Offset, indices, &CurModel2, method, m, Link, Dist, 
+                   tol, maxit, pen, j, &NewModels);
       }
     }
   }
@@ -153,9 +152,8 @@ void drop1(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const 
   unsigned int BestVar = Metrics.index_min();
   double NewMetric = Metrics.at(BestVar);
   if(NewMetric < *BestMetric){
-    arma::ivec CurModel2 = *CurModel;
-    CurModel2.at(BestVar) = 0;
-    *BestModel = CurModel2;
+    CurModel->at(BestVar) = 0;
+    *BestModel = NewModels.col(BestVar);
     *BestMetric = NewMetric;
     *flag = false;
     order->at(i) = BestVar;
@@ -183,11 +181,10 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
-  arma::ivec BestModel(keep.begin(), keep.size(), false, true);
-  BestModel.replace(0, 1);
+  arma::vec BestModel(X.n_cols, 1, arma::fill::zeros);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
-  arma::ivec CurModel = BestModel;
-  arma::mat xTemp = GetMatrix(&X, &CurModel, &Indices);
+  arma::ivec CurModel(keep.begin(), keep.size(), false, true);
+  CurModel.replace(0, 1);
   IntegerVector order(CurModel.n_elem, - 1);
   arma::ivec Order(order.begin(), order.size(), false, true);
   
@@ -196,15 +193,16 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   // Creating necessary scalars
   double BestMetric = arma::datum::inf;
-  BestMetric = MetricHelper(&xTemp, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, tol, maxit,
-                            &Pen);
+  arma::mat betaMat(X.n_cols, 1, arma::fill::zeros);
+  BestMetric = MetricHelper(&X, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, tol, maxit,
+                            &Pen, 0, &betaMat);
+  BestModel = betaMat.col(0);
   
-  unsigned int numchecked = 0;
+  unsigned int numchecked = 1;
   
   // Performing Backward elimination
   for(unsigned int i = 0; i < steps; i++){
     bool flag = true;
-    CurModel = BestModel;
     drop1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
           &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, &Pen);
     
@@ -216,8 +214,9 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   List FinalList = List::create(Named("order") = order,
                                 Named("numchecked") = numchecked,
-                                Named("bestmetric") = BestMetric, 
-                                Named("bestmodel") = keep);
+                                Named("bestmetric") = BestMetric,
+                                Named("bestmodel") = CurModel,
+                                Named("beta") = BestModel);
   
 #ifdef _OPENMP
   omp_set_num_threads(1);
