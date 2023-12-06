@@ -524,7 +524,7 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
     GetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
     // Checking for convergence or non-convergence
-    if(std::fabs(f1 -  f0) < tol || alpha == 0){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol) || alpha == 0){
       if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         warning("BFGS failed to converge");
         k = -2;
@@ -897,7 +897,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                             Named("resDev") = resDev,
                             Named("AIC") = AIC,
                             Named("preds") = NumericVector(mu.begin(), mu.end()),
-                            Named("linPreds") = linPreds1, 
+                            Named("linpreds") = linPreds1, 
                             Named("vcov") = vcov);
 }
 

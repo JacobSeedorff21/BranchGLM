@@ -26,36 +26,31 @@ arma::vec ParLinkCpp(const arma::mat* X, arma::vec* beta, const arma::vec* Offse
                      std::string Link, std::string Dist){
   
   // Calculating linear predictors and initializing vector for mu
-  arma::vec XBeta = (*X * *beta) + *Offset;
-  arma::vec mu(XBeta.n_elem);
+  arma::vec mu = (*X * *beta) + *Offset;
   
   
   // Calculating mu
   if(Link == "log"){
-    mu = exp(XBeta);
+    mu = exp(mu);
   }
   else if(Link == "logit"){
-    mu = 1 / (1 + exp(-XBeta));
+    mu = 1 / (1 + exp(-mu));
   }
   else if(Link == "probit"){
-    mu = arma::normcdf(XBeta);
+    mu = arma::normcdf(mu);
   }
   else if(Link == "cloglog"){
-    mu = 1 - exp(-exp(XBeta));
+    mu = 1 - exp(-exp(mu));
   }
   else if(Link == "inverse"){
-    mu = 1 / (XBeta);
-  }
-  else if(Link == "identity"){
-    mu = XBeta;
+    mu = 1 / (mu);
   }
   else if(Link == "sqrt"){
-    mu = pow(XBeta, 2);
+    mu = pow(mu, 2);
   }
   
   // Checking bounds for mu and modifying values that are out of bounds
   ParCheckBounds(&mu, Dist);
-  
   return(mu);
 }
 
@@ -385,7 +380,7 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX,
     // This function also calculates mu, Deriv, Var, and g1 for the selected step size
     ParGetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
-    if(std::fabs(f1 -  f0) < tol || alpha == 0){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol) || alpha == 0){
       if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         k = -2;
       }
@@ -457,8 +452,8 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX,
     ParGetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
     // Checking for convergence or non-convergence
-    if(std::fabs(f1 -  f0) < tol || alpha == 0){
-      if(std::isinf(f1)|| beta->has_nan()){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol) || alpha == 0){
+      if(std::isinf(f1) || beta->has_nan() || alpha == 0){
         k = -2;
       }
       k++;
@@ -509,7 +504,7 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
       break;
     }
     
-    // Re-assiging log-likelihood
+    // Re-assinging log-likelihood
     f0 = f1;
     
     // Solving for newton direction
@@ -523,8 +518,8 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     ParGetStepSize(X, Y, Offset, &mu, &Deriv, &Var, &g1, &p, beta, Dist, Link, &f0 ,&f1, &t, &alpha, "backtrack");
     
     // Checking for convergence or non-convergence
-    if(std::fabs(f1 -  f0) < tol || alpha == 0){
-      if(std::isinf(f1)|| beta->has_nan()){
+    if(std::fabs(f1 -  f0) < tol || all(abs(alpha * p) < tol) || alpha == 0){
+      if(std::isinf(f1)|| beta->has_nan() || alpha == 0){
         k = -2;
       }
       k++;
@@ -544,8 +539,8 @@ int ParLinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* XTWX
   
   
   // Calculating inverse of X'X
-  arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
-  arma::vec XY = x->t() * (*y - *offset);
+  arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros); 
+  arma::vec XY = x->t() * (*y - *offset);  
   arma::vec tempbeta = *beta;
   if(!arma::solve(*beta, *XTWX, XY, arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
     *beta = tempbeta;
