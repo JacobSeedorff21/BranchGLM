@@ -135,8 +135,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // MetricIntervalCpp
-List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix models, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, NumericVector pen, NumericVector mle, NumericVector se, NumericVector best, double cutoff, NumericVector metrics, std::string rootMethod);
-RcppExport SEXP _BranchGLM_MetricIntervalCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP modelsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP penSEXP, SEXP mleSEXP, SEXP seSEXP, SEXP bestSEXP, SEXP cutoffSEXP, SEXP metricsSEXP, SEXP rootMethodSEXP) {
+List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerVector model, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, NumericVector pen, NumericVector mle, NumericVector se, NumericVector best, double cutoff, double Metric, std::string rootMethod);
+RcppExport SEXP _BranchGLM_MetricIntervalCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP modelSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP penSEXP, SEXP mleSEXP, SEXP seSEXP, SEXP bestSEXP, SEXP cutoffSEXP, SEXP MetricSEXP, SEXP rootMethodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -145,7 +145,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type indices(indicesSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type num(numSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type models(modelsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type model(modelSEXP);
     Rcpp::traits::input_parameter< std::string >::type method(methodSEXP);
     Rcpp::traits::input_parameter< int >::type m(mSEXP);
     Rcpp::traits::input_parameter< std::string >::type Link(LinkSEXP);
@@ -158,9 +158,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type se(seSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type best(bestSEXP);
     Rcpp::traits::input_parameter< double >::type cutoff(cutoffSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type metrics(metricsSEXP);
+    Rcpp::traits::input_parameter< double >::type Metric(MetricSEXP);
     Rcpp::traits::input_parameter< std::string >::type rootMethod(rootMethodSEXP);
-    rcpp_result_gen = Rcpp::wrap(MetricIntervalCpp(x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, metrics, rootMethod));
+    rcpp_result_gen = Rcpp::wrap(MetricIntervalCpp(x, y, offset, indices, num, model, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, Metric, rootMethod));
     return rcpp_result_gen;
 END_RCPP
 }
