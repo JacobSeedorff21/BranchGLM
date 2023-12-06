@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 
 # Fitting GLMs
 
-- `BranchGLM()` allows fitting of gaussian, binomial, gamma, and poisson GLMs with a variety of links available.  
+- `BranchGLM()` allows fitting of gaussian, binomial, gamma, and Poisson GLMs with a variety of links available.  
 - Parallel computation can also be done to speed up the fitting process, but it is only useful for larger datasets.
 
 ## Optimization methods
@@ -41,7 +41,7 @@ via linear regression with the response variable transformed by the link functio
 
 ## Parallel computation
 
-- Parallel computation can be employed via openMP by setting the parallel argument 
+- Parallel computation can be employed via OpenMP by setting the parallel argument 
 to `TRUE` and setting the `nthreads` argument to the desired number of threads used.
 - For smaller datasets this can actually slow down the model fitting process, so 
 parallel computation should only be used for larger datasets.
@@ -95,11 +95,11 @@ GammaFit
 
 ## Poisson
 
-- Permissible links for the poisson family are 
+- Permissible links for the Poisson family are 
   - identity
-  - log, this is the canonical link for the poisson family
+  - log, this is the canonical link for the Poisson family
   - square root (sqrt)
-- The most commonly used link function for the poisson family is the log link.
+- The most commonly used link function for the Poisson family is the log link.
 - The dispersion parameter for this family is always 1.
 
 ```{r}
@@ -212,7 +212,7 @@ ROC(preds, Data$supp) |> plot(main = "ROC Curve", col = "deepskyblue")
   - `AIC()` to extract the AIC
   - `BIC()` to extract the BIC
   - `predict()` to obtain predictions from the fitted model
-- The coefficients, standard errors, wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
+- The coefficients, standard errors, Wald test statistics, and p-values are stored in the `coefficients` slot of the fitted model
 
 ```{r}
 # Predict method

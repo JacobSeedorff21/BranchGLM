@@ -1,6 +1,16 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.1.3
+
+- Updating predict functions to include na.action and to better handle
+  offset variables.
+- The `VariableSelection()` function now returns the coefficients as
+  part of the selection process, so `fit()` doesn’t need to be used for
+  every call to `coef()` or `predict()`.
+- Adding new cols arguments to `plot.summary.BranchGLMVS()` and
+  `plot.BranchGLMVS()` to allow for control over the colors
+
 # BranchGLM 2.1.2
 
 - Adding new cex arguments to `plot.summary.BranchGLMVS()` and

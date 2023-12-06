@@ -17,8 +17,7 @@ test_that("linear regression works", {
                                  link = "identity", type = "branch and bound", 
                                  parallel = TRUE, nthreads = 2)
   
-  expect_equal(fit(summary(LinearVS))$coefficients, 
-               fit(summary(LinearVS2))$coefficients)
+  expect_equal(coef(LinearVS), coef(LinearVS2))
   
   ### Forward selection with linear regression
   LinearForward <- VariableSelection(LinearFit, type = "forward")
@@ -26,8 +25,7 @@ test_that("linear regression works", {
                                  link = "identity", type = "forward", 
                                  parallel = TRUE, nthreads = 2)
   
-  expect_equal(fit(summary(LinearForward))$coefficients, 
-               fit(summary(LinearForward2))$coefficients)
+  expect_equal(coef(LinearForward), coef(LinearForward2))
   
   ### Backward elimination with linear regression
   LinearBackward <- VariableSelection(LinearFit, type = "backward")
@@ -35,8 +33,7 @@ test_that("linear regression works", {
                                  link = "identity", type = "backward", 
                                  parallel = TRUE, nthreads = 2)
   
-  expect_equal(fit(summary(LinearBackward))$coefficients, 
-               fit(summary(LinearBackward2))$coefficient)
+  expect_equal(coef(LinearBackward), coef(LinearBackward2))
   
   ### Predict should work even if not all levels are available in newdata
   #### Checking for object obtained via BranchGLM function
@@ -46,8 +43,8 @@ test_that("linear regression works", {
                predict(LinearFit, newdata = Data[1,]))
   
   #### Checking for object from VariableSelection function
-  expect_equal(predict(fit(summary(LinearVS)), newdata = newdata), 
-               predict(fit(summary(LinearVS)), newdata = Data[1,]))
+  expect_equal(predict(LinearVS, newdata = newdata), 
+               predict(LinearVS, newdata = Data[1,]))
   
 })
 
@@ -78,15 +75,13 @@ test_that("binomial regression and stuff works", {
                                  link = "logit", type = "backward branch and bound", 
                                  parallel = TRUE, nthreads = 2)
   
-  expect_equal(fit(summary(LogitVS))$coefficients, 
-               fit(summary(LogitVS2))$coefficients)
+  expect_equal(coef(LogitVS), coef(LogitVS2))
   
   LogitVS3<- VariableSelection(supp ~ ., data = Data, family = "binomial", 
                                 link = "logit", type = "switch branch and bound", 
                                 parallel = TRUE, nthreads = 2)
   
-  expect_equal(fit(summary(LogitVS))$coefficients, 
-               fit(summary(LogitVS3))$coefficients)
+  expect_equal(coef(LogitVS), coef(LogitVS3))
   
   ### Forward variable selection with logistic regression
   LogitVS <- VariableSelection(LogitFit, type = "forward")
@@ -94,8 +89,7 @@ test_that("binomial regression and stuff works", {
                                 link = "logit", type = "forward",
                                 parallel = TRUE, nthreads = 2)
   
-  expect_equal(fit(summary(LogitVS))$coefficients, 
-               fit(summary(LogitVS2))$coefficients)
+  expect_equal(coef(LogitVS), coef(LogitVS2))
   
   ### Backward variable selection with logistic regression
   LogitVS <- VariableSelection(LogitFit, type = "backward", metric = "BIC")
@@ -103,8 +97,7 @@ test_that("binomial regression and stuff works", {
                                 link = "logit", type = "backward", metric = "BIC", 
                                 parallel = TRUE, nthreads = 2)
   
-  expect_equal(fit(summary(LogitVS))$coefficients, 
-               fit(summary(LogitVS2))$coefficients)
+  expect_equal(coef(LogitVS), coef(LogitVS2))
   
   # Checking binomial utility functions
   ## Table
@@ -198,34 +191,34 @@ test_that("poisson regression works", {
   
   ## Checking variable selection
   ### branch and bound
-  expect_equal(fit(summary(VariableSelection(y ~ ., data = Data, family = "poisson", 
-                                 link = "log", parallel = TRUE, nthreads = 2, type = "branch and bound")))$coefficients, 
-               fit(summary(VariableSelection(y ~ ., data = Data, family = "poisson", 
-                                 link = "log", parallel = FALSE, type = "branch and bound")))$coefficients)
+  expect_equal(coef(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = TRUE, nthreads = 2, type = "branch and bound")), 
+               coef(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = FALSE, type = "branch and bound")))
   
   ### forward selection
-  expect_equal(fit(summary(VariableSelection(y ~ ., data = Data, family = "poisson", 
-                                 link = "log", parallel = TRUE, nthreads = 2, type = "forward")))$coefficients, 
-               fit(summary(VariableSelection(y ~ ., data = Data, family = "poisson", 
-                                 link = "log", parallel = FALSE, type = "forward")))$coefficients)
+  expect_equal(coef(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = TRUE, nthreads = 2, type = "forward")), 
+               coef(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = FALSE, type = "forward")))
   ### backward selection
-  expect_equal(fit(summary(VariableSelection(y ~ ., data = Data, family = "poisson", 
-                                 link = "log", parallel = TRUE, nthreads = 2, type = "backward")))$coefficients, 
-               fit(summary(VariableSelection(y ~ ., data = Data, family = "poisson", 
-                                 link = "log", parallel = FALSE, type = "backward")))$coefficients)
+  expect_equal(coef(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = TRUE, nthreads = 2, type = "backward")), 
+               coef(VariableSelection(y ~ ., data = Data, family = "poisson", 
+                                 link = "log", parallel = FALSE, type = "backward")))
   ### Checking offset predictions
   MyBranch <- BranchGLM(y ~ ., data = Data, family = "poisson", link = "log", offset = rep(1, nrow(Data)))
   
-  expect_error(predict(MyBranch, newdata = Data), NA)
-  expect_error(predict(MyBranch, newdata = Data, type = "linpreds"), NA)
+  expect_error(predict(MyBranch, newdata = Data, offset = rep(1, nrow(Data))), NA)
+  expect_error(predict(MyBranch, newdata = Data, type = "linpreds", offset = rep(1, nrow(Data))), NA)
   
   ### Checking offset predictions
-  MyBranch <- fit(summary(VariableSelection(y ~ ., data = Data, family = "poisson", 
+  MyBranch <- VariableSelection(y ~ ., data = Data, family = "poisson", 
                                 link = "log", parallel = TRUE, nthreads = 2, type = "forward", 
-                                offset = rep(1, nrow(Data)))))
+                                offset = rep(1, nrow(Data)))
   
-  expect_error(predict(MyBranch, newdata = Data), NA)
-  expect_error(predict(MyBranch, newdata = Data, type = "linpreds"), NA)
+  expect_error(predict(MyBranch, newdata = Data, offset = rep(1, nrow(Data))), NA)
+  expect_error(predict(MyBranch, newdata = Data, type = "linpreds", offset = rep(1, nrow(Data))), NA)
   })
 
 ### Testing gamma regression
@@ -248,11 +241,11 @@ test_that("gamma regression works", {
   expect_error(VariableSelection(y ~ ., data = Data, family = "gamma", link = "log", 
                                  type = "forward", method = "Fisher"), NA)
   ### backward selection
-  expect_equal(fit(summary(VariableSelection(y ~ ., data = Data, family = "gamma", 
+  expect_equal(coef(VariableSelection(y ~ ., data = Data, family = "gamma", 
                                   link = "log", parallel = TRUE, type = "backward", 
-                                  nthreads = 2)))$coefficients, 
-               fit(summary(VariableSelection(y ~ ., data = Data, family = "gamma", 
-                                 link = "log", parallel = FALSE, type = "backward")))$coefficients)
+                                  nthreads = 2)), 
+               coef(VariableSelection(y ~ ., data = Data, family = "gamma", 
+                                 link = "log", parallel = FALSE, type = "backward")))
   
 })
 

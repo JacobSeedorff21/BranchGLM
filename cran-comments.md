@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-Fixing issue with the tests.
+Updating package to version 2.1.3.

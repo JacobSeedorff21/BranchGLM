@@ -168,9 +168,9 @@ times faster than an exhaustive search.
 ```{r}
 ## Results
 ### Checking if both methods give same results
-BranchModel <- fit(summary(BranchVS))
-ExhaustiveModel <- BestVS$BestModel
-identical(names(coef(BranchModel)),  names(coef(ExhaustiveModel)))
+BranchModel <- coef(BranchVS, which = 1)
+ExhaustiveModel <- coef(BestVS$BestModel)
+identical(rownames(BranchModel)[BranchModel != 0],  names(ExhaustiveModel))
 
 ```
 
