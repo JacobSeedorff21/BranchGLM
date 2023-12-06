@@ -67,7 +67,8 @@ there are many covariates (at least 50).}
 Fisher's scoring is 50 and for the other methods the default is 200.}
 
 \item{init}{initial values for the betas, if not specified then they are automatically 
-selected.}
+selected via linear regression with the transformation specified by link. This 
+is ignored for linear regression models.}
 
 \item{fit}{a logical value to indicate whether to fit the model or not. Setting 
 this to false will make it so no coefficients matrix or variance-covariance 
@@ -88,7 +89,7 @@ cannot be used inside of \code{VariableSelection}.}
 }
 \value{
 \code{BranchGLM} returns a \code{BranchGLM} object which is a list with the following components
-\item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
+\item{\code{coefficients}}{ a matrix with the coefficient estimates, SEs, Wald test statistics, and p-values}
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
@@ -105,6 +106,7 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
 \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
 \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
+\item{\code{fulloffset}}{ supplied offset vector, not included if \code{keepData = FALSE}}
 \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
 \item{\code{mf}}{ the model frame, not included if \code{keepData = FALSE}}
 \item{\code{numobs}}{ number of observations in the design matrix}
@@ -119,7 +121,7 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{terms}}{the terms object used}
 
 \code{BranchGLM.fit} returns a list with the following components
-\item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
+\item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, Wald test statistics, and p-values}
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 \item{\code{dispersion}}{ the value of the dispersion parameter}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
@@ -145,11 +147,12 @@ and the normal equations are solved directly.
 
 The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
 convergence, each of the methods makes use of a backtracking line-search using 
-the strong Wolfe conditions to find an adequate step size. There are also 
-two conditions used to control convergence, the first is whether there is a 
-sufficient decrease in the negative log-likelihood, and the other is whether 
-the norm of the score is sufficiently small. The 
-\code{tol} argument controls both of these criteria. If the algorithm fails to 
+the strong Wolfe conditions to find an adequate step size. There are 
+three conditions used to determine convergence, the first is whether there is a 
+sufficient decrease in the negative log-likelihood, the second is whether 
+the l2-norm of the score is sufficiently small, and the last condition is 
+whether the change in each of the beta coefficients is sufficiently 
+small. The \code{tol} argument controls all of these criteria. If the algorithm fails to 
 converge, then \code{iterations} will be -1.
 
 All observations with any missing values are removed before model fitting. 

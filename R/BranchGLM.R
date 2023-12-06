@@ -15,7 +15,8 @@
 #' @param maxit maximum number of iterations performed. The default for 
 #' Fisher's scoring is 50 and for the other methods the default is 200.
 #' @param init initial values for the betas, if not specified then they are automatically 
-#' selected.
+#' selected via linear regression with the transformation specified by link. This 
+#' is ignored for linear regression models.
 #' @param fit a logical value to indicate whether to fit the model or not. Setting 
 #' this to false will make it so no coefficients matrix or variance-covariance 
 #' matrix are returned.
@@ -28,7 +29,7 @@
 #' @param x design matrix used for the fit, must be numeric.
 #' @param y outcome vector, must be numeric.
 #' @return \code{BranchGLM} returns a \code{BranchGLM} object which is a list with the following components
-#' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
+#' \item{\code{coefficients}}{ a matrix with the coefficient estimates, SEs, Wald test statistics, and p-values}
 #' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
 #' \item{\code{logLik}}{ the log-likelihood of the fitted model}
@@ -45,6 +46,7 @@
 #' \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
 #' \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
 #' \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
+#' \item{\code{fulloffset}}{ supplied offset vector, not included if \code{keepData = FALSE}}
 #' \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
 #' \item{\code{mf}}{ the model frame, not included if \code{keepData = FALSE}}
 #' \item{\code{numobs}}{ number of observations in the design matrix}
@@ -59,7 +61,7 @@
 #' \item{\code{terms}}{the terms object used}
 #' 
 #' \code{BranchGLM.fit} returns a list with the following components
-#' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, wald test statistics, and p-values}
+#' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, Wald test statistics, and p-values}
 #' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
 #' \item{\code{dispersion}}{ the value of the dispersion parameter}
 #' \item{\code{logLik}}{ the log-likelihood of the fitted model}
@@ -82,11 +84,12 @@
 #' 
 #' The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
 #' convergence, each of the methods makes use of a backtracking line-search using 
-#' the strong Wolfe conditions to find an adequate step size. There are also 
-#' two conditions used to control convergence, the first is whether there is a 
-#' sufficient decrease in the negative log-likelihood, and the other is whether 
-#' the norm of the score is sufficiently small. The 
-#' \code{tol} argument controls both of these criteria. If the algorithm fails to 
+#' the strong Wolfe conditions to find an adequate step size. There are 
+#' three conditions used to determine convergence, the first is whether there is a 
+#' sufficient decrease in the negative log-likelihood, the second is whether 
+#' the l2-norm of the score is sufficiently small, and the last condition is 
+#' whether the change in each of the beta coefficients is sufficiently 
+#' small. The \code{tol} argument controls all of these criteria. If the algorithm fails to 
 #' converge, then \code{iterations} will be -1.
 #' 
 #' All observations with any missing values are removed before model fitting. 
@@ -149,6 +152,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   
   ## Getting data objects
   y <- model.response(mf, "any")
+  fulloffset <- offset
   offset <- as.vector(model.offset(mf))
   x <- model.matrix(attr(mf, "terms"), mf, contrasts)
   
@@ -188,11 +192,11 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(fit){
     df <- BranchGLM.fit(x, y, family, link, offset, method, grads, parallel, nthreads, 
                         init, maxit, tol)
-  
-    row.names(df$coefficients) <- colnames(x)
   }else{
-    df <- list("coefficients" = NULL)
+    df <- list("coefficients" = matrix(NA, nrow = ncol(x), ncol = 4))
   }
+  row.names(df$coefficients) <- colnames(x)
+  
   df$formula <- formula
   
   df$method <- method
@@ -208,6 +212,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     df$x <- x
     df$mf <- mf
     df$offset <- offset
+    df$fulloffset <- fulloffset
   }
   df$names <- attributes(terms(formula, data = data))$factors |>
               colnames()
@@ -390,7 +395,12 @@ coef.BranchGLM <- function(object, ...){
 #' Predict Method for BranchGLM Objects
 #' @param object a \code{BranchGLM} object.
 #' @param newdata a dataframe, if not specified then the data the model was fit on is used.
+#' @param offset a numeric vector containing the offset variable, this is ignored if 
+#' newdata is not supplied.
 #' @param type one of "linpreds" or "response", if not specified then "response" is used.
+#' @param na.action a function which indicates what should happen when the data 
+#' contains NAs. The default is \code{na.pass}. This is ignored if newdata is not 
+#' supplied and data isn't included in the supplied \code{BranchGLM} object.
 #' @param ... further arguments passed to or from other methods.
 #' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
 #' Offset variables are ignored for predictions on new data.
@@ -404,9 +414,10 @@ coef.BranchGLM <- function(object, ...){
 #' predict(Fit, newdata = iris[1:20,])
 #' @export
 
-predict.BranchGLM <- function(object, newdata = NULL, type = "response", ...){
+predict.BranchGLM <- function(object, newdata = NULL, offset = NULL, 
+                              type = "response", na.action = na.pass, ...){
   
-  if(!is.null(newdata) && !is(newdata,"data.frame")){
+  if(!is.null(newdata) && !is(newdata, "data.frame")){
     stop("newdata argument must be a dataframe or NULL")
   }
   
@@ -416,25 +427,46 @@ predict.BranchGLM <- function(object, newdata = NULL, type = "response", ...){
     stop("type argument must be either 'linpreds' or 'response'")
   }
   
-  if(is.null(newdata)){
+  if(is.null(newdata) && !is.null(object$data)){
+    newdata <- object$data
+    offset <- object$fulloffset
+  }else if(is.null(newdata) && is.null(object$data)){
     if(type == "linpreds"){
-      object$linPreds
+      return(object$linpreds)
     }else if(type == "response"){
-      object$preds
+      return(object$preds)
     }
+  }
+  
+  # Changing environment for formula and offset since we need them to be the same
+  if(is.null(offset)){
+    if(!is.null(newdata) && !is.null(object$fulloffset) && any(object$fulloffset != 0)){
+      warning("offset should be supplied for new dataset")
+    }
+    offset2 <- rep(0, nrow(newdata))
   }else{
-    myterms <- delete.response(terms(object))
-    m <- model.frame(myterms, newdata, na.action = "na.omit",
-                     xlev = object$xlev)
-    x <- model.matrix(myterms, m, contrasts = object$contrasts)
-    
-    if(ncol(x) != length(coef(object))){
-      stop("could not find all predictor variables in newdata")
-    }else if(type == "linpreds"){
-      drop(x %*% coef(object)) |> unname()
-    }else if(type == "response"){
-      GetPreds(drop(x %*% coef(object)) |> unname(), object$link)
-    }
+    offset2 <- offset
+  }
+  environment(offset2) <- environment()
+  
+  # Getting mf
+  myterms <- delete.response(terms(object))
+  environment(myterms) <- environment()
+  m <- model.frame(myterms, data = newdata, na.action = na.action,
+                   xlev = object$xlev, offset = offset2)
+  
+  # Getting offset and x
+  offset <- model.offset(m)
+  environment(offset) <- NULL
+  x <- model.matrix(myterms, m, contrasts = object$contrasts)
+  
+  
+  if(ncol(x) != length(coef(object))){
+    stop("could not find all predictor variables in newdata")
+  }else if(type == "linpreds"){
+    drop(x %*% coef(object) + offset) |> unname()
+  }else if(type == "response"){
+    GetPreds(drop(x %*% coef(object) + offset) |> unname(), object$link)
   }
 }
 

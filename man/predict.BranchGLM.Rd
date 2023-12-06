@@ -4,14 +4,28 @@
 \alias{predict.BranchGLM}
 \title{Predict Method for BranchGLM Objects}
 \usage{
-\method{predict}{BranchGLM}(object, newdata = NULL, type = "response", ...)
+\method{predict}{BranchGLM}(
+  object,
+  newdata = NULL,
+  offset = NULL,
+  type = "response",
+  na.action = na.pass,
+  ...
+)
 }
 \arguments{
 \item{object}{a \code{BranchGLM} object.}
 
 \item{newdata}{a dataframe, if not specified then the data the model was fit on is used.}
 
+\item{offset}{a numeric vector containing the offset variable, this is ignored if 
+newdata is not supplied.}
+
 \item{type}{one of "linpreds" or "response", if not specified then "response" is used.}
+
+\item{na.action}{a function which indicates what should happen when the data 
+contains NAs. The default is \code{na.pass}. This is ignored if newdata is not 
+supplied and data isn't included in the supplied \code{BranchGLM} object.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
