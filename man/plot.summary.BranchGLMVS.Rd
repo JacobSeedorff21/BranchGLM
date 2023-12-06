@@ -16,6 +16,7 @@
   cex.lab = 1,
   cex.axis = 1,
   cex.legend = 1,
+  cols = c("deepskyblue", "indianred", "forestgreen"),
   ...
 )
 
@@ -30,6 +31,7 @@
   cex.lab = 1,
   cex.axis = 1,
   cex.legend = 1,
+  cols = c("deepskyblue", "indianred", "forestgreen"),
   ...
 )
 }
@@ -58,7 +60,12 @@ amounts of models, but can be annoying if there are many models.}
 
 \item{cex.legend}{how big to make legend labels.}
 
-\item{...}{arguments passed to the generic plot and image methods.}
+\item{cols}{the colors used to create the "variables" plot. Should be a character 
+vector of length 3, the first color will be used for included variables, 
+the second color will be used for excluded variables, and the third color will 
+be used for kept variables.}
+
+\item{...}{further arguments passed to the generic plot and image methods.}
 }
 \value{
 This only produces plots, nothing is returned.
@@ -73,6 +80,9 @@ The different values for ptype are as follows
  \item "variables" for a plot that displays which variables are in each of the top models
  \item "both" for both plots
 }
+
+If there are so many models that the "variables" plot appears to be 
+entirely black, then set addLines to FALSE.
 }
 \examples{
 Data <- iris
@@ -87,7 +97,17 @@ VS
 Summ <- summary(VS)
 Summ
 
-## Plotting the BIC of the best models
-plot(Summ, type = "b")
+## Plotting the BIC of best models
+plot(Summ, type = "b", ptype = "metrics")
+
+## Plotting the BIC of the best models 
+plot(Summ, ptype = "variables")
+
+### Alternative colors
+plot(Summ, ptype = "variables", 
+cols = c("yellowgreen", "purple1", "grey50"))
+
+### Smaller text size for names
+plot(Summ, ptype = "variables", cex.names = 0.75)
 
 }
