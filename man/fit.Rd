@@ -6,11 +6,11 @@
 \alias{fit.summary.BranchGLMVS}
 \title{Fits GLMs for summary.BranchGLMVS and BranchGLMVS objects}
 \usage{
-\method{fit}{BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, useNA = FALSE, ...)
+\method{fit}{BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, ...)
 
 fit(object, ...)
 
-\method{fit}{summary.BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, useNA = FALSE, ...)
+\method{fit}{summary.BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, ...)
 }
 \arguments{
 \item{object}{a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.}
@@ -24,9 +24,6 @@ is TRUE. If this is FALSE, then the results from this cannot be used inside of \
 \item{keepY}{Whether or not to store a copy of y, the default is TRUE. If 
 this is FALSE, then the binomial GLM helper functions may not work and this 
 cannot be used inside of \code{VariableSelection}.}
-
-\item{useNA}{Whether or not to use observations that had missing values in the 
-full model, but not for this specific model. The default is FALSE.}
 
 \item{...}{further arguments passed to other methods.}
 }
@@ -42,24 +39,4 @@ supplied to the \code{VariableSelection} function.
 
 The fitted models do not have standard errors or p-values since these are 
 biased due to the selection process.
-}
-\examples{
-Data <- iris
-Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
-
-# Doing branch and bound selection 
-VS <- VariableSelection(Fit, type = "branch and bound", metric = "BIC", 
-bestmodels = 10, showprogress = FALSE)
-
-## Getting summary of the process
-Summ <- summary(VS)
-
-## Getting the best model according to BIC
-FinalModel <- fit(Summ, which = 1)
-FinalModel
-
-## Getting the 8th best model according to BIC
-EighthModel <- fit(Summ, which = 8)
-EighthModel
-
 }

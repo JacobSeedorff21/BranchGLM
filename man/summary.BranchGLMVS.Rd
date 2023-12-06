@@ -18,6 +18,7 @@ following components
 with the variables included in each model}
 \item{\code{initmodel}}{ the initial \code{BranchGLM} object that was supplied to the 
 \code{VariableSelection} function}
+\item{\code{VS}}{ the supplied \code{BranchGLMVS} object}
 \item{\code{formulas}}{ a list containing the formulas of the best models}
 \item{\code{metric}}{ the metric used to perform variable selection}
 }
@@ -44,8 +45,7 @@ plot(Summ, type = "b")
 ## Plotting the variables in the best models
 plot(Summ, ptype = "variables")
 
-## Getting the best model according to BIC
-FinalModel <- fit(Summ, which = 1)
-FinalModel
+## Getting coefficients
+coef(Summ)
  
 }

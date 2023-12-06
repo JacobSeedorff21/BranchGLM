@@ -15,10 +15,10 @@ VariableSelection(object, ...)
   link,
   offset = NULL,
   method = "Fisher",
-  type = "branch and bound",
+  type = "switch branch and bound",
   metric = "AIC",
-  bestmodels = 1,
-  cutoff = 0,
+  bestmodels = NULL,
+  cutoff = NULL,
   keep = NULL,
   keepintercept = TRUE,
   maxsize = NULL,
@@ -34,10 +34,10 @@ VariableSelection(object, ...)
 
 \method{VariableSelection}{BranchGLM}(
   object,
-  type = "branch and bound",
+  type = "switch branch and bound",
   metric = "AIC",
-  bestmodels = 1,
-  cutoff = 0,
+  bestmodels = NULL,
+  cutoff = NULL,
   keep = NULL,
   keepintercept = TRUE,
   maxsize = NULL,
@@ -50,7 +50,7 @@ VariableSelection(object, ...)
 \arguments{
 \item{object}{a formula or a \code{BranchGLM} object.}
 
-\item{...}{further arguments passed to other methods.}
+\item{...}{further arguments passed from other methods.}
 
 \item{data}{a dataframe with the response and predictor variables.}
 
@@ -68,22 +68,24 @@ fit many models with a small number of covariates.}
 
 \item{type}{one of "forward", "backward", "branch and bound", "backward branch and bound", 
 or "switch branch and bound" to indicate the type of variable selection to perform. 
-The default value is "branch and bound". The branch and bound methods are guaranteed to 
+The default value is "switch branch and bound". The branch and bound algorithms are guaranteed to 
 find the best models according to the metric while "forward" and "backward" are 
 heuristic approaches that may not find the optimal model.}
 
 \item{metric}{metric used to choose the best models, the default is "AIC", 
 but "BIC" and "HQIC" are also available. AIC is the Akaike information criterion, 
-BIC is the bayesian information criterion, and HQIC is the Hannan-Quinn information 
+BIC is the Bayesian information criterion, and HQIC is the Hannan-Quinn information 
 criterion.}
 
-\item{bestmodels}{number of the best models to find according to the chosen metric, 
-the default is 1. This is only used for the branch and bound methods.}
+\item{bestmodels}{a positive number to indicate the number of the best models to 
+find according to the chosen metric or NULL. If this is NULL, then cutoff is 
+used instead. This is only used for the branch and bound methods.}
 
 \item{cutoff}{this is a non-negative number which indicates that the function 
 should return all models that have a metric value within cutoff of the 
-best metric value. The default value is 0 and only one of this or bestmodels 
-should be specified. This is only used for the branch and bound methods.}
+best metric value or NULL. Only one of this or bestmodels should be specified and 
+when both are NULL a cutoff of 0 is used. This is only used for the branch 
+and bound methods.}
 
 \item{keep}{vector of names to denote variables that must be in the models.}
 
@@ -120,7 +122,8 @@ object if a formula is supplied}
 \item{\code{metric}}{ metric used to select best models}
 \item{\code{bestmodels}}{ numeric matrix used to describe the best models}
 \item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search}
-\item{\code{cutoff}}{ the supplied cutoff}
+\item{\code{beta}}{ numeric matrix of beta coefficients for the best models}
+\item{\code{cutoff}}{ the cutoff that was used, this is set to -1 if bestmodels was used instead}
 \item{\code{keep}}{ vector of which variables are kept through the selection process}
 }
 \description{
@@ -133,7 +136,8 @@ bound algorithms to greatly speed up the process.
 The supplied formula or the formula from the fitted model is 
 treated as the upper model. The variables specified in keep along with an 
 intercept (if included in formula and keepintercept = TRUE) is the lower model. 
-Factor variables are either kept in their entirety or entirely removed.
+Factor variables are either kept in their entirety or entirely removed and 
+interaction terms are properly handled.
 
 
 The branch and bound method makes use of an efficient branch and bound algorithm 
@@ -159,31 +163,27 @@ VS <- VariableSelection(Fit, type = "branch and bound", metric = "BIC",
 bestmodels = 10, showprogress = FALSE)
 VS
 
-## Getting summary of the process
-Summ <- summary(VS)
-Summ
-
 ## Plotting the BIC of the best models
-plot(Summ, type = "b")
+plot(VS, type = "b")
 
-## Getting the best model according to BIC
-FinalModel <- fit(Summ, which = 1)
+## Getting the coefficients of the best model according to BIC
+FinalModel <- coef(VS, which = 1)
 FinalModel
 
 # Now doing it in parallel (although it isn't necessary for this dataset)
 parVS <- VariableSelection(Fit, type = "branch and bound", parallel = TRUE, metric = "BIC", 
 bestmodels = 10, showprogress = FALSE)
 
-## Getting the best model according to BIC
-FinalModel <- fit(parVS, which = 1)
+## Getting the coefficients of the best model according to BIC
+FinalModel <- coef(parVS, which = 1)
 FinalModel
 
 # Using a formula
 formVS <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
 link = "identity", metric = "BIC", type = "branch and bound", bestmodels = 10, showprogress = FALSE)
 
-## Getting the best model according to BIC
-FinalModel <- fit(formVS, which = 1)
+## Getting the coefficients of the best model according to BIC
+FinalModel <- coef(formVS, which = 1)
 FinalModel
 
 # Using the keep argument
@@ -191,8 +191,9 @@ keepVS <- VariableSelection(Fit, type = "branch and bound", keep = "Petal.Width"
 metric = "BIC", bestmodels = 5, showprogress = FALSE)
 keepVS
 
-## Getting the fifth best model according to BIC when keeping Petal.Width in every model
-FinalModel <- fit(keepVS, which = 5)
+## Getting the coefficients from the fifth best model according to BIC when 
+## keeping Petal.Width in every model
+FinalModel <- coef(keepVS, which = 5)
 FinalModel
 
 }

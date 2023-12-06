@@ -7,6 +7,7 @@
 #' with the variables included in each model}
 #' \item{\code{initmodel}}{ the initial \code{BranchGLM} object that was supplied to the 
 #' \code{VariableSelection} function}
+#' \item{\code{VS}}{ the supplied \code{BranchGLMVS} object}
 #' \item{\code{formulas}}{ a list containing the formulas of the best models}
 #' \item{\code{metric}}{ the metric used to perform variable selection}
 #' @examples
@@ -29,9 +30,8 @@
 #' ## Plotting the variables in the best models
 #' plot(Summ, ptype = "variables")
 #' 
-#' ## Getting the best model according to BIC
-#' FinalModel <- fit(Summ, which = 1)
-#' FinalModel
+#' ## Getting coefficients
+#' coef(Summ)
 #'  
 #' @export
 
@@ -73,7 +73,8 @@ summary.BranchGLMVS <- function(object, ...){
   }
   )
   MyList <- list("results" = df, 
-                 "initmodel" = object$initmodel, 
+                 "initmodel" = object$initmodel,
+                 "VS" = object,
                  "formulas" = formulas, 
                  "metric" = object$metric)
   
@@ -90,32 +91,12 @@ summary.BranchGLMVS <- function(object, ...){
 #' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
 #' this is FALSE, then the binomial GLM helper functions may not work and this 
 #' cannot be used inside of \code{VariableSelection}.
-#' @param useNA Whether or not to use observations that had missing values in the 
-#' full model, but not for this specific model. The default is FALSE.
 #' @param ... further arguments passed to other methods.
 #' @details The information needed to fit the GLM is taken from the original information 
 #' supplied to the \code{VariableSelection} function.
 #' 
 #' The fitted models do not have standard errors or p-values since these are 
 #' biased due to the selection process.
-#' @examples
-#' Data <- iris
-#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
-#' 
-#' # Doing branch and bound selection 
-#' VS <- VariableSelection(Fit, type = "branch and bound", metric = "BIC", 
-#' bestmodels = 10, showprogress = FALSE)
-#' 
-#' ## Getting summary of the process
-#' Summ <- summary(VS)
-#' 
-#' ## Getting the best model according to BIC
-#' FinalModel <- fit(Summ, which = 1)
-#' FinalModel
-#' 
-#' ## Getting the 8th best model according to BIC
-#' EighthModel <- fit(Summ, which = 8)
-#' EighthModel
 #' 
 #' @return An object of class \link{BranchGLM}. 
 #' @export
@@ -126,8 +107,9 @@ fit <- function(object, ...) {
 
 #' @rdname fit 
 #' @export
-fit.summary.BranchGLMVS <- function(object, which = 1, keepData = TRUE, keepY = TRUE, 
-                                    useNA = FALSE, ...){
+fit.summary.BranchGLMVS <- function(object, which = 1, keepData = TRUE, keepY = TRUE,
+                                    ...){
+  .Deprecated("coef")
   if(!is.numeric(which) || which < 0 || which > length(object$formulas) || 
      which != as.integer(which)){
     stop("which must be a positive integer denoting the rank of the model to fit")
@@ -145,6 +127,18 @@ fit.summary.BranchGLMVS <- function(object, which = 1, keepData = TRUE, keepY = 
   FinalModel$numobs <- object$initmodel$numobs
   FinalModel$missing <- object$initmodel$missing
   return(FinalModel)
+}
+
+#' @rdname coef.BranchGLMVS
+#' @export
+coef.summary.BranchGLMVS <- function(object, which = 1, ...){
+  coef(object$VS, which = which)
+}
+
+#' @rdname predict.BranchGLMVS
+#' @export
+predict.summary.BranchGLMVS <- function(object, which = 1, ...){
+  predict(object$VS, which = which, ...)
 }
 
 #' Print Method for summary.BranchGLMVS
@@ -176,13 +170,21 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' @param cex.lab how big to make axis labels.
 #' @param cex.axis how big to make axis annotation.
 #' @param cex.legend how big to make legend labels.
-#' @param ... arguments passed to the generic plot and image methods.
+#' @param cols the colors used to create the "variables" plot. Should be a character 
+#' vector of length 3, the first color will be used for included variables, 
+#' the second color will be used for excluded variables, and the third color will 
+#' be used for kept variables.
+#' @param ... further arguments passed to the generic plot and image methods.
 #' @details The different values for ptype are as follows
 #' \itemize{
 #'  \item "metrics" for a plot that displays the metric values ordered by rank
 #'  \item "variables" for a plot that displays which variables are in each of the top models
 #'  \item "both" for both plots
 #' }
+#' 
+#' If there are so many models that the "variables" plot appears to be 
+#' entirely black, then set addLines to FALSE.
+#' 
 #' @examples
 #' Data <- iris
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
@@ -196,8 +198,18 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' Summ <- summary(VS)
 #' Summ
 #' 
-#' ## Plotting the BIC of the best models
-#' plot(Summ, type = "b")
+#' ## Plotting the BIC of best models
+#' plot(Summ, type = "b", ptype = "metrics")
+#' 
+#' ## Plotting the BIC of the best models 
+#' plot(Summ, ptype = "variables")
+#' 
+#' ### Alternative colors
+#' plot(Summ, ptype = "variables", 
+#' cols = c("yellowgreen", "purple1", "grey50"))
+#' 
+#' ### Smaller text size for names
+#' plot(Summ, ptype = "variables", cex.names = 0.75)
 #' 
 #' @return This only produces plots, nothing is returned.
 #' @export
@@ -206,6 +218,7 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
                                      type = "b", horiz = FALSE,
                                      cex.names = 1, cex.lab = 1, 
                                      cex.axis = 1, cex.legend = 1,
+                                     cols = c("deepskyblue", "indianred", "forestgreen"), 
                                      ...){
   if(!ptype %in% c("metrics", "both", "variables")){
     stop("supplied ptype is not supported")
@@ -216,6 +229,10 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
          main = paste0("Best Models Ranked by ", x$metric),
          type = type, cex.lab = cex.lab, cex.axis = cex.axis,
          ...)
+  }
+  # Checking cols
+  if(length(cols) != 3 || !is.character(cols)){
+    stop("cols must be a character vector of length 3")
   }
   if(ptype %in% c("variables", "both") && !horiz){
     # This is inspired by the plot.regsubsets function
@@ -242,26 +259,26 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
             main = paste0("Best Models Ranked by ", x$metric), 
-            col = c("deepskyblue", "indianred"), ...)
+            col = cols[-3], ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded"), 
-             fill = c("deepskyblue", "indianred"), 
+             fill = cols[-3], 
              xpd = TRUE, cex = cex.legend)
     }else{
       # Do this if there were any kept variables
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
             main = paste0("Best Models Ranked by ", x$metric), 
-            col = c("deepskyblue", "indianred", "forestgreen"), ...)
+            col = cols, ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded", "Kept"), 
-             fill = c("deepskyblue", "indianred", "forestgreen"), 
+             fill = cols, 
              xpd = TRUE, cex = cex.legend)
     }
     
     # Adding lines
     if(addLines){
-      abline(h = y + 0.5, v = x1 + 0.5)
+      abline(h = y + 0.5, v = x1 - 0.5)
     }else{
       abline(h = y + 0.5)
     }
@@ -300,28 +317,28 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
             main = paste0("Best Models Ranked by ", x$metric), 
-            col = c("deepskyblue", "indianred"), ...)
+            col = cols[-3], ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded"), 
-             fill = c("deepskyblue", "indianred"), 
+             fill = cols[-3], 
              xpd = TRUE, cex = cex.legend)
     }else{
       # Do this if there were any kept variables
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
             main = paste0("Best Models Ranked by ", x$metric), 
-            col = c("deepskyblue", "indianred", "forestgreen"), ...)
+            col = cols, ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded", "Kept"), 
-             fill = c("deepskyblue", "indianred", "forestgreen"),
+             fill = cols,
              xpd = TRUE, cex = cex.legend)
     }
     
     # Adding lines
     if(addLines){
-      abline(v = x1 + 0.5, h = y + 0.5)
+      abline(v = x1 - 0.5, h = y + 0.5)
     }else{
-      abline(v = x1 + 0.5)
+      abline(v = x1 - 0.5)
     }
     
     # Adding axis labels
