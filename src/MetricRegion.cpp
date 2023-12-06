@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include <boost/math/distributions/normal.hpp>
 #include <cmath>
 #include "BranchGLMHelpers.h"
 #include "ParBranchGLMHelpers.h"
@@ -8,6 +9,43 @@
 # include <omp.h>
 #endif
 using namespace Rcpp;
+
+arma::vec GetY(const arma::mat* y, std::string Link){
+  arma::vec NewY = *y;
+  if(Link == "log"){
+    NewY = log(NewY.replace(0, 1e-4));
+    
+  }else if(Link == "inverse"){
+    NewY = 1 / (NewY.replace(0, 1e-4));
+    
+  }else if(Link == "sqrt"){
+    NewY = sqrt(NewY);
+    
+  }else if(Link == "logit"){
+    NewY = NewY.clamp(1e-4, 1 - 1e-4);
+    NewY = log(NewY / (1 - NewY));
+    
+  }else if(Link == "probit"){ 
+    double val0 = boost::math::quantile(boost::math::normal(0.0, 1.0), 1e-4);
+    double val1 = boost::math::quantile(boost::math::normal(0.0, 1.0), 1 - 1e-4);
+    for(unsigned int i = 0; i < NewY.n_elem; i++){
+      if(NewY.at(i) == 0){
+        NewY.at(i) = val0;
+      }else{ 
+        NewY.at(i) = val1;
+      }
+    } 
+    
+  }else if(Link == "cloglog"){
+    NewY = NewY.clamp(1e-4, 1 - 1e-4);
+    NewY = log(-log(1 - NewY));
+  }
+  return(NewY);
+}
+
+bool GetXTXXT(const arma::mat* X, const arma::mat* XTWX, arma::mat* res){
+  return(arma::solve(*res, *XTWX, X->t() , arma::solve_opts::no_approx + arma::solve_opts::likely_sympd));
+}
 
 // Function used to fit models and calculate desired metric
 double MetricHelperWithBetas(const arma::mat* oldX, const arma::mat* XTWX, 
@@ -109,6 +147,63 @@ double MetricHelperWithBetas(const arma::mat* oldX, const arma::mat* XTWX,
   return(-2 * LogLik + arma::accu(pen->elem(find(*CurModel != 0))));
 } 
 
+// Function used to fit models and calculate desired metric
+double MetricHelper2(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y,
+                     const arma::mat* XTXXT, const arma::vec* NewY,
+                             const arma::vec* Offset,
+                             const arma::ivec* Indices, const arma::ivec* CurModel,
+                             std::string method, 
+                             int m, std::string Link, std::string Dist,
+                             double tol, int maxit, const arma::vec* pen){
+  
+  
+  // Getting beta
+  arma::vec beta = *XTXXT * (*NewY - *Offset);
+  int Iter;
+  bool UseXTWX = false;
+  if(Dist == "gaussian" && Link == "identity"){
+    // Do nothing
+    Iter = 1;
+  }else if(method == "BFGS"){  
+    Iter = ParBFGSGLMCpp(&beta, X, XTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+  }  
+  else if(method == "LBFGS"){
+    Iter = ParLBFGSGLMCpp(&beta, X, XTWX, Y, Offset, Link, Dist, tol, maxit, m, UseXTWX);
+  }  
+  else{
+    Iter = ParFisherScoringGLMCpp(&beta, X, XTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
+  }  
+  
+  if(Iter <= 0){
+    return(arma::datum::inf);
+  }  
+  
+  arma::vec mu = ParLinkCpp(X, &beta, Offset, Link, Dist);
+  double LogLik = -ParLogLikelihoodCpp(X, Y, &mu, Dist);
+  double dispersion = GetDispersion(X, Y, &mu, LogLik, Dist, tol);
+  if(dispersion <= 0 || std::isnan(LogLik) || std::isinf(dispersion)){
+    return(arma::datum::inf);
+  }  
+  
+  if(Dist == "gaussian"){
+    double temp = X->n_rows/2 * log(2*M_PI*dispersion);
+    LogLik = LogLik / dispersion - temp;
+  }  
+  else if(Dist == "poisson"){
+    LogLik -=  LogFact(Y);
+  } 
+  else if(Dist == "gamma"){
+    double shape = 1 / dispersion;
+    LogLik = shape * LogLik + 
+      X->n_rows * (shape * log(shape) - lgamma(shape)) +
+      (shape - 1) * arma::accu(log(*Y));
+  }  
+  if(std::isnan(LogLik)){
+    return(arma::datum::inf);
+  }  
+  return(-2 * LogLik + arma::accu(pen->elem(find(*CurModel != 0))));
+}  
+
 double NullHelper(double beta, const arma::mat* X, const arma::vec* Y, 
                   const arma::vec* Offset, double tol, std::string Link, std::string Dist, 
                   const arma::vec* pen){
@@ -143,42 +238,39 @@ double NullHelper(double beta, const arma::mat* X, const arma::vec* Y,
   return(-2 * LogLik);
 }
 
-double GetBest(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+double GetBest(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
+               const arma::mat* XTXXT, const arma::vec* NewY, const arma::vec* curCol,
+               const arma::vec* Offset,
                arma::ivec* Indices,
                std::string method, int m, std::string Link, std::string Dist, 
-               double tol, int maxit, const arma::vec* pen, const arma::imat* Models, unsigned int cur, 
-               double beta, double goal, const arma::vec* metrics){
-  arma::vec Metrics(Models->n_cols);
-  arma::vec tempOffset = *Offset + beta * X->col(as_scalar(arma::find(*Indices == cur)));
-  Metrics.fill(arma::datum::inf);
-  for(unsigned int i = 0; i < Models->n_cols; i++){
-    if(Models->at(cur, i) == 1 && metrics->at(i) <= goal){
-      arma::ivec CurModel = Models->col(i);
-      CurModel.at(cur) = 0;
-      if(all(CurModel == 0)){
-        // If this is the only variable then we don't need to fit anything
-        CurModel = Models->col(i);
-        arma::mat xTemp = GetMatrix(X, &CurModel, Indices);
-        Metrics.at(i) = NullHelper(beta, &xTemp, Y, Offset, tol, Link, Dist, pen);
-      }else{
-        // Fitting model if there are more than 1 variable
-        arma::mat xTemp = GetMatrix(X, &CurModel, Indices);
-        Metrics.at(i) = MetricHelper(&xTemp, XTWX, Y, &tempOffset, Indices, &CurModel, 
-                   method, m, Link, Dist, tol, maxit, pen);
-      }
+               double tol, int maxit, const arma::vec* pen, const arma::ivec* CurModel, 
+               unsigned int cur, 
+               double beta, double goal, const double Metric){
+  double curMetric = arma::datum::inf;
+  if(Metric <= goal){
+    if(all(*CurModel == 0)){
+      // If this is the only variable then we don't need to fit anything
+      curMetric = NullHelper(beta, curCol, Y, Offset, tol, Link, Dist, pen);
+    }else{
+      // Fitting model if there are more than 1 variable
+      arma::vec tempOffset = *Offset + beta * *curCol;
+      curMetric = MetricHelper2(X, XTWX, Y, XTXXT, NewY, &tempOffset, Indices, CurModel, 
+                 method, m, Link, Dist, tol, maxit, pen);
     }
   }
-  
-  return(min(Metrics));
+  return(curMetric);
 }
 
-double ITPMethod(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+double ITPMethod(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
+                 const arma::mat* XTXXT, const arma::vec* NewY, const arma::vec* curCol,
+                 const arma::vec* Offset,
                  arma::ivec* Indices,
                  std::string method, int m, std::string Link, std::string Dist, 
-                 double tol, int maxit, const arma::vec* pen, const arma::imat* Models, unsigned int cur, 
+                 double tol, int maxit, const arma::vec* pen, const arma::ivec* CurModel, 
+                 unsigned int cur, 
                  double init1, double lowerval, 
                  double init2, double upperval, 
-                 double goal, const arma::vec* metrics){
+                 double goal, const double Metric){
   
   // Setting initial values
   //// init1 corresponds to the beta corresponding to the optimal model
@@ -239,9 +331,9 @@ double ITPMethod(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
     init3 = x12 - sigma * rho;
      
     // Fitting new model
-    MetricVal3 = GetBest(X, XTWX, Y, Offset, Indices, 
-                         method, m, Link, Dist, tol, maxit, pen, Models, cur, 
-                         init3, goal, metrics);
+    MetricVal3 = GetBest(X, XTWX, Y, XTXXT, NewY, curCol, Offset, Indices, 
+                         method, m, Link, Dist, tol, maxit, pen, CurModel, cur, 
+                         init3, goal, Metric);
  
     
     // Changing inits based on results
@@ -267,12 +359,14 @@ double ITPMethod(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
   return(init3);
 }
 
-double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const arma::vec* Offset,
+double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, 
+                       const arma::mat* XTXXT, const arma::vec* NewY, const arma::vec* curCol,
+                       const arma::vec* Offset,
                        arma::ivec* Indices,
                        std::string method, int m, std::string Link, std::string Dist, 
-                       double tol, int maxit, const arma::vec* pen, const arma::imat* Models, unsigned int cur, 
+                       double tol, int maxit, const arma::vec* pen, const arma::ivec* CurModel, unsigned int cur, 
                        double bound, double val, double init, double goal, 
-                       const arma::vec* metrics,
+                       const double Metric,
                        std::string rootMethod, std::string direction){
   // Creating stuff
   double init1 = bound;
@@ -289,17 +383,17 @@ double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::ve
     // Using secant method
     //// Fitting model
     MetricVal2 = MetricVal;
-    MetricVal = GetBest(X, XTWX, Y, Offset, Indices, 
-                        method, m, Link, Dist, tol, maxit, pen, Models, cur, 
-                        init2, goal, metrics);
+    MetricVal = GetBest(X, XTWX, Y, XTXXT, NewY, curCol, Offset, Indices, 
+                        method, m, Link, Dist, tol, maxit, pen, CurModel, cur, 
+                        init2, goal, Metric);
     
     //// Going backwards if we have gone too far and metric value is infinite
     unsigned int newIter = 0;
     while(std::isinf(MetricVal) && newIter < 10){
       init2 = (init2 + init3) / 2;
-      MetricVal = GetBest(X, XTWX, Y, Offset, Indices, 
-                          method, m, Link, Dist, tol, maxit, pen, Models, cur, 
-                          init2, goal, metrics);
+      MetricVal = GetBest(X, XTWX, Y, XTXXT, NewY, curCol, Offset, Indices, 
+                          method, m, Link, Dist, tol, maxit, pen, CurModel, cur, 
+                          init2, goal, Metric);
       newIter++;
     }
     if(std::isinf(MetricVal)){
@@ -310,9 +404,9 @@ double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::ve
     // Checking for bounds
     if((MetricVal3 - goal) * (MetricVal - goal) < 0 && rootMethod == "ITP"){
       // Switching to ITP method since we now have valid bounds
-      return(ITPMethod(X, XTWX, Y, Offset, Indices, 
-                       method, m, Link, Dist, tol, maxit, pen, Models, cur, 
-                       init3, MetricVal3, init2, MetricVal, goal, metrics));
+      return(ITPMethod(X, XTWX, Y, XTXXT, NewY, curCol, Offset, Indices, 
+                       method, m, Link, Dist, tol, maxit, pen, CurModel, cur, 
+                       init3, MetricVal3, init2, MetricVal, goal, Metric));
     }
     else{
       init3 = init2;
@@ -347,21 +441,20 @@ double SecantMethodCpp(const arma::mat* X, const arma::mat* XTWX, const arma::ve
 // [[Rcpp::export]]
 List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
                                  IntegerVector indices, IntegerVector num,
-                                 IntegerMatrix models,
+                                 IntegerVector model,
                                  std::string method, int m,
                                  std::string Link, std::string Dist,
                                  unsigned int nthreads, double tol, int maxit, 
                                  NumericVector pen, NumericVector mle, NumericVector se,
-                                 NumericVector best, double cutoff, NumericVector metrics,
+                                 NumericVector best, double cutoff, double Metric,
                                  std::string rootMethod){
   
   // Creating necessary vectors/matrices
-  const arma::imat Models(models.begin(), models.rows(), models.cols(), false, true);
+  arma::ivec CurModel2(model.begin(), model.size(), false, true);
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
   const arma::vec Y(y.begin(), y.size(), false, true);
   const arma::vec Offset(offset.begin(), offset.size(), false, true);
   const arma::vec Pen(pen.begin(), pen.size(), false, true);
-  arma::vec Metrics(metrics.begin(), metrics.size(), true, true);
   const arma::vec MLE(mle.begin(), mle.size(), false, true);
   const arma::vec SE(se.begin(), se.size(), false, true);
   arma::vec Best(best.begin(), best.size(), true, true);
@@ -377,23 +470,24 @@ List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   arma::mat XTWX = X.t() * X;
   
   // Getting metrics
-  arma::vec UpperVals(Models.n_rows);
+  arma::vec UpperVals(CurModel2.n_elem);
   UpperVals.fill(arma::datum::inf);
-  arma::vec LowerVals(Models.n_rows);
+  arma::vec LowerVals(CurModel2.n_elem);
   LowerVals.fill(-arma::datum::inf);
   
   // Changing best since we include 1 covariate as offset
   Best -= min(Pen);
-  Metrics = Metrics - min(Pen);
+  Metric = Metric - min(Pen);
   
-  for(unsigned int j = 0; j < Models.n_rows; j += 2 * nthreads){
-    unsigned int maxval = std::min(j + 2 * nthreads, Models.n_rows);
+  for(unsigned int j = 0; j < CurModel2.n_elem; j += 2 * nthreads){
+    unsigned int maxval = std::min(j + 2 * nthreads, CurModel2.n_elem);
 #pragma omp parallel for schedule(dynamic)
     for(unsigned int i = j; i < maxval; i++){
-      if(Counts.at(i) > 1 || all(Models.row(i) == -1)){
+      arma::ivec CurModel = CurModel2;
+      if(Counts(i) > 1 || CurModel(i) == -1){
         // Do nothing
       }
-      else if(all(Models.row(i) != 1)){
+      else if(CurModel(i) == 0){
         // Set these intervals to be 0
         UpperVals.at(i) = 0;
         LowerVals.at(i) = 0;
@@ -402,21 +496,52 @@ List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset,
         unsigned int cur = as_scalar(arma::find(Indices == i));
         double curMLE = MLE.at(cur);
         double curSE = SE.at(cur);
-        UpperVals.at(i) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
-                   method, m, Link, Dist, tol, maxit, &Pen, &Models, i, 
-                   curMLE, Best.at(i), curMLE + curSE, 
-                   Best.at(i) + cutoff, &Metrics, rootMethod, "upper");
-        LowerVals.at(i) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
-                     method, m, Link, Dist, tol, maxit, &Pen, &Models, i, 
-                     curMLE, Best.at(i), curMLE - curSE, 
-                     Best.at(i) + cutoff, &Metrics, rootMethod, "lower");
         
-        // Checking to make sure they are on the correct side
-        if(UpperVals.at(i) < curMLE){
-           UpperVals.at(i) = arma::datum::inf;
-        }
-        if(LowerVals.at(i) > curMLE){
-           LowerVals.at(i) = -arma::datum::inf;
+        // Getting X and XTWX for this model
+        CurModel(i) = 0;
+        
+        // Getting submatrix of XTWX
+        unsigned count = 0;
+        for(unsigned int i = 0; i < Indices.n_elem; i++){
+          if(CurModel(Indices(i)) != 0){
+            count++;
+          }
+        } 
+        arma::uvec NewInd(count);
+        count = 0;
+        for(unsigned int i = 0; i < Indices.n_elem; i++){
+          if(CurModel(Indices(i)) != 0){
+            NewInd(count++) = i;
+          }
+        }  
+        arma::mat NewXTWX = XTWX.submat(NewInd, NewInd);
+        arma::mat NewX = X.cols(NewInd);
+        arma::mat XTXXT;
+        arma::vec NewY = GetY(&Y, Link);
+        bool check = GetXTXXT(&NewX, &NewXTWX, &XTXXT);
+        arma::vec curCol = X.col(cur);
+        if(!check){
+          // Do nothing
+        }else{
+          UpperVals.at(i) = SecantMethodCpp(&NewX, &NewXTWX, &Y, 
+                       &XTXXT, &NewY, &curCol, 
+                       &Offset, &Indices, 
+                     method, m, Link, Dist, tol, maxit, &Pen, &CurModel, i, 
+                     curMLE, Best.at(i), curMLE + curSE, 
+                     Best.at(i) + cutoff, Metric, rootMethod, "upper");
+          LowerVals.at(i) = SecantMethodCpp(&NewX, &NewXTWX, &Y, 
+                       &XTXXT, &NewY, &curCol, &Offset, &Indices, 
+                       method, m, Link, Dist, tol, maxit, &Pen, &CurModel, i, 
+                       curMLE, Best.at(i), curMLE - curSE, 
+                       Best.at(i) + cutoff, Metric, rootMethod, "lower");
+          
+          // Checking to make sure they are on the correct side
+          if(UpperVals.at(i) < curMLE){
+             UpperVals.at(i) = arma::datum::inf;
+          }
+          if(LowerVals.at(i) > curMLE){
+             LowerVals.at(i) = -arma::datum::inf;
+          }
         }
       }
     }
@@ -464,9 +589,9 @@ List MetricIntervalsCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   
   // Getting metrics
   arma::mat UpperVals(Models.n_rows, Models.n_cols);
-  UpperVals.fill(0);
+  UpperVals.fill(arma::datum::inf);
   arma::mat LowerVals(Models.n_rows, Models.n_cols);
-  LowerVals.fill(0);
+  LowerVals.fill(-arma::datum::inf);
   
   // Changing best since we include 1 covariate as offset
   Best -= Penalty;
@@ -474,41 +599,75 @@ List MetricIntervalsCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   for(unsigned int k = 0; k < Models.n_cols; k++){
     arma::vec MLE(X.n_cols, arma::fill::zeros);
     arma::vec SE(X.n_cols, arma::fill::ones);
-    arma::ivec curModel = Models.col(k); 
+    arma::ivec tempModel = Models.col(k); 
     double tempMetric = MetricHelperWithBetas(&X, &XTWX, &Y, &Offset, &Indices, 
-                                             &curModel, method, m, Link, Dist, tol, 
-                                             maxit, &Pen, &MLE, &SE) - Penalty;
-    const arma::vec curMetric(1, arma::fill::value(tempMetric));
-    
+                                              &tempModel, method, m, Link, Dist, tol, 
+                                              maxit, &Pen, &MLE, &SE) - Penalty;
     for(unsigned int i = 0; i < Models.n_rows; i++){
-      if(Counts.at(i) > 1 || curModel(i) == -1){
+      arma::ivec CurModel = Models.col(k); 
+      if(Counts.at(i) > 1 || CurModel(i) == -1){
         // Do nothing
       } 
-      else if(curModel(i) != 1){
+      else if(CurModel(i) == 0){
         // Set these intervals to be 0
         UpperVals(i, k) = 0;
         LowerVals(i, k) = 0;
       } 
       else{
-        unsigned int cur = as_scalar(arma::find(Indices == i));
-        double curMLE = MLE.at(cur);
-        double curSE = 2 * SE.at(cur);
-        UpperVals(i, k) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
-                     method, m, Link, Dist, tol, maxit, &Pen, &curModel, i,  
-                     curMLE, Best.at(i), curMLE + curSE,  
-                     Best.at(i) + cutoff, &curMetric, rootMethod, "upper");
-        LowerVals(i, k) = SecantMethodCpp(&X, &XTWX, &Y, &Offset, &Indices, 
-                     method, m, Link, Dist, tol, maxit, &Pen, &curModel, i, 
-                     curMLE, Best.at(i), curMLE - curSE, 
-                     Best.at(i) + cutoff, &curMetric, rootMethod, "lower");
-        
-        // Checking to make sure they are on the correct side
-        if(UpperVals(i, k) < curMLE){
-          UpperVals(i, k) = arma::datum::inf; 
-        } 
-        if(LowerVals(i, k) > curMLE){
-          LowerVals(i, k) = -arma::datum::inf;
-        } 
+        if(tempMetric >= Best.at(i) + cutoff){
+          // Do Nothing
+        }else{
+          unsigned int cur = as_scalar(arma::find(Indices == i));
+          double curMLE = MLE.at(cur);
+          double curSE = sqrt(Best.at(i) + cutoff - tempMetric) * SE.at(cur);
+          
+          // Getting X and XTWX for this model
+          CurModel(i) = 0;
+          
+          // Getting submatrix of XTWX
+          unsigned count = 0;
+          for(unsigned int ind = 0; ind < Indices.n_elem; ind++){
+            if(CurModel(Indices(ind)) != 0){
+              count++;
+            }
+          } 
+          arma::uvec NewInd(count);
+          count = 0;
+          for(unsigned int ind = 0; ind < Indices.n_elem; ind++){
+            if(CurModel(Indices(ind)) != 0){
+              NewInd(count++) = ind;
+            }
+          } 
+          arma::mat NewXTWX = XTWX.submat(NewInd, NewInd);
+          arma::mat NewX = X.cols(NewInd);
+          arma::mat XTXXT;
+          arma::vec NewY = GetY(&Y, Link);
+          bool check = GetXTXXT(&NewX, &NewXTWX, &XTXXT);
+          arma::vec curCol = X.col(cur);
+          if(!check){
+            // Do nothing
+          }
+          else{
+            UpperVals(i, k) = SecantMethodCpp(&NewX, &NewXTWX, &Y, 
+                      &XTXXT, &NewY, &curCol, &Offset, &Indices, 
+                         method, m, Link, Dist, tol, maxit, &Pen, &CurModel, i,  
+                         curMLE, Best.at(i), curMLE + curSE,  
+                         Best.at(i) + cutoff, tempMetric, rootMethod, "upper");
+            LowerVals(i, k) = SecantMethodCpp(&NewX, &NewXTWX, &Y, 
+                      &XTXXT, &NewY, &curCol, &Offset, &Indices, 
+                         method, m, Link, Dist, tol, maxit, &Pen, &CurModel, i, 
+                         curMLE, Best.at(i), curMLE - curSE, 
+                         Best.at(i) + cutoff, tempMetric, rootMethod, "lower");
+            
+            // Checking to make sure they are on the correct side
+            if(UpperVals(i, k) < curMLE){
+              UpperVals(i, k) = arma::datum::inf; 
+            } 
+            if(LowerVals(i, k) > curMLE){
+              LowerVals(i, k) = -arma::datum::inf;
+            } 
+          }
+        }
       }
     }
   } 
