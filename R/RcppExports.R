@@ -21,8 +21,8 @@ RLogLik <- function(x, y, offset, beta, Dist, Link) {
     .Call(`_BranchGLM_RLogLik`, x, y, offset, beta, Dist, Link)
 }
 
-MetricIntervalCpp <- function(x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, metrics, rootMethod) {
-    .Call(`_BranchGLM_MetricIntervalCpp`, x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, metrics, rootMethod)
+MetricIntervalCpp <- function(x, y, offset, indices, num, model, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, Metric, rootMethod) {
+    .Call(`_BranchGLM_MetricIntervalCpp`, x, y, offset, indices, num, model, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, Metric, rootMethod)
 }
 
 MetricIntervalsCpp <- function(x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, Penalty, best, cutoff, rootMethod) {
