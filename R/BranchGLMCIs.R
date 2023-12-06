@@ -57,9 +57,9 @@ confint.BranchGLM <- function(object, parm, level = 0.95,
   res <- MetricIntervalCpp(object$x, object$y, object$offset, 
                            1:ncol(object$x) - 1, rep(1, ncol(object$x)), model, 
                            object$method, object$grads, object$link, object$family, 
-                           nthreads, object$tol, object$maxit, rep(2, ncol(object$x)), coefs, SEs,
-                           metrics, qchisq(level, 1), object$AIC,
-                           "ITP")
+                           nthreads, object$tol, object$maxit, rep(2, ncol(object$x)), 
+                           coefs, SEs,
+                           metrics, qchisq(level, 1), object$AIC,"ITP")
   
   # Replacing infinities with NA
   res$LowerBounds <- ifelse(is.finite(res$LowerBounds), res$LowerBounds, NA)
@@ -90,7 +90,7 @@ print.BranchGLMCIs <- function(x, digits = 4, ...){
 #' @param which which intervals to plot, can use indices or names of desired variables.
 #' @param mary value used to determine how large to make margin of y-axis. If variable 
 #' names are cut-off, consider increasing this from the default value of 5. 
-#' @param ... further arguments passed to plotCI function.
+#' @param ... further arguments passed to \link{plotCI}.
 #' @return This only produces a plot, nothing is returned.
 #' @examples 
 #' Data <- iris

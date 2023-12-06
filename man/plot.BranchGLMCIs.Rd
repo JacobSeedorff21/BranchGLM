@@ -14,7 +14,7 @@
 \item{mary}{value used to determine how large to make margin of y-axis. If variable 
 names are cut-off, consider increasing this from the default value of 5.}
 
-\item{...}{further arguments passed to plotCI function.}
+\item{...}{further arguments passed to \link{plotCI}.}
 }
 \value{
 This only produces a plot, nothing is returned.
