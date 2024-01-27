@@ -3,7 +3,6 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-
 NumericMatrix MakeTable(NumericVector preds, NumericVector y, double cutoff){
   
   NumericMatrix values(2, 2);
@@ -29,9 +28,7 @@ NumericMatrix MakeTable(NumericVector preds, NumericVector y, double cutoff){
 }
 
 // Creates confusion matrix for numeric preds and factor y
-
 // [[Rcpp::export]]
-
 NumericMatrix MakeTableFactor2(NumericVector preds, CharacterVector y, 
                               CharacterVector levels, double cutoff){
   
@@ -59,9 +56,7 @@ NumericMatrix MakeTableFactor2(NumericVector preds, CharacterVector y,
 
 
 // Calculates c-index for numeric preds and y
-
 // [[Rcpp::export]]
-
 double CindexCpp(NumericVector preds, NumericVector y){
   
   double Concordant = 0;
@@ -98,9 +93,7 @@ double CindexCpp(NumericVector preds, NumericVector y){
   return(Concordant / Total);
 }
 // Calculates c-index via trapezoidal rule
-
 // [[Rcpp::export]]
-
 double CindexTrap(NumericVector Sens, NumericVector Spec){
   
   double Area = 0;
@@ -112,9 +105,7 @@ double CindexTrap(NumericVector Sens, NumericVector Spec){
 }
 
 // Creates ROC curve
-
 // [[Rcpp::export]]
-
 DataFrame ROCCpp(NumericVector preds, NumericVector y, NumericVector Cutoffs){
   
   NumericVector Sens(Cutoffs.size());

@@ -141,7 +141,7 @@ double MetricHelper(const arma::mat* OldX, const arma::mat* XTWX,
     Iter = ParFisherScoringGLMCpp(&beta, &X, &NewXTWX, Y, Offset, Link, Dist, tol, maxit, UseXTWX);
   }
   
-  if(Iter <= 0){
+  if(Iter < 0){
     return(arma::datum::inf);
   }
   

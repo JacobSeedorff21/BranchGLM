@@ -346,12 +346,14 @@ int ParLBFGSGLMCpp(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX,
   arma::mat Info(beta->n_elem, beta->n_elem);
   
   if(UseXTWX){
-    if(!inv_sympd(Info, *XTWX)){
+    if(!solve(Info, *XTWX, arma::eye(arma::size(Info)), 
+              arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
       return(-2);
     }
   }
   else{
-    if(!inv_sympd(Info, ParFisherInfoCpp(X, &Deriv, &Var))){
+    if(!solve(Info, ParFisherInfoCpp(X, &Deriv, &Var), arma::eye(arma::size(Info)), 
+              arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
       return(-2);
     }
   }
@@ -416,12 +418,14 @@ int ParBFGSGLMCpp(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX,
   arma::mat H1(beta->n_elem, beta->n_elem);
   
   if(UseXTWX){
-    if(!inv_sympd(H1, *XTWX)){
+    if(!solve(H1, *XTWX, arma::eye(arma::size(H1)), 
+              arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
       return(-2);
     }
   }
   else{
-    if(!inv_sympd(H1, ParFisherInfoCpp(X, &Deriv, &Var))){
+    if(!solve(H1, ParFisherInfoCpp(X, &Deriv, &Var), arma::eye(arma::size(H1)), 
+              arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
       return(-2);
     }
   }
@@ -504,7 +508,7 @@ int ParFisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
       break;
     }
     
-    // Re-assinging log-likelihood
+    // Re-assigning log-likelihood
     f0 = f1;
     
     // Solving for newton direction
@@ -558,13 +562,19 @@ void PargetInit(arma::vec* beta, const arma::mat* X, const arma::mat* XTWX, cons
   
   if(Link == "log"){
     arma::vec NewY = *Y;
-    NewY = log(NewY.replace(0, 1e-4));
+    NewY = log(NewY.clamp(1e-4, arma::datum::inf));
     ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
     *UseXTWX = false;
     
   }else if(Link == "inverse"){
     arma::vec NewY = *Y;
-    NewY = 1 / (NewY.replace(0, 1e-4));
+    NewY.transform( [](double val) {
+      if(std::fabs(val) <= 1e-2){
+        val = (val / std::fabs(val)) * 1e-2;
+      }
+      return(val);
+    } );
+    NewY = 1 / NewY;
     ParLinRegCppShort(beta, X, XTWX, &NewY, Offset);
     *UseXTWX = false;
     

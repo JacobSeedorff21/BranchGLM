@@ -44,7 +44,7 @@ arma::vec GetY(const arma::mat* y, std::string Link){
 }
 
 bool GetXTXXT(const arma::mat* X, const arma::mat* XTWX, arma::mat* res){
-  return(arma::solve(*res, *XTWX, X->t() , arma::solve_opts::no_approx + arma::solve_opts::likely_sympd));
+  return(arma::solve(*res, *XTWX, X->t(), arma::solve_opts::no_approx + arma::solve_opts::likely_sympd));
 }
 
 // Function used to fit models and calculate desired metric
@@ -105,7 +105,7 @@ double MetricHelperWithBetas(const arma::mat* oldX, const arma::mat* XTWX,
   arma::vec mu = ParLinkCpp(&X, &beta, Offset, Link, Dist);
   double LogLik = -ParLogLikelihoodCpp(&X, Y, &mu, Dist);
   double dispersion = GetDispersion(&X, Y, &mu, LogLik, Dist, tol);
-  if(dispersion <= 0 || std::isnan(LogLik) || std::isinf(dispersion)){
+  if(dispersion < 0 || std::isnan(LogLik) || std::isinf(dispersion)){
     return(arma::datum::inf);
   } 
   
@@ -136,7 +136,7 @@ double MetricHelperWithBetas(const arma::mat* oldX, const arma::mat* XTWX,
   arma::mat InfoInv = Info;
   
   // Calculating inverse info and returning error if not invertible
-  if(arma::inv_sympd(InfoInv, Info)){
+  if(arma::solve(InfoInv, Info, arma::eye(arma::size(InfoInv)), arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
     // Calculating SE
     arma::vec SE = sqrt(arma::diagvec(InfoInv) * dispersion);
     SEs->elem(NewInd) = SE;
@@ -557,127 +557,3 @@ List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset,
                                 Named("UpperBounds") = UpperVals);
   return(FinalList);
 }
-
-// Metric Interval
-// [[Rcpp::export]]
-List MetricIntervalsCpp(NumericMatrix x, NumericVector y, NumericVector offset, 
-                       IntegerVector indices, IntegerVector num,
-                       IntegerMatrix models,
-                       std::string method, int m,
-                       std::string Link, std::string Dist,
-                       unsigned int nthreads, double tol, int maxit, 
-                       NumericVector pen, double Penalty, NumericVector best, double cutoff, 
-                       std::string rootMethod){
-  
-  // Creating necessary vectors/matrices
-  const arma::imat Models(models.begin(), models.rows(), models.cols(), false, true);
-  const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
-  const arma::vec Y(y.begin(), y.size(), false, true);
-  const arma::vec Offset(offset.begin(), offset.size(), false, true);
-  const arma::vec Pen(pen.begin(), pen.size(), false, true);
-  arma::vec Best(best.begin(), best.size(), true, true);
-  arma::ivec Indices(indices.begin(), indices.size(), false, true);
-  arma::ivec Counts(num.begin(), num.size(), false, true);
-  
-  // Setting number of threads if OpenMP is available
-#ifdef _OPENMP 
-  omp_set_num_threads(nthreads);
-#endif 
-  
-  // Getting X'WX
-  arma::mat XTWX = X.t() * X;
-  
-  // Getting metrics
-  arma::mat UpperVals(Models.n_rows, Models.n_cols);
-  UpperVals.fill(arma::datum::inf);
-  arma::mat LowerVals(Models.n_rows, Models.n_cols);
-  LowerVals.fill(-arma::datum::inf);
-  
-  // Changing best since we include 1 covariate as offset
-  Best -= Penalty;
-#pragma omp parallel for schedule(dynamic) 
-  for(unsigned int k = 0; k < Models.n_cols; k++){
-    arma::vec MLE(X.n_cols, arma::fill::zeros);
-    arma::vec SE(X.n_cols, arma::fill::ones);
-    arma::ivec tempModel = Models.col(k); 
-    double tempMetric = MetricHelperWithBetas(&X, &XTWX, &Y, &Offset, &Indices, 
-                                              &tempModel, method, m, Link, Dist, tol, 
-                                              maxit, &Pen, &MLE, &SE) - Penalty;
-    for(unsigned int i = 0; i < Models.n_rows; i++){
-      arma::ivec CurModel = Models.col(k); 
-      if(Counts.at(i) > 1 || CurModel(i) == -1){
-        // Do nothing
-      } 
-      else if(CurModel(i) == 0){
-        // Set these intervals to be 0
-        UpperVals(i, k) = 0;
-        LowerVals(i, k) = 0;
-      } 
-      else{
-        if(tempMetric >= Best.at(i) + cutoff){
-          // Do Nothing
-        }else{
-          unsigned int cur = as_scalar(arma::find(Indices == i));
-          double curMLE = MLE.at(cur);
-          double curSE = sqrt(Best.at(i) + cutoff - tempMetric) * SE.at(cur);
-          
-          // Getting X and XTWX for this model
-          CurModel(i) = 0;
-          
-          // Getting submatrix of XTWX
-          unsigned count = 0;
-          for(unsigned int ind = 0; ind < Indices.n_elem; ind++){
-            if(CurModel(Indices(ind)) != 0){
-              count++;
-            }
-          } 
-          arma::uvec NewInd(count);
-          count = 0;
-          for(unsigned int ind = 0; ind < Indices.n_elem; ind++){
-            if(CurModel(Indices(ind)) != 0){
-              NewInd(count++) = ind;
-            }
-          } 
-          arma::mat NewXTWX = XTWX.submat(NewInd, NewInd);
-          arma::mat NewX = X.cols(NewInd);
-          arma::mat XTXXT;
-          arma::vec NewY = GetY(&Y, Link);
-          bool check = GetXTXXT(&NewX, &NewXTWX, &XTXXT);
-          arma::vec curCol = X.col(cur);
-          if(!check){
-            // Do nothing
-          }
-          else{
-            UpperVals(i, k) = SecantMethodCpp(&NewX, &NewXTWX, &Y, 
-                      &XTXXT, &NewY, &curCol, &Offset, &Indices, 
-                         method, m, Link, Dist, tol, maxit, &Pen, &CurModel, i,  
-                         curMLE, Best.at(i), curMLE + curSE,  
-                         Best.at(i) + cutoff, tempMetric, rootMethod, "upper");
-            LowerVals(i, k) = SecantMethodCpp(&NewX, &NewXTWX, &Y, 
-                      &XTXXT, &NewY, &curCol, &Offset, &Indices, 
-                         method, m, Link, Dist, tol, maxit, &Pen, &CurModel, i, 
-                         curMLE, Best.at(i), curMLE - curSE, 
-                         Best.at(i) + cutoff, tempMetric, rootMethod, "lower");
-            
-            // Checking to make sure they are on the correct side
-            if(UpperVals(i, k) < curMLE){
-              UpperVals(i, k) = arma::datum::inf; 
-            } 
-            if(LowerVals(i, k) > curMLE){
-              LowerVals(i, k) = -arma::datum::inf;
-            } 
-          }
-        }
-      }
-    }
-  } 
-  
-  // Setting number of threads to 1 if OpenMP is available
-#ifdef _OPENMP 
-  omp_set_num_threads(1);
-#endif 
-  
-  List FinalList = List::create(Named("LowerBounds") = LowerVals, 
-                                Named("UpperBounds") = UpperVals);
-  return(FinalList);
-} 

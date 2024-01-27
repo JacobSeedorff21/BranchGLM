@@ -416,8 +416,9 @@ int LBFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::mat s(beta->n_elem, m);
   arma::mat y(beta->n_elem, m);
   arma::mat Info(beta->n_elem, beta->n_elem);
-  if(!inv_sympd(Info, FisherInfoCpp(X, &Deriv, &Var))){
-    warning("Fisher information not invertible");
+  if(!solve(Info, FisherInfoCpp(X, &Deriv, &Var), arma::eye(arma::size(Info)), 
+            arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
+    warning("Fisher info not invertible");
     return(-2);
   }
   
@@ -487,11 +488,11 @@ int BFGSGLMCpp(arma::vec* beta, const arma::mat* X,
   arma::vec y(beta->n_elem);
   arma::vec g0(beta->n_elem);
   arma::mat H1(beta->n_elem, beta->n_elem);
-  if(!inv_sympd(H1, FisherInfoCpp(X, &Deriv, &Var))){
-    warning("Fisher information not invertible");
+  if(!solve(H1, FisherInfoCpp(X, &Deriv, &Var), arma::eye(arma::size(H1)), 
+                arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
+    warning("Fisher info not invertible");
     return(-2);
   }
-  
   // Initializing int and doubles
   int k = 0;
   double f0;
@@ -585,7 +586,7 @@ int FisherScoringGLMCpp(arma::vec* beta, const arma::mat* X,
     f0 = f1;
     
     // Solving for newton direction
-    if(!arma::solve(p, -H1, g1, arma::solve_opts::no_approx)){
+    if(!arma::solve(p, -H1, g1, arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
       warning("Fisher info not invertible");
       return(-2);
     };
@@ -629,7 +630,7 @@ int LinRegCpp(arma::vec* beta, const arma::mat* x, const arma::mat* y,
   
   // calculating inverse of X'X
   arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
-  if(!arma::inv_sympd(InvXX, FinalMat)){
+  if(!solve(InvXX, FinalMat, arma::eye(arma::size(InvXX)), arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
     warning("Fisher info not invertible");
     return(-2);
   }
@@ -651,15 +652,15 @@ int LinRegCppShort(arma::vec* beta, const arma::mat* x, const arma::mat* y,
   }else{
     FinalMat = XTX(x, 16);
   }
-  // calculating inverse of X'X
-  arma::mat InvXX(x->n_cols, x->n_cols, arma::fill::zeros);
-  if(!arma::inv_sympd(InvXX, FinalMat)){
+  // Solving for beta
+  arma::vec XY = x->t() * (*y - *offset);  
+  arma::vec tempbeta = *beta;
+  if(!solve(*beta, FinalMat, XY, arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
     warning("Fisher info not invertible");
+    *beta = tempbeta;
     return(-2);
   }
   
-  // Calculating beta
-  *beta = InvXX * x->t() * (*y - *offset);
   return(1);
 }
 
@@ -708,29 +709,35 @@ double GetDispersion(const arma::mat* X, const arma::vec* Y,
 void getInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y, 
              const arma::vec* Offset, std::string Dist, std::string Link, 
              unsigned int nthreads){
-  
+  int iter = 0;
   if(Link == "log"){
     arma::vec NewY = *Y;
-    NewY = log(NewY.replace(0, 1e-4));
-    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+    NewY = log(NewY.clamp(1e-4, arma::datum::inf));
+    iter = LinRegCppShort(beta, X, &NewY, Offset, nthreads);
     
   }else if(Link == "inverse"){
     arma::vec NewY = *Y;
-    NewY = 1 / (NewY.replace(0, 1e-4));
-    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+    NewY.transform( [](double val) {
+      if(std::fabs(val) <= 1e-2){
+        val = (val / std::fabs(val)) * 1e-2;
+      }
+      return(val);
+      } );
+    NewY = 1 / (NewY);
+    iter = LinRegCppShort(beta, X, &NewY, Offset, nthreads);
     
   }else if(Link == "sqrt"){
     const arma::vec NewY = sqrt(*Y);
-    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+    iter = LinRegCppShort(beta, X, &NewY, Offset, nthreads);
     
   }else if(Link == "identity" && (Dist != "gaussian")){
-    LinRegCppShort(beta, X, Y, Offset, nthreads);
+    iter = LinRegCppShort(beta, X, Y, Offset, nthreads);
     
   }else if(Link == "logit"){
     arma::vec NewY = *Y;
     NewY = NewY.clamp(1e-4, 1 - 1e-4);
     NewY = log(NewY / (1 - NewY));
-    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+    iter = LinRegCppShort(beta, X, &NewY, Offset, nthreads);
     
   }else if(Link == "probit"){
     arma::vec NewY = *Y;
@@ -743,14 +750,16 @@ void getInit(arma::vec* beta, const arma::mat* X, const arma::vec* Y,
         NewY.at(i) = val1;
       }
     }
-    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
-    
+    iter = LinRegCppShort(beta, X, &NewY, Offset, nthreads);
   }else if(Link == "cloglog"){
     arma::vec NewY = *Y;
     NewY = NewY.clamp(1e-4, 1 - 1e-4);
     NewY = log(-log(1 - NewY));
-    LinRegCppShort(beta, X, &NewY, Offset, nthreads);
-    
+    iter = LinRegCppShort(beta, X, &NewY, Offset, nthreads);
+  }
+  // Checking for failure
+  if(iter == -2){
+    warning("Getting initial values failed, using zero vector instead");
   }
 }
 
@@ -760,6 +769,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                   std::string method,  unsigned int m, std::string Link, 
                   std::string Dist,
                   unsigned int nthreads, double tol, int maxit, bool GetInit){
+  
   
   // Initializing vectors and matrices
   const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
@@ -816,7 +826,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     InfoInv = Info;
     
     // Calculating inverse info and returning error if not invertible
-    if(!arma::inv_sympd(InfoInv, Info)){
+    if(!solve(InfoInv, Info, arma::eye(arma::size(InfoInv)), arma::solve_opts::no_approx + arma::solve_opts::likely_sympd)){
       stop("Fisher info not invertible");
     }
     
@@ -900,17 +910,3 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
                             Named("linpreds") = linPreds1, 
                             Named("vcov") = vcov);
 }
-
-// [[Rcpp::export]]
-double RLogLik(NumericMatrix x, NumericVector y, NumericVector offset, 
-               NumericVector beta, std::string Dist, std::string Link){
-  const arma::mat X(x.begin(), x.rows(), x.cols(), false, true);
-  const arma::vec Y(y.begin(), y.size(), false, true); 
-  const arma::vec Offset(offset.begin(), offset.size(), false, true);
-  arma::vec Beta(beta.begin(), beta.size(), false, true);
-  
-  
-  arma::vec mu = LinkCpp(&X, &Beta, &Offset, Link, Dist);
-  return(LogLikelihoodCpp(&X, &Y, &mu, Dist));
-  
-} 
