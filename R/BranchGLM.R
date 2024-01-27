@@ -1,85 +1,93 @@
 #' Fits GLMs
+#' @description Fits generalized linear models (GLMs) via RcppArmadillo with the 
+#' ability to perform some computation in parallel with OpenMP.
 #' @param formula a formula for the model.
-#' @param data a dataframe that contains the response and predictor variables.
-#' @param family distribution used to model the data, one of "gaussian", "gamma", "binomial", or "poisson".
-#' @param link link used to link mean structure to linear predictors. One of
-#' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".
-#' @param offset offset vector, by default the zero vector is used.
+#' @param data a data.frame, list or environment (or object coercible by 
+#' [as.data.frame] to a data.frame), containing the variables in formula. 
+#' Neither a matrix nor an array will be accepted.
+#' @param family the distribution used to model the data, one of "gaussian", 
+#' "gamma", "binomial", or "poisson".
+#' @param link the link used to link the mean structure to the linear predictors. One of
+#' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log". The accepted 
+#' links depend on the specified family, see more in details.
+#' @param offset the offset vector, by default the zero vector is used.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
 #' quasi-newton methods which are typically faster than Fisher's scoring when
 #' there are many covariates (at least 50).
-#' @param grads number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.
-#' @param parallel whether or not to make use of parallelization via OpenMP.
-#' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
-#' @param tol tolerance used to determine model convergence.
-#' @param maxit maximum number of iterations performed. The default for 
-#' Fisher's scoring is 50 and for the other methods the default is 200.
-#' @param init initial values for the betas, if not specified then they are automatically 
-#' selected via linear regression with the transformation specified by link. This 
-#' is ignored for linear regression models.
-#' @param fit a logical value to indicate whether to fit the model or not. Setting 
-#' this to false will make it so no coefficients matrix or variance-covariance 
-#' matrix are returned.
-#' @param keepData Whether or not to store a copy of data and design matrix, the default 
-#' is TRUE. If this is FALSE, then the results from this cannot be used inside of \code{VariableSelection}.
-#' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
-#' this is FALSE, then the binomial GLM helper functions may not work and this 
-#' cannot be used inside of \code{VariableSelection}.
-#' @param contrasts see \code{contrasts.arg} of \code{model.matrix.default}.
+#' @param grads a positive integer to denote the number of gradients used to 
+#' approximate the inverse information with, only for `method = "LBFGS"`.
+#' @param parallel a logical value to indicate if parallelization should be used.
+#' @param nthreads a positive integer to denote the number of threads used with OpenMP, 
+#' only used if `parallel = TRUE`.
+#' @param tol a positive number to denote the tolerance used to determine model convergence.
+#' @param maxit a positive integer to denote the maximum number of iterations performed. 
+#' The default for Fisher's scoring is 50 and for the other methods the default is 200.
+#' @param init a numeric vector of initial values for the betas, if not specified 
+#' then they are automatically selected via linear regression with the transformation 
+#' specified by the link function. This is ignored for linear regression models.
+#' @param fit a logical value to indicate whether to fit the model or not.
+#' @param keepData a logical value to indicate whether or not to store a copy of 
+#' data and the design matrix, the default is TRUE. If this is FALSE, then the 
+#' results from this cannot be used inside of `VariableSelection`.
+#' @param keepY a logical value to indicate whether or not to store a copy of y, 
+#' the default is TRUE. If this is FALSE, then the binomial GLM helper functions 
+#' may not work and this cannot be used inside of `VariableSelection`.
+#' @param contrasts see `contrasts.arg` of `model.matrix.default`.
 #' @param x design matrix used for the fit, must be numeric.
 #' @param y outcome vector, must be numeric.
-#' @return \code{BranchGLM} returns a \code{BranchGLM} object which is a list with the following components
-#' \item{\code{coefficients}}{ a matrix with the coefficient estimates, SEs, Wald test statistics, and p-values}
-#' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
-#' \item{\code{dispersion}}{ the value of the dispersion parameter}
-#' \item{\code{logLik}}{ the log-likelihood of the fitted model}
-#' \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
-#' \item{\code{resDev}}{ the residual deviance of the fitted model}
-#' \item{\code{AIC}}{ the AIC of the fitted model}
-#' \item{\code{preds}}{ predictions from the fitted model}
-#' \item{\code{linpreds}}{ linear predictors from the fitted model}
-#' \item{\code{tol}}{ tolerance used to fit the model}
-#' \item{\code{maxit}}{ maximum number of iterations used to fit the model}
-#' \item{\code{formula}}{ formula used to fit the model}
-#' \item{\code{method}}{ iterative method used to fit the model}
-#' \item{\code{grads}}{ number of gradients used to approximate inverse information for L-BFGS}
-#' \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
-#' \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
-#' \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
-#' \item{\code{fulloffset}}{ supplied offset vector, not included if \code{keepData = FALSE}}
-#' \item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
-#' \item{\code{mf}}{ the model frame, not included if \code{keepData = FALSE}}
-#' \item{\code{numobs}}{ number of observations in the design matrix}
-#' \item{\code{names}}{ names of the variables}
-#' \item{\code{yname}}{ name of y variable}
-#' \item{\code{parallel}}{ whether parallelization was employed to speed up model fitting process}
-#' \item{\code{missing}}{ number of missing values removed from the original dataset}
-#' \item{\code{link}}{ link function used to model the data}
-#' \item{\code{family}}{ family used to model the data}
-#' \item{\code{ylevel}}{ the levels of y, only included for binomial glms}
-#' \item{\code{xlev}}{ the levels of the factors in the dataset}
-#' \item{\code{terms}}{the terms object used}
+#' @seealso [predict.BranchGLM], [coef.BranchGLM], [VariableSelection], [confint.BranchGLM], [logLik.BranchGLM]
+#' @return `BranchGLM` returns a `BranchGLM` object which is a list with the following components
+#' \item{`coefficients`}{ a matrix with the coefficient estimates, SEs, Wald test statistics, and p-values}
+#' \item{`iterations`}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
+#' \item{`dispersion`}{ the value of the dispersion parameter}
+#' \item{`logLik`}{ the log-likelihood of the fitted model}
+#' \item{`vcov`}{ the variance-covariance matrix of the fitted model}
+#' \item{`resDev`}{ the residual deviance of the fitted model}
+#' \item{`AIC`}{ the AIC of the fitted model}
+#' \item{`preds`}{ predictions from the fitted model}
+#' \item{`linpreds`}{ linear predictors from the fitted model}
+#' \item{`tol`}{ tolerance used to fit the model}
+#' \item{`maxit`}{ maximum number of iterations used to fit the model}
+#' \item{`formula`}{ formula used to fit the model}
+#' \item{`method`}{ iterative method used to fit the model}
+#' \item{`grads`}{ number of gradients used to approximate inverse information for L-BFGS}
+#' \item{`y`}{ y vector used in the model, not included if `keepY = FALSE`}
+#' \item{`x`}{ design matrix used to fit the model, not included if `keepData = FALSE`}
+#' \item{`offset`}{ offset vector in the model, not included if `keepData = FALSE`}
+#' \item{`fulloffset`}{ supplied offset vector, not included if `keepData = FALSE`}
+#' \item{`data`}{ original `data` argument supplied to the function, not included if `keepData = FALSE`}
+#' \item{`mf`}{ the model frame, not included if `keepData = FALSE`}
+#' \item{`numobs`}{ number of observations in the design matrix}
+#' \item{`names`}{ names of the predictor variables}
+#' \item{`yname`}{ name of y variable}
+#' \item{`parallel`}{ whether parallelization was employed to speed up model fitting process}
+#' \item{`missing`}{ number of missing values removed from the original dataset}
+#' \item{`link`}{ link function used to model the data}
+#' \item{`family`}{ family used to model the data}
+#' \item{`ylevel`}{ the levels of y, only included for binomial glms}
+#' \item{`xlev`}{ the levels of the factors in the dataset}
+#' \item{`terms`}{the terms object used}
 #' 
-#' \code{BranchGLM.fit} returns a list with the following components
-#' \item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, Wald test statistics, and p-values}
-#' \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
-#' \item{\code{dispersion}}{ the value of the dispersion parameter}
-#' \item{\code{logLik}}{ the log-likelihood of the fitted model}
-#' \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
-#' \item{\code{resDev}}{ the residual deviance of the fitted model}
-#' \item{\code{AIC}}{ the AIC of the fitted model}
-#' \item{\code{preds}}{ predictions from the fitted model}
-#' \item{\code{linpreds}}{ linear predictors from the fitted model}
-#' \item{\code{tol}}{ tolerance used to fit the model}
-#' \item{\code{maxit}}{ maximum number of iterations used to fit the model}
+#' `BranchGLM.fit` returns a list with the following components
+#' \item{`coefficients`}{ a matrix with the coefficients estimates, SEs, Wald test statistics, and p-values}
+#' \item{`iterations`}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
+#' \item{`dispersion`}{ the value of the dispersion parameter}
+#' \item{`logLik`}{ the log-likelihood of the fitted model}
+#' \item{`vcov`}{ the variance-covariance matrix of the fitted model}
+#' \item{`resDev`}{ the residual deviance of the fitted model}
+#' \item{`AIC`}{ the AIC of the fitted model}
+#' \item{`preds`}{ predictions from the fitted model}
+#' \item{`linpreds`}{ linear predictors from the fitted model}
+#' \item{`tol`}{ tolerance used to fit the model}
+#' \item{`maxit`}{ maximum number of iterations used to fit the model}
+#' @details 
 #' 
-#' @description Fits generalized linear models via RcppArmadillo. Also has the 
-#' ability to fit the models with parallelization via OpenMP.
-#' @details Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
+#' ## Fitting
+#' Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
 #' typically faster than Fisher's scoring when there are at least 50 covariates 
 #' and Fisher's scoring is typically best when there are fewer than 50 covariates.
 #' This function does not currently support the use of weights. In the special 
-#' case of gaussian regression with identity link the \code{method} argument is ignored
+#' case of gaussian regression with identity link the `method` argument is ignored
 #' and the normal equations are solved directly.
 #' 
 #' The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
@@ -89,29 +97,67 @@
 #' sufficient decrease in the negative log-likelihood, the second is whether 
 #' the l2-norm of the score is sufficiently small, and the last condition is 
 #' whether the change in each of the beta coefficients is sufficiently 
-#' small. The \code{tol} argument controls all of these criteria. If the algorithm fails to 
-#' converge, then \code{iterations} will be -1.
+#' small. The `tol` argument controls all of these criteria. If the algorithm fails to 
+#' converge, then `iterations` will be -1.
 #' 
 #' All observations with any missing values are removed before model fitting. 
 #' 
-#' The dispersion parameter for gamma regression is estimated via maximum likelihood, 
-#' very similar to the \code{gamma.dispersion} function from the MASS package.
-#' 
-#' \code{BranchGLM.fit} can be faster than calling \code{BranchGLM} if the 
+#' `BranchGLM.fit` can be faster than calling `BranchGLM` if the 
 #' x matrix and y vector are already available, but doesn't return as much information.
-#' The object returned by \code{BranchGLM.fit} is not of class \code{BranchGLM}, so 
-#' all of the methods for \code{BranchGLM} objects such as \code{predict} or 
-#' \code{VariableSelection} cannot be used.
+#' The object returned by `BranchGLM.fit` is not of class `BranchGLM`, so 
+#' all of the methods for `BranchGLM` objects such as `predict` or 
+#' `VariableSelection` cannot be used.
+#' 
+#' ## Dispersion Parameter
+#' The dispersion parameter for gamma regression is estimated via maximum likelihood, 
+#' very similar to the `gamma.dispersion` function from the MASS package. The 
+#' dispersion parameter for gaussian regression is also estimated via maximum 
+#' likelihood estimation.
+#' 
+#' ## Families and Links
+#' The binomial family accepts "cloglog", "log", "logit", and "probit" as possible 
+#' link functions. The gamma and gaussian families accept "identity", "inverse", 
+#' "log", and "sqrt" as possible link functions. The Poisson family accepts "identity", 
+#' "log", and "sqrt" as possible link functions.
 #' 
 #' @examples
 #' Data <- iris
-#' ### Using BranchGLM
+#' 
+#' # Linear regression
+#' ## Using BranchGLM
 #' BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 #' 
-#' ### Using BranchGLM.fit
+#' ## Using BranchGLM.fit
 #' x <- model.matrix(Sepal.Length ~ ., data = Data)
 #' y <- Data$Sepal.Length
 #' BranchGLM.fit(x, y, family = "gaussian", link = "identity")
+#' 
+#' # Gamma regression
+#' ## Using BranchGLM
+#' BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log")
+#' 
+#' ### init
+#' BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log", 
+#' init = rep(0, 6), maxit = 50, tol = 1e-6, contrasts = NULL)
+#' 
+#' ### method
+#' BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log", 
+#' init = rep(0, 6), maxit = 50, tol = 1e-6, contrasts = NULL, method = "LBFGS")
+#' 
+#' ### offset
+#' BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log", 
+#' init = rep(0, 6), maxit = 50, tol = 1e-6, contrasts = NULL, 
+#' offset = Data$Sepal.Width)
+#' 
+#' ## Using BranchGLM.fit
+#' x <- model.matrix(Sepal.Length ~ ., data = Data)
+#' y <- Data$Sepal.Length
+#' BranchGLM.fit(x, y, family = "gamma", link = "log", init = rep(0, 6), 
+#' maxit = 50, tol = 1e-6, offset = Data$Sepal.Width)
+#' 
+#' 
+#' @references McCullagh, P., & Nelder, J. A. (1989). Generalized Linear Models (2nd ed.). 
+#' Chapman & Hall.
 #' @export
 
 BranchGLM <- function(formula, data, family, link, offset = NULL, 
@@ -121,24 +167,32 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
                     contrasts = NULL, keepData = TRUE,
                     keepY = TRUE){
   
+  ### converting family, link, and method to lower
+  family <- tolower(family)
+  link <- tolower(link)
+  method <- tolower(method)
+  
   ### Validating supplied arguments
   if(!is(formula, "formula")){
     stop("formula must be a valid formula")
   }
-  if(!is.data.frame(data)){
-    stop("data must be a data frame")
-  }
-  if(length(method) != 1 || !(method %in% c("Fisher", "BFGS", "LBFGS"))){
+  
+  if(length(method) != 1 || !is.character(method)){
+    stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
+  }else if(method == "fisher"){
+    method <- "Fisher"
+  }else if(method == "bfgs"){
+    method <- "BFGS"
+  }else if(method == "lbfgs"){
+    method <- "LBFGS"
+  }else{
     stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
   }
-  if(!family %in% c("gaussian", "binomial", "poisson", "gamma")){
+  if(length(family) != 1 || !family %in% c("gaussian", "binomial", "poisson", "gamma")){
     stop("family must be one of 'gaussian', 'binomial', 'gamma', or 'poisson'")
   }
-  if(!link %in% c("logit", "probit", "cloglog", "log", "identity", "inverse", "sqrt")){
+  if(length(link) != 1 ||!link %in% c("logit", "probit", "cloglog", "log", "identity", "inverse", "sqrt")){
     stop("link must be one of 'logit', 'probit', 'cloglog', 'log', 'inverse', 'sqrt', or 'identity'")
-  }
-  if(length(grads) != 1 || !is.numeric(grads) || as.integer(grads) <= 0){
-    stop("grads must be a positive integer")
   }
   
   ### Evaluating arguments
@@ -162,7 +216,7 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   
   
   ## Checking y variable for binomial family
-  if(family == "binomial"){
+  if(tolower(family) == "binomial"){
     if(!(link %in% c("cloglog", "log", "logit", "probit"))){
       stop("valid link functions for binomial regression are 'cloglog', 'log', 'logit', and 'probit'")
     }else if(is.factor(y) && (nlevels(y) == 2)){
@@ -193,9 +247,15 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
     df <- BranchGLM.fit(x, y, family, link, offset, method, grads, parallel, nthreads, 
                         init, maxit, tol)
   }else{
-    df <- list("coefficients" = matrix(NA, nrow = ncol(x), ncol = 4))
+    df <- list("coefficients" = matrix(NA, nrow = ncol(x), ncol = 4), 
+               "vcov" = matrix(NA, nrow = ncol(x), ncol = ncol(x)))
+    colnames(df$coefficients) <- c("Estimate", "SE", "z", "p-values")
   }
+  # Setting names for coefficients
   row.names(df$coefficients) <- colnames(x)
+  
+  # Setting names for vcov
+  rownames(df$vcov) <- colnames(df$vcov) <- colnames(x)
   
   df$formula <- formula
   
@@ -245,13 +305,8 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
-  if((family == "gaussian" || family == "gamma") && fit){
+  if((family == "gaussian" || family == "gamma")){
     colnames(df$coefficients)[3] <- "t"
-  }
-  
-  # Setting names for vcov
-  if(fit){
-    rownames(df$vcov) <- colnames(df$vcov) <- colnames(x)
   }
   
   structure(df, class = "BranchGLM")
@@ -263,6 +318,23 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
                           method = "Fisher", grads = 10,
                           parallel = FALSE, nthreads = 8, init = NULL,  
                           maxit = NULL, tol = 1e-6){
+  ### converting family, link, and method to lower
+  family <- tolower(family)
+  link <- tolower(link)
+  method <- tolower(method)
+  
+  ### Getting method
+  if(length(method) != 1 || !is.character(method)){
+    stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
+  }else if(method == "fisher"){
+    method <- "Fisher"
+  }else if(method == "bfgs"){
+    method <- "BFGS"
+  }else if(method == "lbfgs"){
+    method <- "LBFGS"
+  }else{
+    stop("method must be exactly one of 'Fisher', 'BFGS', or 'LBFGS'")
+  }
   
   ## Performing a few checks
   if(!is.matrix(x) || !is.numeric(x)){
@@ -271,16 +343,16 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
     stop("y must be numeric")
   }else if(nrow(x) != length(y)){
     stop("the number of rows in x must be the same as the length of y")
+  }else if(nrow(x) == 0){
+    stop("design matrix x has no rows and y has a length of 0")
   }
   
-  ## Getting initial values
-  if(is.null(init)){
-    init <- rep(0, ncol(x))
-    GetInit <- TRUE
-  }else if(!is.numeric(init) || length(init) != ncol(x)){
-    stop("init must be null or a numeric vector with length equal to the number of betas")
-  }else{
-    GetInit <- FALSE
+  ## Checking grads and tol
+  if(length(grads) != 1 || !is.numeric(grads) || as.integer(grads) <= 0){
+    stop("grads must be a positive integer")
+  }
+  if(length(tol) != 1 || !is.numeric(tol) || tol <= 0){
+    stop("tol must be a positive number")
   }
   
   ## Getting maxit
@@ -290,6 +362,20 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
     }else{
       maxit = 200
     }
+  }else if(length(maxit) != 1 || !is.numeric(maxit) || maxit <= 0){
+    stop("maxit must be a positive integer")
+  }
+  
+  ## Getting initial values
+  if(is.null(init)){
+    init <- rep(0, ncol(x))
+    GetInit <- TRUE
+  }else if(!is.numeric(init) || length(init) != ncol(x)){
+    stop("init must be null or a numeric vector with length equal to the number of betas")
+  }else if(any(is.infinite(init)) || any(is.na(init))){
+    stop("init must not contain any infinite values, NAs, or NaNs")
+  }else{
+    GetInit <- FALSE
   }
   
   ## Checking y variable and link function for each family
@@ -325,6 +411,8 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
     }else if(!is.numeric(y) || any(y <= 0)){
       stop("response variable for gamma regression must be positive")
     }
+  }else{
+    stop("the supplied family is not supported")
   }
   
   ## Getting offset
@@ -332,9 +420,15 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
     offset <- rep(0, length(y))
   }else if(length(offset) != length(y)){
     stop("offset must be the same length as y")
+  }else if(!is.numeric(offset)){
+    stop("offset must be a numeric vector")
+  }else if(any(is.infinite(offset)) || any(is.na(offset))){
+    stop("offset must not contain any infinite values, NAs, or NaNs")
   }
-  
-  if(length(parallel) != 1 || !is.logical(parallel)){
+  if(length(nthreads) != 1 || !is.numeric(nthreads) || is.na(nthreads) || nthreads <= 0){
+    stop("nthreads must be a positive integer")
+  }
+  if(length(parallel) != 1 || !is.logical(parallel) || is.na(parallel)){
     stop("parallel must be either TRUE or FALSE")
   }else if(parallel){
     df <- BranchGLMfit(x, y, offset, init, method, grads, link, family, nthreads, 
@@ -350,11 +444,33 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
   return(df)
 }
 
-
-#' Extract Log-Likelihood
-#' @param object a \code{BranchGLM} object.
+#' Extract Model Formula from BranchGLM Objects
+#' @description Extracts model formula from BranchGLM objects.
+#' @param x a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
-#' @return An object of class \code{logLik} which is a number corresponding to 
+#' @return a formula representing the model used to obtain `object`.
+#' @export
+
+formula.BranchGLM <- function(x, ...){
+  return(x$formula) 
+}
+
+#' Extract Number of Observations from BranchGLM Objects
+#' @description Extracts number of observations from BranchGLM objects.
+#' @param object a `BranchGLM` object.
+#' @param ... further arguments passed to or from other methods.
+#' @return A single number indicating the number of observations used to fit the model.
+#' @export
+
+nobs.BranchGLM <- function(object, ...){
+  return(object$numobs) 
+}
+
+#' Extract Log-Likelihood from BranchGLM Objects
+#' @description Extracts log-likelihood from BranchGLM objects.
+#' @param object a `BranchGLM` object.
+#' @param ... further arguments passed to or from other methods.
+#' @return An object of class `logLik` which is a number corresponding to 
 #' the log-likelihood with the following attributes: "df" (degrees of freedom) 
 #' and "nobs" (number of observations).
 #' @export
@@ -365,14 +481,15 @@ logLik.BranchGLM <- function(object, ...){
     df <- df + 1
   }
   val <- object$logLik
-  attr(val, "nobs") <- length(object$y) 
+  attr(val, "nobs") <- nobs(object)
   attr(val, "df") <- df
   class(val) <- "logLik"
   return(val)
 }
 
-#' Extract covariance matrix
-#' @param object a \code{BranchGLM} object.
+#' Extract covariance matrix from BranchGLM Objects
+#' @description Extracts covariance matrix of beta coefficients from BranchGLM objects.
+#' @param object a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
 #' @return A numeric matrix which is the covariance matrix of the beta coefficients.
 #' @export
@@ -380,8 +497,9 @@ vcov.BranchGLM <- function(object, ...){
   return(object$vcov)
 }
 
-#' Extract Coefficients
-#' @param object a \code{BranchGLM} object.
+#' Extract Coefficients from BranchGLM Objects
+#' @description Extracts beta coefficients from BranchGLM objects.
+#' @param object a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
 #' @return A named vector with the corresponding coefficient estimates.
 #' @export
@@ -393,32 +511,54 @@ coef.BranchGLM <- function(object, ...){
 }
 
 #' Predict Method for BranchGLM Objects
-#' @param object a \code{BranchGLM} object.
-#' @param newdata a dataframe, if not specified then the data the model was fit on is used.
+#' @description Obtains predictions from `BranchGLM` objects.
+#' @param object a `BranchGLM` object.
+#' @param newdata a data.frame, if not specified then the data the model was fit on is used.
 #' @param offset a numeric vector containing the offset variable, this is ignored if 
 #' newdata is not supplied.
-#' @param type one of "linpreds" or "response", if not specified then "response" is used.
+#' @param type one of "linpreds" which is on the scale of the linear predictors or 
+#' "response" which is on the scale of the response variable. If not specified, 
+#' then "response" is used.
 #' @param na.action a function which indicates what should happen when the data 
-#' contains NAs. The default is \code{na.pass}. This is ignored if newdata is not 
-#' supplied and data isn't included in the supplied \code{BranchGLM} object.
+#' contains NAs. The default is `na.pass`. This is ignored if newdata is not 
+#' supplied and data isn't included in the supplied `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
-#' @details linpreds corresponds to the linear predictors and response is on the scale of the response variable.
-#' Offset variables are ignored for predictions on new data.
-#' @description Gets predictions from a \code{BranchGLM} object.
 #' @return A numeric vector of predictions.
 #' @examples
-#' Data <- iris
-#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' Data <- airquality
+#' 
+#' # Example without offset
+#' Fit <- BranchGLM(Temp ~ ., data = Data, family = "gaussian", link = "identity")
+#' 
+#' ## Using default na.action
 #' predict(Fit)
-#' ### Example with new data
-#' predict(Fit, newdata = iris[1:20,])
+#' 
+#' ## Using na.omit
+#' predict(Fit, na.action = na.omit)
+#' 
+#' ## Using new data
+#' predict(Fit, newdata = Data[1:20, ], na.action = na.pass)
+#' 
+#' # Using offset
+#' FitOffset <- BranchGLM(Temp ~ . - Day, data = Data, family = "gaussian", 
+#' link = "identity", offset = Data$Day * -0.1)
+#' 
+#' ## Getting predictions for data used to fit model
+#' ### Don't need to supply offset vector
+#' predict(FitOffset)
+#' 
+#' ## Getting predictions for new dataset
+#' ### Need to include new offset vector since we are 
+#' ### getting predictions for new dataset
+#' predict(FitOffset, newdata = Data[1:20, ], offset = Data$Day[1:20] * -0.1)
+#' 
 #' @export
 
 predict.BranchGLM <- function(object, newdata = NULL, offset = NULL, 
                               type = "response", na.action = na.pass, ...){
   
   if(!is.null(newdata) && !is(newdata, "data.frame")){
-    stop("newdata argument must be a dataframe or NULL")
+    stop("newdata argument must be a data.frame or NULL")
   }
   
   if(length(type) != 1 ){
@@ -432,9 +572,13 @@ predict.BranchGLM <- function(object, newdata = NULL, offset = NULL,
     offset <- object$fulloffset
   }else if(is.null(newdata) && is.null(object$data)){
     if(type == "linpreds"){
-      return(object$linpreds)
+      linpreds <- object$linpreds
+      names(linpreds) <- rownames(object$x)
+      return(linpreds)
     }else if(type == "response"){
-      return(object$preds)
+      preds <- object$preds
+      names(preds) <- rownames(object$x)
+      return(preds)
     }
   }
   
@@ -463,43 +607,53 @@ predict.BranchGLM <- function(object, newdata = NULL, offset = NULL,
   
   if(ncol(x) != length(coef(object))){
     stop("could not find all predictor variables in newdata")
-  }else if(type == "linpreds"){
-    drop(x %*% coef(object) + offset) |> unname()
-  }else if(type == "response"){
-    GetPreds(drop(x %*% coef(object) + offset) |> unname(), object$link)
+  }else if(tolower(type) == "linpreds"){
+    preds <- drop(x %*% coef(object) + offset) |> unname()
+    names(preds) <- rownames(x)
+    return(preds)
+  }else if(tolower(type) == "response"){
+    preds <- GetPreds(drop(x %*% coef(object) + offset) |> unname(), object$link)
+    names(preds) <- rownames(x)
+    return(preds)
   }
 }
 
-GetPreds <- function(XBeta, Link){
+#' Get Predictions
+#' @param linpreds numeric vector of linear predictors.
+#' @param link the specified link.
+#' @noRd
+
+GetPreds <- function(linpreds, Link){
   if(Link == "log"){
-    exp(XBeta)
+    exp(linpreds)
   }
   else if(Link == "logit"){
-    1 / (1 + exp(-XBeta))
+    1 / (1 + exp(-linpreds))
   }
   else if(Link == "probit"){
-    pnorm(XBeta)
+    pnorm(linpreds)
   }
   else if(Link == "cloglog"){
-    exp(-exp(XBeta))
+    1 - exp(-exp(linpreds))
   }
   else if(Link == "inverse"){
-    - 1 / (XBeta)
+     1 / (linpreds)
   }
   else if(Link == "identity"){
-    XBeta
+    linpreds
   }
   else{
-    XBeta^2
+    linpreds^2
   }
 }
 
-#' Print Method for BranchGLM
-#' @param x a \code{BranchGLM} object.
+#' Print Method for BranchGLM Objects
+#' @description Print method for `BranchGLM` objects.
+#' @param x a `BranchGLM` object.
 #' @param coefdigits number of digits to display for coefficients table.
 #' @param digits number of digits to display for information after table.
 #' @param ... further arguments passed to or from other methods.
-#' @return The supplied \code{BranchGLM} object.
+#' @return The supplied `BranchGLM` object.
 #' @export
 
 print.BranchGLM <- function(x, coefdigits = 4, digits = 2, ...){
@@ -529,7 +683,7 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 2, ...){
     }else{method = "BFGS"}
     if(x$iterations == 1){
       cat(paste0("\nAlgorithm converged in 1 iteration using ", method, "\n"))
-    }else if(x$iterations > 1){
+    }else if(x$iterations > 1 || x$iterations == 0){
       cat(paste0("\nAlgorithm converged in ", x$iterations, " iterations using ", method, "\n"))
     }else{
       cat("\nAlgorithm failed to converge\n")
