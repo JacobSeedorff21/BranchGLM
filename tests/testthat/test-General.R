@@ -209,8 +209,18 @@ test_that("poisson regression works", {
   ### Checking offset predictions
   MyBranch <- BranchGLM(y ~ ., data = Data, family = "poisson", link = "log", offset = rep(1, nrow(Data)))
   
+  #### Don't expect error when offset is provided for new data
   expect_error(predict(MyBranch, newdata = Data, offset = rep(1, nrow(Data))), NA)
   expect_error(predict(MyBranch, newdata = Data, type = "linpreds", offset = rep(1, nrow(Data))), NA)
+  
+  #### Don't expect error when offset isn't provided for and no new data
+  expect_error(predict(MyBranch), NA)
+  expect_error(predict(MyBranch, type = "linpreds"), NA)
+  
+  
+  #### Expect error when offset is not supplied for new data
+  expect_warning(predict(MyBranch, newdata = Data))
+  expect_warning(predict(MyBranch, newdata = Data, type = "linpreds"))
   
   ### Checking offset predictions
   MyBranch <- VariableSelection(y ~ ., data = Data, family = "poisson", 
@@ -224,20 +234,20 @@ test_that("poisson regression works", {
 ### Testing gamma regression
 test_that("gamma regression works", {
   library(BranchGLM)
-  set.seed(862)
+  set.seed(8621)
   x <- sapply(rep(0, 15), rnorm, n = 1000, simplify = TRUE)
   x <- cbind(1, x)
   beta <- rnorm(16)
-  y <- rgamma(n = 1000, shape = 10, rate = exp(x %*% beta))
+  y <- rgamma(n = 1000, shape = 1 / 2, scale = exp(x %*% beta) * 2)
   
   Data <- cbind(y, x[,-1]) |>
     as.data.frame()
   
   ## Finding gamma regression
   expect_equal(BranchGLM(y ~ ., data = Data, family = "gamma", link = "log")$dispersion, 
-               0.097535718)
+               2, tolerance = 1e-1)
   
-  ### forward selection should now work
+  ### forward selection
   expect_error(VariableSelection(y ~ ., data = Data, family = "gamma", link = "log", 
                                  type = "forward", method = "Fisher"), NA)
   ### backward selection
@@ -256,11 +266,10 @@ test_that("Interactions work", {
   x <- sapply(rep(0, 5), rnorm, n = 1000, simplify = TRUE)
   x <- cbind(1, x)
   beta <- rnorm(6)
-  y <- rgamma(n = 1000, shape = 10, rate = exp(x %*% beta))
+  y <- rgamma(n = 1000, shape = 1 / 2, scale = exp(x %*% beta) * 2)
   
   Data <- cbind(y, x[,-1]) |>
     as.data.frame()
-  
   ### forward selection
   expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
                                  type = "forward", method = "Fisher"), NA)
@@ -269,16 +278,19 @@ test_that("Interactions work", {
                                  type = "backward", method = "Fisher"), NA)
   
   ### branch and bound selection
-  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+  expect_error(BB <- VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
                                  type = "branch and bound", method = "Fisher"), NA)
   
   ### backward branch and bound selection
-  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+  expect_error(BBB <- VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
                                  type = "backward branch and bound", method = "Fisher"), NA)
   
   ### switch branch and bound selection
-  expect_error(VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
+  expect_error(SBB <-VariableSelection(y ~ .*., data = Data, family = "gamma", link = "log", 
                                  type = "switch branch and bound", method = "Fisher"), NA)
   
+  ## Checking for same results
+  expect_equal(coef(BB), coef(BBB))
+  expect_equal(coef(BB), coef(SBB))
+  
 })
-
