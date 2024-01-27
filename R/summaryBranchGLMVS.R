@@ -1,15 +1,15 @@
-#' Summary Method for BranchGLMVS
-#' @param object a \code{BranchGLMVS} object.
-#' @param ... further arguments passed to other methods.
-#' @return An object of class \code{summary.BranchGLMVS} which is a list with the 
+#' Summary Method for BranchGLMVS Objects
+#' @description Summary method for BranchGLMVS objects.
+#' @param object a `BranchGLMVS` object.
+#' @param ... further arguments passed to or from other methods.
+#' @seealso [plot.summary.BranchGLMVS], [coef.summary.BranchGLMVS], [predict.summary.BranchGLMVS]
+#' @return An object of class `summary.BranchGLMVS` which is a list with the 
 #' following components
-#' \item{\code{results}}{ a data frame which has the metric values for the best models along 
-#' with the variables included in each model}
-#' \item{\code{initmodel}}{ the initial \code{BranchGLM} object that was supplied to the 
-#' \code{VariableSelection} function}
-#' \item{\code{VS}}{ the supplied \code{BranchGLMVS} object}
-#' \item{\code{formulas}}{ a list containing the formulas of the best models}
-#' \item{\code{metric}}{ the metric used to perform variable selection}
+#' \item{`results`}{ a data.frame which has the metric values for the best models along 
+#' with the sets of variables included in each model}
+#' \item{`VS`}{ the supplied `BranchGLMVS` object}
+#' \item{`formulas`}{ a list containing the formulas of the best models}
+#' \item{`metric`}{ the metric used to perform variable selection}
 #' @examples
 #' 
 #' Data <- iris
@@ -73,7 +73,6 @@ summary.BranchGLMVS <- function(object, ...){
   }
   )
   MyList <- list("results" = df, 
-                 "initmodel" = object$initmodel,
                  "VS" = object,
                  "formulas" = formulas, 
                  "metric" = object$metric)
@@ -81,24 +80,24 @@ summary.BranchGLMVS <- function(object, ...){
   return(structure(MyList, class = "summary.BranchGLMVS"))
 }
 
-#' Fits GLMs for summary.BranchGLMVS and BranchGLMVS objects
+#' Fits GLMs for summary.BranchGLMVS and BranchGLMVS Objects
 #' @name fit
-#' @param object a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.
+#' @param object a `summary.BranchGLMVS` or `BranchGLMVS` object.
 #' @param which a positive integer indicating which model to fit, 
 #' the default is to fit the first model .
 #' @param keepData Whether or not to store a copy of data and design matrix, the default 
-#' is TRUE. If this is FALSE, then the results from this cannot be used inside of \code{VariableSelection}.
+#' is TRUE. If this is FALSE, then the results from this cannot be used inside of `VariableSelection`.
 #' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
 #' this is FALSE, then the binomial GLM helper functions may not work and this 
-#' cannot be used inside of \code{VariableSelection}.
+#' cannot be used inside of `VariableSelection`.
 #' @param ... further arguments passed to other methods.
 #' @details The information needed to fit the GLM is taken from the original information 
-#' supplied to the \code{VariableSelection} function.
+#' supplied to the `VariableSelection` function.
 #' 
 #' The fitted models do not have standard errors or p-values since these are 
 #' biased due to the selection process.
 #' 
-#' @return An object of class \link{BranchGLM}. 
+#' @return An object of class [BranchGLM]. 
 #' @export
 #' 
 fit <- function(object, ...) {
@@ -114,18 +113,18 @@ fit.summary.BranchGLMVS <- function(object, which = 1, keepData = TRUE, keepY = 
      which != as.integer(which)){
     stop("which must be a positive integer denoting the rank of the model to fit")
   }
-  FinalModel <- BranchGLM(object$formulas[[which]], data = object$initmodel$mf, 
-                          family = object$initmodel$family, link = object$initmodel$link, 
-                          offset = object$initmodel$offset,
-                          method = object$initmodel$method, 
-                          tol = object$initmodel$tol, maxit = object$initmodel$maxit, 
+  FinalModel <- BranchGLM(object$formulas[[which]], data = object$VS$initmodel$mf, 
+                          family = object$VS$initmodel$family, link = object$VS$initmodel$link, 
+                          offset = object$VS$initmodel$offset,
+                          method = object$VS$initmodel$method, 
+                          tol = object$VS$initmodel$tol, maxit = object$VS$initmodel$maxit, 
                           keepData = keepData, keepY = keepY)
   
   # Removing standard errors and p-values along with vcov
   FinalModel$coefficients[, 2:4] <- NA
   FinalModel$vcov <- NA
-  FinalModel$numobs <- object$initmodel$numobs
-  FinalModel$missing <- object$initmodel$missing
+  FinalModel$numobs <- object$VS$initmodel$numobs
+  FinalModel$missing <- object$VS$initmodel$missing
   return(FinalModel)
 }
 
@@ -141,31 +140,34 @@ predict.summary.BranchGLMVS <- function(object, which = 1, ...){
   predict(object$VS, which = which, ...)
 }
 
-#' Print Method for summary.BranchGLMVS
-#' @param x a \code{summary.BranchGLMVS} object.
-#' @param digits number of digits to display for information in the table.
+#' Print Method for summary.BranchGLMVS Objects
+#' @description Print method for summary.BranchGLMVS objects.
+#' @param x a `summary.BranchGLMVS` object.
+#' @param digits number of digits to display.
 #' @param ... further arguments passed to other methods.
-#' @return The supplied \code{summary.BranchGLMVS} object.
+#' @return The supplied `summary.BranchGLMVS` object.
 #' @export
 
-print.summary.BranchGLMVS <- function(x, digits = 4, ...){
+print.summary.BranchGLMVS <- function(x, digits = 2, ...){
   temp <- x$results
   temp[, ncol(temp)] <- round(temp[ncol(temp)], digits = digits)
   print(temp)
   return(invisible(x))
 }
 
-#' Plot Method for summary.BranchGLMVS and BranchGLMVS objects
-#' @param x a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.
+#' Plot Method for summary.BranchGLMVS and BranchGLMVS Objects
+#' @description Creates plots to help visualize variable selection results from 
+#' BranchGLMVS or summary.BranchGLMVS objects.
+#' @param x a `summary.BranchGLMVS` or `BranchGLMVS` object.
 #' @param ptype the type of plot to produce, look at details for more explanation.
-#' @param marnames value used to determine how large to make margin of axis with variable 
+#' @param marnames a numeric value used to determine how large to make margin of axis with variable 
 #' names, this is only for the "variables" plot. If variable names are cut-off, 
 #' consider increasing this from the default value of 7.
-#' @param addLines logical value to indicate whether or not to add black lines to 
+#' @param addLines a logical value to indicate whether or not to add black lines to 
 #' separate the models for the "variables" plot. This is typically useful for smaller 
 #' amounts of models, but can be annoying if there are many models.
-#' @param type what type of plot to draw for the "metrics" plot, see more details at \link{plot.default}. 
-#' @param horiz whether models should be displayed horizontally or vertically in the "variables" plot.
+#' @param type what type of plot to draw for the "metrics" plot, see more details at [plot.default]. 
+#' @param horiz a logical value to indicate whether models should be displayed horizontally for the "variables" plot.
 #' @param cex.names how big to make variable names in the "variables" plot.
 #' @param cex.lab how big to make axis labels.
 #' @param cex.axis how big to make axis annotation.
@@ -174,7 +176,8 @@ print.summary.BranchGLMVS <- function(x, digits = 4, ...){
 #' vector of length 3, the first color will be used for included variables, 
 #' the second color will be used for excluded variables, and the third color will 
 #' be used for kept variables.
-#' @param ... further arguments passed to the generic plot and image methods.
+#' @param ... further arguments passed to [plot.default] for the "metrics" plot 
+#' and [image.default] for the "variables" plot.
 #' @details The different values for ptype are as follows
 #' \itemize{
 #'  \item "metrics" for a plot that displays the metric values ordered by rank
@@ -220,8 +223,12 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
                                      cex.axis = 1, cex.legend = 1,
                                      cols = c("deepskyblue", "indianred", "forestgreen"), 
                                      ...){
-  if(!ptype %in% c("metrics", "both", "variables")){
-    stop("supplied ptype is not supported")
+  # Converting ptype to lower
+  ptype <- tolower(ptype)
+  if(length(ptype) != 1 || !is.character(ptype)){
+    stop("ptype must be one of 'metrics', 'variables', or 'both'")
+  }else if(!ptype %in% c("metrics", "both", "variables")){
+    stop("ptype must be one of 'metrics', 'variables', or 'both'")
   }
   if(ptype %in% c("metrics", "both")){
     plot(1:nrow(x$results), x$results[, ncol(x$results)], 

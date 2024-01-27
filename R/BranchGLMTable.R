@@ -1,18 +1,18 @@
 #' Confusion Matrix
-#' @param object a \code{BranchGLM} object or a numeric vector.
+#' @description Creates a confusion matrix and calculates related measures.
+#' @param object a `BranchGLM` object or a numeric vector.
 #' @param ... further arguments passed to other methods.
 #' @param y observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
 #' a logical vector. 
 #' @param cutoff cutoff for predicted values, the default is 0.5.
 #' @name Table
-#' @return A \code{BranchGLMTable} object which is a list with the following components
-#' \item{\code{table}}{ a matrix corresponding to the confusion matrix}
-#' \item{\code{accuracy}}{ a number corresponding to the accuracy}
-#' \item{\code{sensitivity}}{ a number corresponding to the sensitivity}
-#' \item{\code{specificity}}{ a number corresponding to the specificity}
-#' \item{\code{PPV}}{ a number corresponding to the positive predictive value}
-#' \item{\code{levels}}{ a vector corresponding to the levels of the response variable}
-#' @description Creates confusion matrix and calculates related measures.
+#' @return A `BranchGLMTable` object which is a list with the following components
+#' \item{`table`}{ a matrix corresponding to the confusion matrix}
+#' \item{`accuracy`}{ a number corresponding to the accuracy}
+#' \item{`sensitivity`}{ a number corresponding to the sensitivity}
+#' \item{`specificity`}{ a number corresponding to the specificity}
+#' \item{`PPV`}{ a number corresponding to the positive predictive value}
+#' \item{`levels`}{ a vector corresponding to the levels of the response variable}
 #' @examples 
 #' Data <- ToothGrowth
 #' Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
@@ -27,6 +27,8 @@ Table <- function(object, ...) {
 #' @export
 
 Table.numeric <- function(object, y, cutoff = .5, ...){
+  
+  ## Checking y and object
   if((!is.numeric(y)) && (!is.factor(y)) && (!is.logical(y))){
     stop("y must be a numeric, two-level factor, or logical vector")
   }else if(length(y) !=  length(object)){
@@ -44,12 +46,12 @@ Table.numeric <- function(object, y, cutoff = .5, ...){
     
     Table <- MakeTable(object, y, cutoff)
     
-    List <- list("Table" = Table, 
-                 "Accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
-                 "Sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
-                 "Specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
+    List <- list("table" = Table, 
+                 "accuracy" = (Table[1, 1] + Table[2, 2]) / (sum(Table)),
+                 "sensitivity" = Table[2, 2] / (Table[2, 2] + Table[2, 1]),
+                 "specificity" = Table[1, 1] / (Table[1, 1] + Table[1, 2]),
                  "PPV" = Table[2, 2] / (Table[2, 2] + Table[1, 2]),
-                 "Levels" = c(0, 1))
+                 "levels" = c(0, 1))
   }else if(is.factor(y)){
     
     Table <- MakeTableFactor2(object, as.character(y), levels(y), cutoff)
@@ -102,11 +104,12 @@ Table.BranchGLM <- function(object, cutoff = .5, ...){
   
 }
 
-#' Print Method for BranchGLMTable
-#' @param x a \code{BranchGLMTable} object.
+#' Print Method for BranchGLMTable Objects
+#' @description Print method for BranchGLMTable objects.
+#' @param x a `BranchGLMTable` object.
 #' @param digits number of digits to display.
 #' @param ... further arguments passed to other methods.
-#' @return The supplied \code{BranchGLMTable} object.
+#' @return The supplied `BranchGLMTable` object.
 #' @export
 
 print.BranchGLMTable <- function(x, digits = 4, ...){
@@ -168,7 +171,7 @@ print.BranchGLMTable <- function(x, digits = 4, ...){
 }
 
 #' Cindex/AUC
-#' @param object a \code{BranchGLM} object, a \code{BranchGLMROC} object, or a numeric vector.
+#' @param object a `BranchGLM` object, a `BranchGLMROC` object, or a numeric vector.
 #' @param ... further arguments passed to other methods.
 #' @param y Observed values, can be a numeric vector of 0s and 1s, a two-level 
 #' factor vector, or a logical vector.
@@ -256,6 +259,11 @@ Cindex.BranchGLMROC <- function(object, ...){
   
 }
 
+#' Calculated AUC/cindex
+#' @param preds numeric vector of predictions.
+#' @param y a numeric vector of 0s and 1s.
+#' @noRd
+
 CindexU <- function(preds, y){
   y1 <- which(y == 1)
   
@@ -268,14 +276,14 @@ CindexU <- function(preds, y){
 
 
 #' ROC Curve
-#' @param object a \code{BranchGLM} object or a numeric vector.
+#' @description Creates an ROC curve.
+#' @param object a `BranchGLM` object or a numeric vector.
 #' @param ... further arguments passed to other methods.
 #' @param y observed values, can be a numeric vector of 0s and 1s, a two-level 
 #' factor vector, or a logical vector. 
 #' @name ROC
-#' @return A \code{BranchGLMROC} object which can be plotted with \code{plot()}. The AUC can also 
-#' be calculated using \code{AUC()}.
-#' @description Creates an ROC curve.
+#' @return A `BranchGLMROC` object which can be plotted with `plot()`. The AUC can also 
+#' be calculated using `AUC()`.
 #' @examples 
 #' Data <- ToothGrowth
 #' Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
@@ -346,10 +354,11 @@ ROC.BranchGLM <- function(object, ...){
   return(structure(ROC, class = "BranchGLMROC"))
 }
 
-#' Print Method for BranchGLMROC
-#' @param x a \code{BranchGLMROC} object.
+#' Print Method for BranchGLMROC Objects
+#' @description Print method for BranchGLMROC objects.
+#' @param x a `BranchGLMROC` object.
 #' @param ... further arguments passed to other methods.
-#' @return The supplied \code{BranchGLMROC} object.
+#' @return The supplied `BranchGLMROC` object.
 #' @export
 
 print.BranchGLMROC <- function(x, ...){
@@ -360,25 +369,29 @@ print.BranchGLMROC <- function(x, ...){
 }
 
 
-#' Plotting ROC Curve
+#' Plot Method for BranchGLMROC Objects
 #' @description This plots a ROC curve.
-#' @param x a \code{BranchGLMROC} object.
-#' @param ... arguments passed to generic plot function.
-#' @return No return value, called to create the plot.
+#' @param x a `BranchGLMROC` object.
+#' @param xlab label for the x-axis.
+#' @param ylab label for the y-axis.
+#' @param type  what type of plot to draw, see more details at [plot.default].
+#' @param ... further arguments passed to [plot.default].
+#' @return This only produces a plot, nothing is returned.
 #' @examples
 #' Data <- ToothGrowth
 #' Fit <- BranchGLM(supp ~ ., data = Data, family = "binomial", link = "logit")
 #' MyROC <- ROC(Fit)
 #' plot(MyROC)
 #' @export
-plot.BranchGLMROC <- function(x, ...){
-  plot(1 - x$Info$Specificity, x$Info$Sensitivity, xlab = "1 - Specificity", 
-       ylab = "Sensitivity", type = "l",  ... )
+plot.BranchGLMROC <- function(x, xlab = "1 - Specificity", ylab = "Sensitivity", 
+                              type = "l", ...){
+  plot(1 - x$Info$Specificity, x$Info$Sensitivity, xlab = xlab, ylab = ylab, 
+       type = type,  ... )
   abline(0, 1, lty = "dotted")
 }
 
 #' Plotting Multiple ROC Curves
-#' @param ... any number of \code{BranchGLMROC} objects.
+#' @param ... any number of `BranchGLMROC` objects.
 #' @param legendpos a keyword to describe where to place the legend, such as "bottomright".
 #' The default is "bottomright"
 #' @param title title for the plot.
@@ -388,7 +401,7 @@ plot.BranchGLMROC <- function(x, ...){
 #' single linetype to be used for all ROC curves.
 #' @param lwd vector of linewidths used to create the ROC curves or a 
 #' single linewidth to be used for all ROC curves.
-#' @return No return value, called to create the plot.
+#' @return This only produces a plot, nothing is returned.
 #' @examples 
 #' Data <- ToothGrowth
 #' 

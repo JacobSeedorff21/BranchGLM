@@ -17,16 +17,8 @@ BranchGLMfit <- function(x, y, offset, init, method, m, Link, Dist, nthreads, to
     .Call(`_BranchGLM_BranchGLMfit`, x, y, offset, init, method, m, Link, Dist, nthreads, tol, maxit, GetInit)
 }
 
-RLogLik <- function(x, y, offset, beta, Dist, Link) {
-    .Call(`_BranchGLM_RLogLik`, x, y, offset, beta, Dist, Link)
-}
-
 MetricIntervalCpp <- function(x, y, offset, indices, num, model, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, Metric, rootMethod) {
     .Call(`_BranchGLM_MetricIntervalCpp`, x, y, offset, indices, num, model, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, Metric, rootMethod)
-}
-
-MetricIntervalsCpp <- function(x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, Penalty, best, cutoff, rootMethod) {
-    .Call(`_BranchGLM_MetricIntervalsCpp`, x, y, offset, indices, num, models, method, m, Link, Dist, nthreads, tol, maxit, pen, Penalty, best, cutoff, rootMethod)
 }
 
 ForwardCpp <- function(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen) {

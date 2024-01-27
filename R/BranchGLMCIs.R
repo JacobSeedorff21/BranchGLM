@@ -1,15 +1,19 @@
-#' Likelihood Ratio Confidence Intervals for Beta Coefficients
-#' @param object a \code{BranchGLM} object.
+#' Likelihood Ratio Confidence Intervals for Beta Coefficients for BranchGLM Objects
+#' @description Finds profile likelihood ratio confidence intervals for beta 
+#' coefficients with the ability to calculate the intervals in parallel. 
+#' @param object a `BranchGLM` object.
 #' @param parm a specification of which parameters are to be given confidence intervals, 
 #' either a vector of numbers or a vector of names. If missing, all parameters are considered.
 #' @param level the confidence level required.
-#' @param parallel whether or not to make use of parallelization via OpenMP.
-#' @param nthreads number of threads used with OpenMP, only used if \code{parallel = TRUE}.
+#' @param parallel a logical value to indicate if parallelization should be used.
+#' @param nthreads a positive integer to denote the number of threads used with OpenMP, 
+#' only used if `parallel = TRUE`.
 #' @param ... further arguments passed from other methods.
-#' @return An object of class \code{BranchGLMCIs} which is a list with the following components.
-#' \item{\code{CIs}}{ a matrix with the confidence intervals}
-#' \item{\code{level}}{ the supplied level}
-#' \item{\code{MLE}}{ a numeric vector of the MLEs of the coefficients}
+#' @seealso [plot.BranchGLMCIs], [plotCI]
+#' @return An object of class `BranchGLMCIs` which is a list with the following components.
+#' \item{`CIs`}{ a numeric matrix with the confidence intervals}
+#' \item{`level`}{ the supplied level}
+#' \item{`MLE`}{ a numeric vector of the MLEs of the coefficients}
 #' @details Endpoints of the confidence intervals that couldn't be found by the algorithm 
 #' are filled in with NA. When there is a lot of multicollinearity in the data 
 #' the algorithm may have problems finding many of the intervals.
@@ -33,8 +37,26 @@ confint.BranchGLM <- function(object, parm, level = 0.95,
     parm <- 1:ncol(object$x)
   }else if(is.character(parm)){
     parm <- match(parm, colnames(object$x), nomatch = 0L)
+    if(length(parm) == 1 && parm == 0L){
+      stop("no parameters specified in parm were found")
+    }
   }else if(any(parm > ncol(object$x))){
     stop("numbers in parm must be less than or equal to the number of parameters")
+  }
+  # Checking level
+  if(length(level) != 1 || !is.numeric(level) || level >= 1 || level <= 0){
+    stop("level must be a number between 0 and 1")
+  }
+  
+  # Checking nthreads and parallel
+  if(length(nthreads) != 1 || !is.numeric(nthreads) || is.na(nthreads) || nthreads <= 0){
+    stop("nthreads must be a positive integer")
+  }
+  if(length(parallel) != 1 || !is.logical(parallel) || is.na(parallel)){
+    stop("parallel must be either TRUE or FALSE")
+  }
+  if(!parallel){
+    nthreads <- 1
   }
   
   # Getting SEs for make initial values for CIs
@@ -42,10 +64,7 @@ confint.BranchGLM <- function(object, parm, level = 0.95,
   coefs <- coef(object)
   SEs <- qnorm(1 - a) * sqrt(diag(object$vcov))
   
-  # Checking parallel
-  if(!parallel){
-    nthreads <- 1
-  }
+  
   
   # Getting LR CIs
   if(object$family == "gaussian" || object$family == "gamma"){
@@ -74,10 +93,11 @@ confint.BranchGLM <- function(object, parm, level = 0.95,
 }
 
 #' Print Method for BranchGLMCIs Objects
-#' @param x a \code{BranchGLMCIs} object.
+#' @description Print method for BranchGLMCIs objects.
+#' @param x a `BranchGLMCIs` object.
 #' @param digits number of significant digits to display.
 #' @param ... further arguments passed from other methods.
-#' @return The supplied \code{BranchGLMCIs} object.
+#' @return The supplied `BranchGLMCIs` object.
 #' @export
 print.BranchGLMCIs <- function(x, digits = 4, ...){
   print(signif(x$CIs, digits = digits))
@@ -86,11 +106,14 @@ print.BranchGLMCIs <- function(x, digits = 4, ...){
 
 
 #' Plot Method for BranchGLMCIs Objects
-#' @param x a \code{BranchGLMCIs} object.
-#' @param which which intervals to plot, can use indices or names of desired variables.
-#' @param mary value used to determine how large to make margin of y-axis. If variable 
+#' @description Creates a plot to visualize confidence intervals from BranchGLMCIs objects.
+#' @param x a `BranchGLMCIs` object.
+#' @param which which intervals to plot, can use a numeric vector of indices, a 
+#' character vector of names of desired variables, or "all" to plot all intervals.
+#' @param mary a numeric value used to determine how large to make margin of y-axis. If variable 
 #' names are cut-off, consider increasing this from the default value of 5. 
-#' @param ... further arguments passed to \link{plotCI}.
+#' @param ... further arguments passed to [plotCI].
+#' @seealso [plotCI]
 #' @return This only produces a plot, nothing is returned.
 #' @examples 
 #' Data <- iris
@@ -107,7 +130,7 @@ print.BranchGLMCIs <- function(x, digits = 4, ...){
 #' @export
 plot.BranchGLMCIs <- function(x, which = "all", mary = 5, ...){
   # Using which
-  if(is.character(which) && length(which) == 1 && which == "all"){
+  if(is.character(which) && length(which) == 1 && tolower(which) == "all"){
     which <- 1:length(x$MLE)
   }
   x$CIs <- x$CIs[which, , drop = FALSE]
@@ -131,19 +154,18 @@ plot.BranchGLMCIs <- function(x, which = "all", mary = 5, ...){
 }
 
 #' Plot Confidence Intervals
-#' @param CIs a matrix of confidence intervals, must have either 2 rows or 2 columns.
-#' The variable names displayed in the plot are taken from either the column names 
-#' or row names of this.
+#' @description Creates a plot to display confidence intervals.
+#' @param CIs a numeric matrix of confidence intervals, must have exactly 2 columns.
+#' The variable names displayed in the plot are taken from the column names.
 #' @param points points to be plotted in the middle of the CIs, typically means or medians.
-#' The default is to plot the midpoint of the intervals.
-#' @param ylab axis label for y-axis.
-#' @param las the style of the y-axis label, the default is horizontal, 
-#' see more about this at \link{par}.
+#' The default is to plot the midpoints of the intervals.
+#' @param ylab a label for the y-axis.
+#' @param ylas the style of the y-axis label, see more about this at `las` in [par].
 #' @param cex.y font size used for variable names on y-axis.
 #' @param decreasing a logical value indicating if confidence intervals should be 
 #' displayed in decreasing or increasing order according to points. Can use NA 
 #' if no ordering is desired.
-#' @param ... further arguments passed to default plot method.
+#' @param ... further arguments passed to [plot.default].
 #' @return This only produces a plot, nothing is returned.
 #' @examples 
 #' Data <- iris
@@ -161,19 +183,20 @@ plot.BranchGLMCIs <- function(x, which = "all", mary = 5, ...){
 #' abline(v = 0)
 #' 
 #' @export
-plotCI <- function(CIs, points = NULL, ylab = "", las = 2, cex.y = 1, 
+plotCI <- function(CIs, points = NULL, ylab = "", ylas = 2, cex.y = 1, 
                    decreasing = FALSE, ...){
-  # Getting CIs in right format
-  if(!is.matrix(CIs) ||(ncol(CIs) > 2 && nrow(CIs) > 2)){
-    stop("CIs must be a matrix with either 2 rows or 2 columns")
-  }else if(ncol(CIs) == 2){
-    CIs <- t(CIs)
-  }
-
   # Getting points
   if(is.null(points)){
-    points <- apply(CIs, 2, mean)
+    points <- apply(CIs, 1, mean)
   }
+  
+  # Getting CIs in right format
+  if(!is.matrix(CIs) || (ncol(CIs) != 2) || !is.numeric(CIs)){
+    stop("CIs must be a numeric matrix with exactly 2 columns")
+  }else if(nrow(CIs) != length(points)){
+    stop("the number of rows in CIs must be the same as the length of points")
+  }
+  CIs <- t(CIs)
     
   # Getting order of points
   if(!is.na(decreasing)){
@@ -181,26 +204,23 @@ plotCI <- function(CIs, points = NULL, ylab = "", las = 2, cex.y = 1,
   }else{
     ind <- 1:length(points)
   }
-  if(!is.matrix(CIs)){
-    CIs <- matrix(CIs, ncol = 1, dimnames = list(NULL, names(CIs)))
-  }
+  
   quants <- CIs[, ind, drop = FALSE]
   points <- points[ind]
   
   # Creating plot
   ## Creating base layer of plot
-  plot(points, 1:length(points), 
-       ylim = c(0, ncol(quants) + 1),
-       ylab = ylab, 
-       yaxt = "n", 
-       ...)
+  plot(points, 1:length(points), ylim = c(0, ncol(quants) + 1), ylab = ylab, 
+       yaxt = "n", ...)
   
   ## Creating confidence intervals
   segments(y0 = 1:ncol(quants), x0 = quants[1, ], x1 = quants[2, ])
-  segments(y0 = 1:ncol(quants) - 0.25, x0 = quants[1, ], y1 = 1:ncol(quants) + 0.25)
-  segments(y0 = 1:ncol(quants) - 0.25, x0 = quants[2, ], y1 = 1:ncol(quants) + 0.25)
+  segments(y0 = 1:ncol(quants) - 0.25, x0 = quants[1, ], 
+           y1 = 1:ncol(quants) + 0.25)
+  segments(y0 = 1:ncol(quants) - 0.25, x0 = quants[2, ], 
+           y1 = 1:ncol(quants) + 0.25)
   
   ## Adding axis labels for y-axis
-  axis(2, at = 1:ncol(quants), labels = colnames(quants), las = las, 
+  axis(2, at = 1:ncol(quants), labels = colnames(quants), las = ylas, 
        cex.axis = cex.y) 
 }
