@@ -1,6 +1,11 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.1.4
+
+- Updating all documentation and adding more tests
+- Fixing a couple of bugs
+
 # BranchGLM 2.1.3
 
 - Updating predict functions to include na.action and to better handle
