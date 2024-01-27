@@ -16,15 +16,17 @@
 \arguments{
 \item{object}{a \code{BranchGLM} object.}
 
-\item{newdata}{a dataframe, if not specified then the data the model was fit on is used.}
+\item{newdata}{a data.frame, if not specified then the data the model was fit on is used.}
 
-\item{offset}{a numeric vector containing the offset variable, this is ignored if 
+\item{offset}{a numeric vector containing the offset variable, this is ignored if
 newdata is not supplied.}
 
-\item{type}{one of "linpreds" or "response", if not specified then "response" is used.}
+\item{type}{one of "linpreds" which is on the scale of the linear predictors or
+"response" which is on the scale of the response variable. If not specified,
+then "response" is used.}
 
-\item{na.action}{a function which indicates what should happen when the data 
-contains NAs. The default is \code{na.pass}. This is ignored if newdata is not 
+\item{na.action}{a function which indicates what should happen when the data
+contains NAs. The default is \code{na.pass}. This is ignored if newdata is not
 supplied and data isn't included in the supplied \code{BranchGLM} object.}
 
 \item{...}{further arguments passed to or from other methods.}
@@ -33,16 +35,34 @@ supplied and data isn't included in the supplied \code{BranchGLM} object.}
 A numeric vector of predictions.
 }
 \description{
-Gets predictions from a \code{BranchGLM} object.
-}
-\details{
-linpreds corresponds to the linear predictors and response is on the scale of the response variable.
-Offset variables are ignored for predictions on new data.
+Obtains predictions from \code{BranchGLM} objects.
 }
 \examples{
-Data <- iris
-Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+Data <- airquality
+
+# Example without offset
+Fit <- BranchGLM(Temp ~ ., data = Data, family = "gaussian", link = "identity")
+
+## Using default na.action
 predict(Fit)
-### Example with new data
-predict(Fit, newdata = iris[1:20,])
+
+## Using na.omit
+predict(Fit, na.action = na.omit)
+
+## Using new data
+predict(Fit, newdata = Data[1:20, ], na.action = na.pass)
+
+# Using offset
+FitOffset <- BranchGLM(Temp ~ . - Day, data = Data, family = "gaussian", 
+link = "identity", offset = Data$Day * -0.1)
+
+## Getting predictions for data used to fit model
+### Don't need to supply offset vector
+predict(FitOffset)
+
+## Getting predictions for new dataset
+### Need to include new offset vector since we are 
+### getting predictions for new dataset
+predict(FitOffset, newdata = Data[1:20, ], offset = Data$Day[1:20] * -0.1)
+
 }

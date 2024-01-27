@@ -4,7 +4,7 @@
 \alias{fit.BranchGLMVS}
 \alias{fit}
 \alias{fit.summary.BranchGLMVS}
-\title{Fits GLMs for summary.BranchGLMVS and BranchGLMVS objects}
+\title{Fits GLMs for summary.BranchGLMVS and BranchGLMVS Objects}
 \usage{
 \method{fit}{BranchGLMVS}(object, which = 1, keepData = TRUE, keepY = TRUE, ...)
 
@@ -15,14 +15,14 @@ fit(object, ...)
 \arguments{
 \item{object}{a \code{summary.BranchGLMVS} or \code{BranchGLMVS} object.}
 
-\item{which}{a positive integer indicating which model to fit, 
+\item{which}{a positive integer indicating which model to fit,
 the default is to fit the first model .}
 
-\item{keepData}{Whether or not to store a copy of data and design matrix, the default 
+\item{keepData}{Whether or not to store a copy of data and design matrix, the default
 is TRUE. If this is FALSE, then the results from this cannot be used inside of \code{VariableSelection}.}
 
-\item{keepY}{Whether or not to store a copy of y, the default is TRUE. If 
-this is FALSE, then the binomial GLM helper functions may not work and this 
+\item{keepY}{Whether or not to store a copy of y, the default is TRUE. If
+this is FALSE, then the binomial GLM helper functions may not work and this
 cannot be used inside of \code{VariableSelection}.}
 
 \item{...}{further arguments passed to other methods.}
@@ -31,12 +31,12 @@ cannot be used inside of \code{VariableSelection}.}
 An object of class \link{BranchGLM}.
 }
 \description{
-Fits GLMs for summary.BranchGLMVS and BranchGLMVS objects
+Fits GLMs for summary.BranchGLMVS and BranchGLMVS Objects
 }
 \details{
-The information needed to fit the GLM is taken from the original information 
+The information needed to fit the GLM is taken from the original information
 supplied to the \code{VariableSelection} function.
 
-The fitted models do not have standard errors or p-values since these are 
+The fitted models do not have standard errors or p-values since these are
 biased due to the selection process.
 }

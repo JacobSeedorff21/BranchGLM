@@ -2,28 +2,26 @@
 % Please edit documentation in R/summaryBranchGLMVS.R
 \name{summary.BranchGLMVS}
 \alias{summary.BranchGLMVS}
-\title{Summary Method for BranchGLMVS}
+\title{Summary Method for BranchGLMVS Objects}
 \usage{
 \method{summary}{BranchGLMVS}(object, ...)
 }
 \arguments{
 \item{object}{a \code{BranchGLMVS} object.}
 
-\item{...}{further arguments passed to other methods.}
+\item{...}{further arguments passed to or from other methods.}
 }
 \value{
-An object of class \code{summary.BranchGLMVS} which is a list with the 
+An object of class \code{summary.BranchGLMVS} which is a list with the
 following components
-\item{\code{results}}{ a data frame which has the metric values for the best models along 
-with the variables included in each model}
-\item{\code{initmodel}}{ the initial \code{BranchGLM} object that was supplied to the 
-\code{VariableSelection} function}
+\item{\code{results}}{ a data.frame which has the metric values for the best models along
+with the sets of variables included in each model}
 \item{\code{VS}}{ the supplied \code{BranchGLMVS} object}
 \item{\code{formulas}}{ a list containing the formulas of the best models}
 \item{\code{metric}}{ the metric used to perform variable selection}
 }
 \description{
-Summary Method for BranchGLMVS
+Summary method for BranchGLMVS objects.
 }
 \examples{
 
@@ -48,4 +46,7 @@ plot(Summ, ptype = "variables")
 ## Getting coefficients
 coef(Summ)
  
+}
+\seealso{
+\link{plot.summary.BranchGLMVS}, \link{coef.summary.BranchGLMVS}, \link{predict.summary.BranchGLMVS}
 }

@@ -17,11 +17,11 @@ ROC(object, ...)
 
 \item{...}{further arguments passed to other methods.}
 
-\item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level 
+\item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level
 factor vector, or a logical vector.}
 }
 \value{
-A \code{BranchGLMROC} object which can be plotted with \code{plot()}. The AUC can also 
+A \code{BranchGLMROC} object which can be plotted with \code{plot()}. The AUC can also
 be calculated using \code{AUC()}.
 }
 \description{

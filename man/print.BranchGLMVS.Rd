@@ -2,16 +2,14 @@
 % Please edit documentation in R/VariableSelection.R
 \name{print.BranchGLMVS}
 \alias{print.BranchGLMVS}
-\title{Print Method for BranchGLMVS}
+\title{Print Method for BranchGLMVS Objects}
 \usage{
-\method{print}{BranchGLMVS}(x, coefdigits = 4, digits = 2, ...)
+\method{print}{BranchGLMVS}(x, digits = 2, ...)
 }
 \arguments{
 \item{x}{a \code{BranchGLMVS} object.}
 
-\item{coefdigits}{number of digits to display for coefficients table.}
-
-\item{digits}{number of digits to display for information not in the table.}
+\item{digits}{number of digits to display.}
 
 \item{...}{further arguments passed to other methods.}
 }
@@ -19,5 +17,5 @@
 The supplied \code{BranchGLMVS} object.
 }
 \description{
-Print Method for BranchGLMVS
+Print method for BranchGLMVS objects.
 }

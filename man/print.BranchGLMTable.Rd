@@ -2,7 +2,7 @@
 % Please edit documentation in R/BranchGLMTable.R
 \name{print.BranchGLMTable}
 \alias{print.BranchGLMTable}
-\title{Print Method for BranchGLMTable}
+\title{Print Method for BranchGLMTable Objects}
 \usage{
 \method{print}{BranchGLMTable}(x, digits = 4, ...)
 }
@@ -17,5 +17,5 @@
 The supplied \code{BranchGLMTable} object.
 }
 \description{
-Print Method for BranchGLMTable
+Print method for BranchGLMTable objects.
 }

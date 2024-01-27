@@ -2,7 +2,7 @@
 % Please edit documentation in R/BranchGLM.R
 \name{vcov.BranchGLM}
 \alias{vcov.BranchGLM}
-\title{Extract covariance matrix}
+\title{Extract covariance matrix from BranchGLM Objects}
 \usage{
 \method{vcov}{BranchGLM}(object, ...)
 }
@@ -15,5 +15,5 @@
 A numeric matrix which is the covariance matrix of the beta coefficients.
 }
 \description{
-Extract covariance matrix
+Extracts covariance matrix of beta coefficients from BranchGLM objects.
 }

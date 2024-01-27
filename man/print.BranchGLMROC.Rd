@@ -2,7 +2,7 @@
 % Please edit documentation in R/BranchGLMTable.R
 \name{print.BranchGLMROC}
 \alias{print.BranchGLMROC}
-\title{Print Method for BranchGLMROC}
+\title{Print Method for BranchGLMROC Objects}
 \usage{
 \method{print}{BranchGLMROC}(x, ...)
 }
@@ -15,5 +15,5 @@
 The supplied \code{BranchGLMROC} object.
 }
 \description{
-Print Method for BranchGLMROC
+Print method for BranchGLMROC objects.
 }

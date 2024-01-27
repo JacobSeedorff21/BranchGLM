@@ -17,5 +17,5 @@
 The supplied \code{BranchGLMCIs} object.
 }
 \description{
-Print Method for BranchGLMCIs Objects
+Print method for BranchGLMCIs objects.
 }

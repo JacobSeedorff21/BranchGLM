@@ -2,14 +2,14 @@
 % Please edit documentation in R/summaryBranchGLMVS.R
 \name{print.summary.BranchGLMVS}
 \alias{print.summary.BranchGLMVS}
-\title{Print Method for summary.BranchGLMVS}
+\title{Print Method for summary.BranchGLMVS Objects}
 \usage{
-\method{print}{summary.BranchGLMVS}(x, digits = 4, ...)
+\method{print}{summary.BranchGLMVS}(x, digits = 2, ...)
 }
 \arguments{
 \item{x}{a \code{summary.BranchGLMVS} object.}
 
-\item{digits}{number of digits to display for information in the table.}
+\item{digits}{number of digits to display.}
 
 \item{...}{further arguments passed to other methods.}
 }
@@ -17,5 +17,5 @@
 The supplied \code{summary.BranchGLMVS} object.
 }
 \description{
-Print Method for summary.BranchGLMVS
+Print method for summary.BranchGLMVS objects.
 }

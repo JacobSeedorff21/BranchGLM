@@ -8,38 +8,36 @@ plotCI(
   CIs,
   points = NULL,
   ylab = "",
-  las = 2,
+  ylas = 2,
   cex.y = 1,
   decreasing = FALSE,
   ...
 )
 }
 \arguments{
-\item{CIs}{a matrix of confidence intervals, must have either 2 rows or 2 columns.
-The variable names displayed in the plot are taken from either the column names 
-or row names of this.}
+\item{CIs}{a numeric matrix of confidence intervals, must have exactly 2 columns.
+The variable names displayed in the plot are taken from the column names.}
 
 \item{points}{points to be plotted in the middle of the CIs, typically means or medians.
-The default is to plot the midpoint of the intervals.}
+The default is to plot the midpoints of the intervals.}
 
-\item{ylab}{axis label for y-axis.}
+\item{ylab}{a label for the y-axis.}
 
-\item{las}{the style of the y-axis label, the default is horizontal, 
-see more about this at \link{par}.}
+\item{ylas}{the style of the y-axis label, see more about this at \code{las} in \link{par}.}
 
 \item{cex.y}{font size used for variable names on y-axis.}
 
-\item{decreasing}{a logical value indicating if confidence intervals should be 
-displayed in decreasing or increasing order according to points. Can use NA 
+\item{decreasing}{a logical value indicating if confidence intervals should be
+displayed in decreasing or increasing order according to points. Can use NA
 if no ordering is desired.}
 
-\item{...}{further arguments passed to default plot method.}
+\item{...}{further arguments passed to \link{plot.default}.}
 }
 \value{
 This only produces a plot, nothing is returned.
 }
 \description{
-Plot Confidence Intervals
+Creates a plot to display confidence intervals.
 }
 \examples{
 Data <- iris

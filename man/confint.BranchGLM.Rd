@@ -2,36 +2,38 @@
 % Please edit documentation in R/BranchGLMCIs.R
 \name{confint.BranchGLM}
 \alias{confint.BranchGLM}
-\title{Likelihood Ratio Confidence Intervals for Beta Coefficients}
+\title{Likelihood Ratio Confidence Intervals for Beta Coefficients for BranchGLM Objects}
 \usage{
 \method{confint}{BranchGLM}(object, parm, level = 0.95, parallel = FALSE, nthreads = 8, ...)
 }
 \arguments{
 \item{object}{a \code{BranchGLM} object.}
 
-\item{parm}{a specification of which parameters are to be given confidence intervals, 
+\item{parm}{a specification of which parameters are to be given confidence intervals,
 either a vector of numbers or a vector of names. If missing, all parameters are considered.}
 
 \item{level}{the confidence level required.}
 
-\item{parallel}{whether or not to make use of parallelization via OpenMP.}
+\item{parallel}{a logical value to indicate if parallelization should be used.}
 
-\item{nthreads}{number of threads used with OpenMP, only used if \code{parallel = TRUE}.}
+\item{nthreads}{a positive integer to denote the number of threads used with OpenMP,
+only used if \code{parallel = TRUE}.}
 
 \item{...}{further arguments passed from other methods.}
 }
 \value{
 An object of class \code{BranchGLMCIs} which is a list with the following components.
-\item{\code{CIs}}{ a matrix with the confidence intervals}
+\item{\code{CIs}}{ a numeric matrix with the confidence intervals}
 \item{\code{level}}{ the supplied level}
 \item{\code{MLE}}{ a numeric vector of the MLEs of the coefficients}
 }
 \description{
-Likelihood Ratio Confidence Intervals for Beta Coefficients
+Finds profile likelihood ratio confidence intervals for beta
+coefficients with the ability to calculate the intervals in parallel.
 }
 \details{
-Endpoints of the confidence intervals that couldn't be found by the algorithm 
-are filled in with NA. When there is a lot of multicollinearity in the data 
+Endpoints of the confidence intervals that couldn't be found by the algorithm
+are filled in with NA. When there is a lot of multicollinearity in the data
 the algorithm may have problems finding many of the intervals.
 }
 \examples{
@@ -46,4 +48,7 @@ CIs
 ### Plotting CIs
 plot(CIs, mary = 7, cex.y = 0.9)
 
+}
+\seealso{
+\link{plot.BranchGLMCIs}, \link{plotCI}
 }

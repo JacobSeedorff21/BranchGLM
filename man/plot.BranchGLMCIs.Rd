@@ -9,9 +9,10 @@
 \arguments{
 \item{x}{a \code{BranchGLMCIs} object.}
 
-\item{which}{which intervals to plot, can use indices or names of desired variables.}
+\item{which}{which intervals to plot, can use a numeric vector of indices, a
+character vector of names of desired variables, or "all" to plot all intervals.}
 
-\item{mary}{value used to determine how large to make margin of y-axis. If variable 
+\item{mary}{a numeric value used to determine how large to make margin of y-axis. If variable
 names are cut-off, consider increasing this from the default value of 5.}
 
 \item{...}{further arguments passed to \link{plotCI}.}
@@ -20,7 +21,7 @@ names are cut-off, consider increasing this from the default value of 5.}
 This only produces a plot, nothing is returned.
 }
 \description{
-Plot Method for BranchGLMCIs Objects
+Creates a plot to visualize confidence intervals from BranchGLMCIs objects.
 }
 \examples{
 Data <- iris
@@ -34,4 +35,7 @@ CIs
 ### Plotting CIs
 plot(CIs, mary = 7, cex.y = 0.9)
 
+}
+\seealso{
+\link{plotCI}
 }

@@ -17,7 +17,7 @@ Table(object, ...)
 
 \item{...}{further arguments passed to other methods.}
 
-\item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or 
+\item{y}{observed values, can be a numeric vector of 0s and 1s, a two-level factor vector, or
 a logical vector.}
 
 \item{cutoff}{cutoff for predicted values, the default is 0.5.}
@@ -32,7 +32,7 @@ A \code{BranchGLMTable} object which is a list with the following components
 \item{\code{levels}}{ a vector corresponding to the levels of the response variable}
 }
 \description{
-Creates confusion matrix and calculates related measures.
+Creates a confusion matrix and calculates related measures.
 }
 \examples{
 Data <- ToothGrowth

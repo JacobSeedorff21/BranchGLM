@@ -3,7 +3,7 @@
 \name{coef.BranchGLMVS}
 \alias{coef.BranchGLMVS}
 \alias{coef.summary.BranchGLMVS}
-\title{Extract Coefficients}
+\title{Extract Coefficients from BranchGLMVS or summary.BranchGLMVS Objects}
 \usage{
 \method{coef}{BranchGLMVS}(object, which = 1, ...)
 
@@ -12,8 +12,8 @@
 \arguments{
 \item{object}{a \code{BranchGLMVS} or \code{summary.BranchGLMVS} object.}
 
-\item{which}{which models to get coefficients from, the default is the best model. 
-Can specify "all" to get coefficients from all of the best models.}
+\item{which}{a numeric vector of indices or "all" to indicate which models to
+get coefficients from, the default is the best model.}
 
 \item{...}{ignored.}
 }
@@ -21,7 +21,7 @@ Can specify "all" to get coefficients from all of the best models.}
 A numeric matrix with the corresponding coefficient estimates.
 }
 \description{
-Extract Coefficients
+Extracts beta coefficients from BranchGLMVS or summary.BranchGLMVS objects.
 }
 \examples{
 Data <- iris

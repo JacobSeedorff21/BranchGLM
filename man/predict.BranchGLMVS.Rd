@@ -3,7 +3,7 @@
 \name{predict.BranchGLMVS}
 \alias{predict.BranchGLMVS}
 \alias{predict.summary.BranchGLMVS}
-\title{Predict Method for BranchGLMVS Objects}
+\title{Predict Method for BranchGLMVS or summary.BranchGLMVS Objects}
 \usage{
 \method{predict}{BranchGLMVS}(object, which = 1, ...)
 
@@ -12,7 +12,8 @@
 \arguments{
 \item{object}{a \code{BranchGLMVS} or \code{summary.BranchGLMVS} object.}
 
-\item{which}{which model to get predictions from, the default is the best model.}
+\item{which}{a positive integer to indicate which model to get predictions from,
+the default is the best model.}
 
 \item{...}{further arguments passed to \link{predict.BranchGLM}.}
 }
@@ -20,7 +21,7 @@
 A numeric vector of predictions.
 }
 \description{
-Gets predictions from a \code{BranchGLMVS} or \code{summary.BranchGLMVS} object.
+Obtains predictions from BranchGLMVS or summary.BranchGLMVS objects.
 }
 \examples{
 Data <- iris
@@ -37,4 +38,7 @@ predict(VS, which = 1)
 ## Getting linear predictors from 5th best model
 predict(VS, which = 5, type = "linpreds")
 
+}
+\seealso{
+\link{predict.BranchGLM}
 }

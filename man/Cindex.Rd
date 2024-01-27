@@ -23,7 +23,7 @@ AUC(object, ...)
 
 \item{...}{further arguments passed to other methods.}
 
-\item{y}{Observed values, can be a numeric vector of 0s and 1s, a two-level 
+\item{y}{Observed values, can be a numeric vector of 0s and 1s, a two-level
 factor vector, or a logical vector.}
 }
 \value{
@@ -34,7 +34,7 @@ Calculates the c-index/AUC.
 }
 \details{
 Uses trapezoidal rule to calculate AUC when given a BranchGLMROC object and
-uses Mann-Whitney U to calculate it otherwise. The trapezoidal rule method is less accurate, 
+uses Mann-Whitney U to calculate it otherwise. The trapezoidal rule method is less accurate,
 so the two methods may give different results.
 }
 \examples{

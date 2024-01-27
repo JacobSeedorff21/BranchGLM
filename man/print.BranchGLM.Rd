@@ -2,7 +2,7 @@
 % Please edit documentation in R/BranchGLM.R
 \name{print.BranchGLM}
 \alias{print.BranchGLM}
-\title{Print Method for BranchGLM}
+\title{Print Method for BranchGLM Objects}
 \usage{
 \method{print}{BranchGLM}(x, coefdigits = 4, digits = 2, ...)
 }
@@ -19,5 +19,5 @@
 The supplied \code{BranchGLM} object.
 }
 \description{
-Print Method for BranchGLM
+Print method for \code{BranchGLM} objects.
 }

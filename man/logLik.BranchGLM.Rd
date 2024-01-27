@@ -2,7 +2,7 @@
 % Please edit documentation in R/BranchGLM.R
 \name{logLik.BranchGLM}
 \alias{logLik.BranchGLM}
-\title{Extract Log-Likelihood}
+\title{Extract Log-Likelihood from BranchGLM Objects}
 \usage{
 \method{logLik}{BranchGLM}(object, ...)
 }
@@ -12,10 +12,10 @@
 \item{...}{further arguments passed to or from other methods.}
 }
 \value{
-An object of class \code{logLik} which is a number corresponding to 
-the log-likelihood with the following attributes: "df" (degrees of freedom) 
+An object of class \code{logLik} which is a number corresponding to
+the log-likelihood with the following attributes: "df" (degrees of freedom)
 and "nobs" (number of observations).
 }
 \description{
-Extract Log-Likelihood
+Extracts log-likelihood from BranchGLM objects.
 }

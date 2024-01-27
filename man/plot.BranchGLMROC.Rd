@@ -2,17 +2,23 @@
 % Please edit documentation in R/BranchGLMTable.R
 \name{plot.BranchGLMROC}
 \alias{plot.BranchGLMROC}
-\title{Plotting ROC Curve}
+\title{Plot Method for BranchGLMROC Objects}
 \usage{
-\method{plot}{BranchGLMROC}(x, ...)
+\method{plot}{BranchGLMROC}(x, xlab = "1 - Specificity", ylab = "Sensitivity", type = "l", ...)
 }
 \arguments{
 \item{x}{a \code{BranchGLMROC} object.}
 
-\item{...}{arguments passed to generic plot function.}
+\item{xlab}{label for the x-axis.}
+
+\item{ylab}{label for the y-axis.}
+
+\item{type}{what type of plot to draw, see more details at \link{plot.default}.}
+
+\item{...}{further arguments passed to \link{plot.default}.}
 }
 \value{
-No return value, called to create the plot.
+This only produces a plot, nothing is returned.
 }
 \description{
 This plots a ROC curve.

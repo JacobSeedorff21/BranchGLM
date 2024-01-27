@@ -3,7 +3,7 @@
 \name{plot.BranchGLMVS}
 \alias{plot.BranchGLMVS}
 \alias{plot.summary.BranchGLMVS}
-\title{Plot Method for summary.BranchGLMVS and BranchGLMVS objects}
+\title{Plot Method for summary.BranchGLMVS and BranchGLMVS Objects}
 \usage{
 \method{plot}{BranchGLMVS}(
   x,
@@ -40,17 +40,17 @@
 
 \item{ptype}{the type of plot to produce, look at details for more explanation.}
 
-\item{marnames}{value used to determine how large to make margin of axis with variable 
-names, this is only for the "variables" plot. If variable names are cut-off, 
+\item{marnames}{a numeric value used to determine how large to make margin of axis with variable
+names, this is only for the "variables" plot. If variable names are cut-off,
 consider increasing this from the default value of 7.}
 
-\item{addLines}{logical value to indicate whether or not to add black lines to 
-separate the models for the "variables" plot. This is typically useful for smaller 
+\item{addLines}{a logical value to indicate whether or not to add black lines to
+separate the models for the "variables" plot. This is typically useful for smaller
 amounts of models, but can be annoying if there are many models.}
 
 \item{type}{what type of plot to draw for the "metrics" plot, see more details at \link{plot.default}.}
 
-\item{horiz}{whether models should be displayed horizontally or vertically in the "variables" plot.}
+\item{horiz}{a logical value to indicate whether models should be displayed horizontally for the "variables" plot.}
 
 \item{cex.names}{how big to make variable names in the "variables" plot.}
 
@@ -60,28 +60,30 @@ amounts of models, but can be annoying if there are many models.}
 
 \item{cex.legend}{how big to make legend labels.}
 
-\item{cols}{the colors used to create the "variables" plot. Should be a character 
-vector of length 3, the first color will be used for included variables, 
-the second color will be used for excluded variables, and the third color will 
+\item{cols}{the colors used to create the "variables" plot. Should be a character
+vector of length 3, the first color will be used for included variables,
+the second color will be used for excluded variables, and the third color will
 be used for kept variables.}
 
-\item{...}{further arguments passed to the generic plot and image methods.}
+\item{...}{further arguments passed to \link{plot.default} for the "metrics" plot
+and \link{image.default} for the "variables" plot.}
 }
 \value{
 This only produces plots, nothing is returned.
 }
 \description{
-Plot Method for summary.BranchGLMVS and BranchGLMVS objects
+Creates plots to help visualize variable selection results from
+BranchGLMVS or summary.BranchGLMVS objects.
 }
 \details{
 The different values for ptype are as follows
 \itemize{
- \item "metrics" for a plot that displays the metric values ordered by rank
- \item "variables" for a plot that displays which variables are in each of the top models
- \item "both" for both plots
+\item "metrics" for a plot that displays the metric values ordered by rank
+\item "variables" for a plot that displays which variables are in each of the top models
+\item "both" for both plots
 }
 
-If there are so many models that the "variables" plot appears to be 
+If there are so many models that the "variables" plot appears to be
 entirely black, then set addLines to FALSE.
 }
 \examples{

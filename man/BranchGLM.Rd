@@ -42,46 +42,51 @@ BranchGLM.fit(
 \arguments{
 \item{formula}{a formula for the model.}
 
-\item{data}{a dataframe that contains the response and predictor variables.}
+\item{data}{a data.frame, list or environment (or object coercible by
+\link{as.data.frame} to a data.frame), containing the variables in formula.
+Neither a matrix nor an array will be accepted.}
 
-\item{family}{distribution used to model the data, one of "gaussian", "gamma", "binomial", or "poisson".}
+\item{family}{the distribution used to model the data, one of "gaussian",
+"gamma", "binomial", or "poisson".}
 
-\item{link}{link used to link mean structure to linear predictors. One of
-"identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".}
+\item{link}{the link used to link the mean structure to the linear predictors. One of
+"identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log". The accepted
+links depend on the specified family, see more in details.}
 
-\item{offset}{offset vector, by default the zero vector is used.}
+\item{offset}{the offset vector, by default the zero vector is used.}
 
-\item{method}{one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
+\item{method}{one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are
 quasi-newton methods which are typically faster than Fisher's scoring when
 there are many covariates (at least 50).}
 
-\item{grads}{number of gradients used to approximate inverse information with, only for \code{method = "LBFGS"}.}
+\item{grads}{a positive integer to denote the number of gradients used to
+approximate the inverse information with, only for \code{method = "LBFGS"}.}
 
-\item{parallel}{whether or not to make use of parallelization via OpenMP.}
+\item{parallel}{a logical value to indicate if parallelization should be used.}
 
-\item{nthreads}{number of threads used with OpenMP, only used if \code{parallel = TRUE}.}
+\item{nthreads}{a positive integer to denote the number of threads used with OpenMP,
+only used if \code{parallel = TRUE}.}
 
-\item{tol}{tolerance used to determine model convergence.}
+\item{tol}{a positive number to denote the tolerance used to determine model convergence.}
 
-\item{maxit}{maximum number of iterations performed. The default for 
-Fisher's scoring is 50 and for the other methods the default is 200.}
+\item{maxit}{a positive integer to denote the maximum number of iterations performed.
+The default for Fisher's scoring is 50 and for the other methods the default is 200.}
 
-\item{init}{initial values for the betas, if not specified then they are automatically 
-selected via linear regression with the transformation specified by link. This 
-is ignored for linear regression models.}
+\item{init}{a numeric vector of initial values for the betas, if not specified
+then they are automatically selected via linear regression with the transformation
+specified by the link function. This is ignored for linear regression models.}
 
-\item{fit}{a logical value to indicate whether to fit the model or not. Setting 
-this to false will make it so no coefficients matrix or variance-covariance 
-matrix are returned.}
+\item{fit}{a logical value to indicate whether to fit the model or not.}
 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
-\item{keepData}{Whether or not to store a copy of data and design matrix, the default 
-is TRUE. If this is FALSE, then the results from this cannot be used inside of \code{VariableSelection}.}
+\item{keepData}{a logical value to indicate whether or not to store a copy of
+data and the design matrix, the default is TRUE. If this is FALSE, then the
+results from this cannot be used inside of \code{VariableSelection}.}
 
-\item{keepY}{Whether or not to store a copy of y, the default is TRUE. If 
-this is FALSE, then the binomial GLM helper functions may not work and this 
-cannot be used inside of \code{VariableSelection}.}
+\item{keepY}{a logical value to indicate whether or not to store a copy of y,
+the default is TRUE. If this is FALSE, then the binomial GLM helper functions
+may not work and this cannot be used inside of \code{VariableSelection}.}
 
 \item{x}{design matrix used for the fit, must be numeric.}
 
@@ -107,10 +112,10 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
 \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
 \item{\code{fulloffset}}{ supplied offset vector, not included if \code{keepData = FALSE}}
-\item{\code{data}}{ original dataframe supplied to the function, not included if \code{keepData = FALSE}}
+\item{\code{data}}{ original \code{data} argument supplied to the function, not included if \code{keepData = FALSE}}
 \item{\code{mf}}{ the model frame, not included if \code{keepData = FALSE}}
 \item{\code{numobs}}{ number of observations in the design matrix}
-\item{\code{names}}{ names of the variables}
+\item{\code{names}}{ names of the predictor variables}
 \item{\code{yname}}{ name of y variable}
 \item{\code{parallel}}{ whether parallelization was employed to speed up model fitting process}
 \item{\code{missing}}{ number of missing values removed from the original dataset}
@@ -134,45 +139,95 @@ cannot be used inside of \code{VariableSelection}.}
 \item{\code{maxit}}{ maximum number of iterations used to fit the model}
 }
 \description{
-Fits generalized linear models via RcppArmadillo. Also has the 
-ability to fit the models with parallelization via OpenMP.
+Fits generalized linear models (GLMs) via RcppArmadillo with the
+ability to perform some computation in parallel with OpenMP.
 }
 \details{
-Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are 
-typically faster than Fisher's scoring when there are at least 50 covariates 
+\subsection{Fitting}{
+
+Can use BFGS, L-BFGS, or Fisher's scoring to fit the GLM. BFGS and L-BFGS are
+typically faster than Fisher's scoring when there are at least 50 covariates
 and Fisher's scoring is typically best when there are fewer than 50 covariates.
-This function does not currently support the use of weights. In the special 
+This function does not currently support the use of weights. In the special
 case of gaussian regression with identity link the \code{method} argument is ignored
 and the normal equations are solved directly.
 
-The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help 
-convergence, each of the methods makes use of a backtracking line-search using 
-the strong Wolfe conditions to find an adequate step size. There are 
-three conditions used to determine convergence, the first is whether there is a 
-sufficient decrease in the negative log-likelihood, the second is whether 
-the l2-norm of the score is sufficiently small, and the last condition is 
-whether the change in each of the beta coefficients is sufficiently 
-small. The \code{tol} argument controls all of these criteria. If the algorithm fails to 
+The models are fit in C++ by using Rcpp and RcppArmadillo. In order to help
+convergence, each of the methods makes use of a backtracking line-search using
+the strong Wolfe conditions to find an adequate step size. There are
+three conditions used to determine convergence, the first is whether there is a
+sufficient decrease in the negative log-likelihood, the second is whether
+the l2-norm of the score is sufficiently small, and the last condition is
+whether the change in each of the beta coefficients is sufficiently
+small. The \code{tol} argument controls all of these criteria. If the algorithm fails to
 converge, then \code{iterations} will be -1.
 
-All observations with any missing values are removed before model fitting. 
+All observations with any missing values are removed before model fitting.
 
-The dispersion parameter for gamma regression is estimated via maximum likelihood, 
-very similar to the \code{gamma.dispersion} function from the MASS package.
-
-\code{BranchGLM.fit} can be faster than calling \code{BranchGLM} if the 
+\code{BranchGLM.fit} can be faster than calling \code{BranchGLM} if the
 x matrix and y vector are already available, but doesn't return as much information.
-The object returned by \code{BranchGLM.fit} is not of class \code{BranchGLM}, so 
-all of the methods for \code{BranchGLM} objects such as \code{predict} or 
+The object returned by \code{BranchGLM.fit} is not of class \code{BranchGLM}, so
+all of the methods for \code{BranchGLM} objects such as \code{predict} or
 \code{VariableSelection} cannot be used.
+}
+
+\subsection{Dispersion Parameter}{
+
+The dispersion parameter for gamma regression is estimated via maximum likelihood,
+very similar to the \code{gamma.dispersion} function from the MASS package. The
+dispersion parameter for gaussian regression is also estimated via maximum
+likelihood estimation.
+}
+
+\subsection{Families and Links}{
+
+The binomial family accepts "cloglog", "log", "logit", and "probit" as possible
+link functions. The gamma and gaussian families accept "identity", "inverse",
+"log", and "sqrt" as possible link functions. The Poisson family accepts "identity",
+"log", and "sqrt" as possible link functions.
+}
 }
 \examples{
 Data <- iris
-### Using BranchGLM
+
+# Linear regression
+## Using BranchGLM
 BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 
-### Using BranchGLM.fit
+## Using BranchGLM.fit
 x <- model.matrix(Sepal.Length ~ ., data = Data)
 y <- Data$Sepal.Length
 BranchGLM.fit(x, y, family = "gaussian", link = "identity")
+
+# Gamma regression
+## Using BranchGLM
+BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log")
+
+### init
+BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log", 
+init = rep(0, 6), maxit = 50, tol = 1e-6, contrasts = NULL)
+
+### method
+BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log", 
+init = rep(0, 6), maxit = 50, tol = 1e-6, contrasts = NULL, method = "LBFGS")
+
+### offset
+BranchGLM(Sepal.Length ~ ., data = Data, family = "gamma", link = "log", 
+init = rep(0, 6), maxit = 50, tol = 1e-6, contrasts = NULL, 
+offset = Data$Sepal.Width)
+
+## Using BranchGLM.fit
+x <- model.matrix(Sepal.Length ~ ., data = Data)
+y <- Data$Sepal.Length
+BranchGLM.fit(x, y, family = "gamma", link = "log", init = rep(0, 6), 
+maxit = 50, tol = 1e-6, offset = Data$Sepal.Width)
+
+
+}
+\references{
+McCullagh, P., & Nelder, J. A. (1989). Generalized Linear Models (2nd ed.).
+Chapman & Hall.
+}
+\seealso{
+\link{predict.BranchGLM}, \link{coef.BranchGLM}, \link{VariableSelection}, \link{confint.BranchGLM}, \link{logLik.BranchGLM}
 }

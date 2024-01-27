@@ -2,7 +2,7 @@
 % Please edit documentation in R/BranchGLM.R
 \name{coef.BranchGLM}
 \alias{coef.BranchGLM}
-\title{Extract Coefficients}
+\title{Extract Coefficients from BranchGLM Objects}
 \usage{
 \method{coef}{BranchGLM}(object, ...)
 }
@@ -15,5 +15,5 @@
 A named vector with the corresponding coefficient estimates.
 }
 \description{
-Extract Coefficients
+Extracts beta coefficients from BranchGLM objects.
 }

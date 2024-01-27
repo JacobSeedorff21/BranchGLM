@@ -26,14 +26,14 @@ The default is "bottomright"}
 
 \item{names}{vector of names used to create a legend for the ROC curves.}
 
-\item{lty}{vector of linetypes used to create the ROC curves or a 
+\item{lty}{vector of linetypes used to create the ROC curves or a
 single linetype to be used for all ROC curves.}
 
-\item{lwd}{vector of linewidths used to create the ROC curves or a 
+\item{lwd}{vector of linewidths used to create the ROC curves or a
 single linewidth to be used for all ROC curves.}
 }
 \value{
-No return value, called to create the plot.
+This only produces a plot, nothing is returned.
 }
 \description{
 Plotting Multiple ROC Curves
