@@ -155,7 +155,7 @@ BranchTime
 ```
 
     ##    user  system elapsed 
-    ##    0.09    0.03    0.14
+    ##    0.16    0.00    0.16
 
 ``` r
 ### Timing exhaustive search
@@ -166,10 +166,10 @@ ExhaustiveTime
 ```
 
     ##    user  system elapsed 
-    ##  115.02    0.35  128.68
+    ##  135.42    0.33  148.69
 
 Finding the top 10 logistic regression models for this simulated dataset
-with 15 variables with the branch and bound method is about 919.14 times
+with 15 variables with the branch and bound method is about 929.31 times
 faster than an exhaustive search.
 
 ### Checking results
@@ -224,7 +224,7 @@ SerialTime
 ```
 
     ##    user  system elapsed 
-    ##    8.71    0.10   10.42
+    ##   10.25    0.11   11.85
 
 ### Parallel time
 
@@ -239,10 +239,10 @@ ParallelTime
 ```
 
     ##    user  system elapsed 
-    ##    1.39    0.01    2.15
+    ##    2.34    0.03    2.46
 
 Finding the top logistic regression model for this simulated dataset
-with 40 variables with parallel computation is about 4.85 times faster
+with 40 variables with parallel computation is about 4.82 times faster
 than without parallel computation.
 
 ### Checking results
