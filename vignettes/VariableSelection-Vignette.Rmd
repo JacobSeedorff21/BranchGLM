@@ -179,9 +179,50 @@ coef(keepVS, which = "all")
 
 ```
 
+## Categorical variables
+
+- Categorical variables are automatically grouped together, if this behavior is 
+not desired, then the indicator variables for that categorical variable should be 
+created before using `VariableSelection()`
+- First we show an example of the default behavior of the function with a categorical 
+variable. In this example the categorical variable of interest is Species.
+
+```{r, fig.height = 4, fig.width = 6}
+# Variable selection with grouped beta parameters for species
+Data <- iris
+VS <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
+                           link = "identity", metric = "AIC", bestmodels = 10, 
+                           showprogress = FALSE)
+VS
+
+## Plotting results
+plot(VS, cex.names = 0.75, type = "b")
+
+```
+
+- Next we show an example where the beta parameters for each level for Species 
+are handled separately
+
+```{r, fig.height = 4, fig.width = 6}
+# Treating categorical variable beta parameters separately
+## This function automatically groups together parameters from a categorical variable
+## to avoid this, you need to create the indicator variables yourself
+x <- model.matrix(Sepal.Length ~ ., data = iris)
+Sepal.Length <- iris$Sepal.Length
+Data <- cbind.data.frame(Sepal.Length, x[, -1])
+VSCat <- VariableSelection(Sepal.Length ~ ., data = Data, family = "gaussian", 
+                           link = "identity", metric = "AIC", bestmodels = 10, 
+                           showprogress = FALSE)
+VSCat
+
+## Plotting results
+plot(VSCat, cex.names = 0.75, type = "b")
+
+```
+
 ## Convergence issues
 
-- It is not recommended to use branch and bound if the upper models do not converge since it can make the algorithm very slow.
+- It is not recommended to use the branch and bound algorithms if many of the upper models do not converge since it can make the algorithms very slow.
 - Sometimes when using backwards selection and all the upper models that are tested 
 do not converge, no final model can be selected.
 - For these reasons, if there are convergence issues it is recommended to use forward selection.
