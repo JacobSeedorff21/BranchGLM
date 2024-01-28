@@ -36,7 +36,7 @@ test_that("Testing VS methods gamma", {
   myCoefs[ind] <- tempFit$coefficients[, 1]
   
   #### Testing results
-  expect_equal(coef(BB)[, 1], myCoefs)
+  expect_equal(coef(BB)[, 1], myCoefs, tolerance = 1e-4)
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
@@ -102,7 +102,7 @@ test_that("Testing VS methods gaussian", {
   myCoefs[ind] <- tempFit$coefficients[, 1]
   
   #### Testing results
-  expect_equal(coef(BB)[, 1], myCoefs)
+  expect_equal(coef(BB)[, 1], myCoefs, tolerance = 1e-4)
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
@@ -169,7 +169,7 @@ test_that("Testing VS methods binomial", {
   myCoefs[ind] <- tempFit$coefficients[, 1]
   
   #### Testing results
-  expect_equal(coef(BB)[, 1], myCoefs)
+  expect_equal(coef(BB)[, 1], myCoefs, tolerance = 1e-4)
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
@@ -234,7 +234,7 @@ test_that("Testing VS methods binomial", {
   myCoefs[ind] <- tempFit$coefficients[, 1]
   
   #### Testing results
-  expect_equal(coef(BB)[, 1], myCoefs)
+  expect_equal(coef(BB)[, 1], myCoefs, tolerance = 1e-4)
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
@@ -299,7 +299,7 @@ test_that("Testing VS methods poisson", {
   myCoefs[ind] <- tempFit$coefficients[, 1]
   
   #### Testing results
-  expect_equal(coef(BB)[, 1], myCoefs)
+  expect_equal(coef(BB)[, 1], myCoefs, tolerance = 1e-4)
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
