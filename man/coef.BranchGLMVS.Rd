@@ -13,7 +13,10 @@
 \item{object}{a \code{BranchGLMVS} or \code{summary.BranchGLMVS} object.}
 
 \item{which}{a numeric vector of indices or "all" to indicate which models to
-get coefficients from, the default is the best model.}
+get coefficients from, the default is 1 which is used for the best model. For
+the branch and bound algorithms the number k is used for the kth best model
+and for the stepwise algorithms the number k is used for the model that is k - 1 steps
+away from the final model.}
 
 \item{...}{ignored.}
 }

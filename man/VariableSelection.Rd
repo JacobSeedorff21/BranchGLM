@@ -65,14 +65,12 @@ Neither a matrix nor an array will be accepted.}
 \item{offset}{the offset vector, by default the zero vector is used.}
 
 \item{method}{one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
-for forward selection and branch and bound methods since they will typically
+for forward selection and the branch and bound algorithms since they will typically
 fit many models with a small number of covariates.}
 
-\item{type}{one of "forward", "backward", "branch and bound", "backward branch and bound",
-or "switch branch and bound" to indicate the type of variable selection to perform.
-The default value is "switch branch and bound". The branch and bound algorithms are guaranteed to
-find the best models according to the metric while "forward" and "backward" are
-heuristic approaches that may not find the optimal model.}
+\item{type}{one of "forward", "backward", "branch and bound", "backward branch and bound", or "switch branch and bound"
+to indicate the type of variable selection to perform. The default value is
+"switch branch and bound". See more about these algorithms in details}
 
 \item{metric}{the metric used to choose the best models, the default is "AIC",
 but "BIC" and "HQIC" are also available. AIC is the Akaike information criterion,
@@ -81,13 +79,13 @@ criterion.}
 
 \item{bestmodels}{a positive integer to indicate the number of the best models to
 find according to the chosen metric or NULL. If this is NULL, then cutoff is
-used instead. This is only used for the branch and bound methods.}
+used instead. This is only used for the branch and bound algorithms.}
 
 \item{cutoff}{a non-negative number which indicates that the function
 should return all models that have a metric value within cutoff of the
 best metric value or NULL. Only one of this or bestmodels should be specified and
 when both are NULL a cutoff of 0 is used. This is only used for the branch
-and bound methods.}
+and bound algorithms.}
 
 \item{keep}{a character vector of names to denote variables that must be in the models.}
 
@@ -97,7 +95,8 @@ all models, only used if an intercept is included in the formula.}
 \item{maxsize}{a positive integer to denote the maximum number of variables to
 consider in a single model, the default is the total number of variables.
 This number adds onto any variables specified in keep. This argument only works
-for \code{type = "forward"} and \code{type = "branch and bound"}.}
+for \code{type = "forward"} and \code{type = "branch and bound"}. This argument is now
+deprecated.}
 
 \item{grads}{a positive integer to denote the number of gradients used to
 approximate the inverse information with, only for \code{method = "LBFGS"}..}
@@ -115,48 +114,58 @@ The default for Fisher's scoring is 50 and for the other methods the default is 
 \item{contrasts}{see \code{contrasts.arg} of \code{model.matrix.default}.}
 
 \item{showprogress}{a logical value to indicate whether to show progress updates
-for branch and bound methods.}
+for branch and bound algorithms.}
 }
 \value{
 A \code{BranchGLMVS} object which is a list with the following components
 \item{\code{initmodel}}{ the \code{BranchGLM} object corresponding to the upper model}
 \item{\code{numchecked}}{ number of models fit}
 \item{\code{names}}{ character vector of the names of the predictor variables}
-\item{\code{order}}{ the order the variables were added to the model or removed from the model, this is not included for branch and bound selection}
+\item{\code{order}}{ the order the variables were added to the model or removed from the model, this is only included for the stepwise algorithms}
 \item{\code{type}}{ type of variable selection employed}
+\item{\code{optType}}{ whether the type specified used a heuristic or exact algorithm}
 \item{\code{metric}}{ metric used to select best models}
-\item{\code{bestmodels}}{ numeric matrix used to describe the best models}
-\item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search}
-\item{\code{beta}}{ numeric matrix of beta coefficients for the best models}
-\item{\code{cutoff}}{ the cutoff that was used, this is set to -1 if bestmodels was used instead}
+\item{\code{bestmodels}}{ numeric matrix used to describe the best models for the branch and bound algorithms
+or a numeric matrix describing the models along the path taken for stepwise algorithms}
+\item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search for the branch and bound algorithms
+or a numeric vector with the metric values along the path taken for stepwise algorithms}
+\item{\code{beta}}{ numeric matrix of beta coefficients for the models in bestmodels}
+\item{\code{cutoff}}{ the cutoff that was used, this is set to -1 if bestmodels was used instead or if
+a stepwise algorithm was used}
 \item{\code{keep}}{ vector of which variables were kept through the selection process}
 }
 \description{
-Performs forward selection, backward elimination,
-and efficient best subset variable selection with information criterion for
-generalized linear models (GLMs). Best subset selection is performed with branch and
-bound algorithms to greatly speed up the process.
+Performs forward selection, backward elimination, and efficient
+best subset variable selection with information criterion for generalized linear
+models (GLMs). Best subset selection is performed with branch and bound algorithms
+to greatly speed up the process.
 }
 \details{
+\subsection{Variable Selection Details}{
+
 The supplied formula or the formula from the fitted model is
 treated as the upper model. The variables specified in keep along with an
 intercept (if included in formula and keepintercept = TRUE) is the lower model.
 Factor variables are either kept in their entirety or entirely removed and
 interaction terms are properly handled. All observations that have any missing
 values in the upper model are removed.
-\subsection{Algorithms}{
+}
 
-The branch and bound method makes use of an efficient branch and bound algorithm
-to find the optimal models. This will find the best models according to the metric and
-can be much faster than an exhaustive search and can be made even faster with
-parallel computation. The backward branch and bound method is very similar to
-the branch and bound method, except it tends to be faster when the best models
-contain most of the variables. The switch branch and bound method is a
-combination of the two methods and is typically the fastest of the 3 branch and
-bound methods.
+\subsection{Branch and Bound Algorithms}{
+
+The branch and bound algorithm is an efficient algorithm used to find the optimal
+models. The backward branch and bound algorithm is very similar to
+the branch and bound algorithm, except it tends to be faster when the best models
+contain most of the variables. The switch branch and bound algorithm is a
+combination of the two algorithms and is typically the fastest of the 3 branch and
+bound algorithms. All of the branch and bound algorithms are guaranteed to find
+the optimal models (up to numerical precision).
+}
+
+\subsection{GLM Fitting}{
 
 Fisher's scoring is recommended for branch and bound selection and forward selection.
-L-BFGS may be faster for backward elimination, especially when there are many variables.
+L-BFGS may be faster for backward elimination especially when there are many variables.
 }
 }
 \examples{

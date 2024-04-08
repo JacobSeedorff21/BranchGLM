@@ -1,8 +1,8 @@
 Package: BranchGLM
 Type: Package
 Title: Efficient Best Subset Selection for GLMs via Branch and Bound Algorithms
-Version: 2.1.4
-Date: 2024-1-27
+Version: 2.1.5
+Date: 2024-4-7
 Authors@R: person("Jacob", "Seedorff", , "jacob-seedorff@uiowa.edu", role = c("aut", "cre"))
 Maintainer: Jacob Seedorff <jacob-seedorff@uiowa.edu>
 URL: https://github.com/JacobSeedorff21/BranchGLM

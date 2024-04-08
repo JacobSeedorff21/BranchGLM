@@ -13,7 +13,9 @@
 \item{object}{a \code{BranchGLMVS} or \code{summary.BranchGLMVS} object.}
 
 \item{which}{a positive integer to indicate which model to get predictions from,
-the default is the best model.}
+the default is 1 which is used for the best model. For the branch and bound
+algorithms the number k is used for the kth best model and for the stepwise algorithms
+the number k is used for the model that is k - 1 steps away from the final model.}
 
 \item{...}{further arguments passed to \link{predict.BranchGLM}.}
 }

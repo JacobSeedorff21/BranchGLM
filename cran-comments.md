@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-Resubmission to fix a broken test.
+Updating package to version 2.1.5.

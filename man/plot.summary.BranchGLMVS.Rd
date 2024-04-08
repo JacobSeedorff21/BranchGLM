@@ -78,8 +78,10 @@ BranchGLMVS or summary.BranchGLMVS objects.
 \details{
 The different values for ptype are as follows
 \itemize{
-\item "metrics" for a plot that displays the metric values ordered by rank
-\item "variables" for a plot that displays which variables are in each of the top models
+\item "metrics" for a plot that displays the metric values ordered by rank for the branch and bound algorithms
+or a plot which displays the metric values in the path taken by the stepwise algorithms
+\item "variables" for a plot that displays which variables are in each of the top models for the branch and bound algorithms
+or a plot which displays the path taken by the stepwise algorithms
 \item "both" for both plots
 }
 

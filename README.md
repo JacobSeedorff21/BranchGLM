@@ -3,8 +3,8 @@ BranchGLM
 
 # Overview
 
-**BranchGLM** is a package for fitting GLMs and performing branch and
-bound variable selection for GLMs.
+**BranchGLM** is a package for fitting GLMs and performing efficient
+variable selection for GLMs.
 
 # How to install
 
@@ -28,14 +28,20 @@ devtools::install_github("JacobSeedorff21/BranchGLM")
 ### Linear regression
 
 **BranchGLM** can fit large linear regression models very quickly, next
-is a comparison of runtimes with the built-in `lm()` function.
+is a comparison of runtimes with the built-in `lm()` function. This
+comparison is based upon a randomly generated linear regression model
+with 10000 observations and 250 covariates.
 
 ``` r
+# Loading libraries
 library(BranchGLM)
 library(microbenchmark)
 library(ggplot2)
+
+# Setting seed
 set.seed(99601)
 
+# Defining function to generate dataset for linear regression
 NormalSimul <- function(n, d, Bprob = .5){
   
   x <- MASS::mvrnorm(n, mu = rep(1, d), Sigma = diag(.5, nrow = d, ncol = d) + 
@@ -56,10 +62,10 @@ NormalSimul <- function(n, d, Bprob = .5){
   
   df
 }
-### Big simulation
-
+# Generating linear regression dataset
 df <- NormalSimul(10000, 250)
 
+# Timing linear regression methods with microbenchmark
 Times <- microbenchmark("BranchGLM" = {BranchGLM(y ~ ., data = df, 
                                                         family = "gaussian",
                                                    link = "identity")},
@@ -70,6 +76,7 @@ Times <- microbenchmark("BranchGLM" = {BranchGLM(y ~ ., data = df,
                         "lm" = {lm(y ~ ., data = df)},
                         times = 100)
 
+# Plotting results
 autoplot(Times, log = FALSE)
 ```
 
@@ -79,19 +86,23 @@ autoplot(Times, log = FALSE)
 
 **BranchGLM** can also fit large logistic regression models very
 quickly, next is a comparison of runtimes with the built-in `glm()`
-function.
+function. This comparison is based upon a randomly generated logistic
+regression model with 10000 observations and 100 covariates.
 
 ``` r
+# Setting seed
 set.seed(78771)
 
-LogisticSimul <- function(n, d, Bprob = .5, sd = 1){
+# Defining function to generate dataset for logistic regression
+LogisticSimul <- function(n, d, Bprob = .5, sd = 1, rho = 0.5){
   
-  x <- MASS::mvrnorm(n, mu = rep(1, d), Sigma = diag(.5, nrow = d, ncol = d) + 
-                 matrix(.5, ncol = d, nrow = d))
+  x <- MASS::mvrnorm(n, mu = rep(1, d), Sigma = diag(1 - rho, nrow = d, ncol = d) + 
+                 matrix(rho, ncol = d, nrow = d))
   
   beta <- rnorm(d + 1, mean = 0, sd = sd) 
   
   beta[sample(2:length(beta), floor((length(beta) - 1) * Bprob))] = 0
+  beta[beta != 0] <- beta[beta != 0] - mean(beta[beta != 0])
   
   p <- 1/(1 + exp(-x %*% beta[-1] - beta[1]))
   
@@ -102,10 +113,10 @@ LogisticSimul <- function(n, d, Bprob = .5, sd = 1){
   df
 }
 
-### Big simulation
-
+# Generating logistic regression dataset
 df <- LogisticSimul(10000, 100)
 
+# Timing logistic regression methods with microbenchmark
 Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
                                                    link = "logit", method = "BFGS")}, 
                         "L-BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial",
@@ -126,39 +137,43 @@ Times <- microbenchmark("BFGS" = {BranchGLM(y ~ ., data = df, family = "binomial
                         "glm" = {glm(y ~ ., data = df, family = "binomial")},
                         times = 100)
 
+# Plotting results
 autoplot(Times, log = FALSE)
 ```
 
 ![](README_images/logistic-1.png)<!-- -->
 
-## Variable selection
+## Best subset selection
 
 **BranchGLM** can also perform best subset selection very quickly, here
 is a comparison of runtimes with the `bestglm()` function from the
-**bestglm** package.
+**bestglm** package. This comparison is based upon a randomly generated
+logistic regression model with 1000 observations and 15 covariates.
 
 ``` r
+# Loading bestglm
 library(bestglm)
-set.seed(33391)
 
+# Setting seed and creating dataset
+set.seed(33391)
 df <- LogisticSimul(1000, 15, .5, sd = 0.5)
 
-## Times
-### Timing branch and bound
+# Times
+## Timing switch branch and bound
 BranchTime <- system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
                   type = "switch branch and bound", showprogress = FALSE,
-                  parallel = FALSE, nthreads = 8, method = "Fisher", 
+                  parallel = FALSE, method = "Fisher", 
                   bestmodels = 10, metric = "AIC"))
 
 BranchTime
 ```
 
     ##    user  system elapsed 
-    ##    0.16    0.00    0.16
+    ##    0.17    0.00    0.16
 
 ``` r
-### Timing exhaustive search
+## Timing exhaustive search
 Xy <- cbind(df[,-1], df[,1])
 ExhaustiveTime <- system.time(BestVS <- bestglm(Xy, family = binomial(), IC = "AIC", 
                                                 TopModels = 10))
@@ -166,26 +181,26 @@ ExhaustiveTime
 ```
 
     ##    user  system elapsed 
-    ##  135.42    0.33  148.69
+    ##  100.66    0.44  101.30
 
-Finding the top 10 logistic regression models for this simulated dataset
-with 15 variables with the branch and bound method is about 929.31 times
-faster than an exhaustive search.
+Finding the top 10 logistic regression models according to AIC for this
+simulated regression model with 15 variables with the switch branch and
+bound algorithm is about 633.13 times faster than an exhaustive search.
 
 ### Checking results
 
 ``` r
-## Results
-### Checking if both methods give same results
-BranchModel <- coef(BranchVS, which = 1)
-ExhaustiveModel <- coef(BestVS$BestModel)
-identical(rownames(BranchModel)[BranchModel != 0],  names(ExhaustiveModel))
+# Results
+## Checking if both methods give same results
+BranchModels <- t(BranchVS$bestmodels[-1, ] == 1)
+ExhaustiveModels <- as.matrix(BestVS$BestModels[, -16])
+identical(BranchModels,  ExhaustiveModels)
 ```
 
     ## [1] TRUE
 
-Hence the two methods result in the same best model and the branch and
-bound method was much faster than an exhaustive search.
+Hence the two methods result in the same top 10 models and the switch
+branch and bound algorithm was much faster than an exhaustive search.
 
 ### Visualization
 
@@ -193,65 +208,80 @@ There is also a convenient way to visualize the top models with the
 **BranchGLM** package.
 
 ``` r
-# Getting summary of model selection process
-summ <- summary(BranchVS)
-
-## Plotting models
-plot(summ, type = "b")
+# Plotting models
+plot(BranchVS, type = "b")
 ```
 
-![](README_images/visualization-1.png)<!-- -->![](README_images/visualization-2.png)<!-- -->
+![](README_images/visualization1-1.png)<!-- -->![](README_images/visualization1-2.png)<!-- -->
 
-## Parallel computation
+## Backward elimination
 
-Parallel computation can be used to greatly speed up the branch and
-bound algorithm, especially when the number of variables is large.
-
-### Non-parallel time
+**BranchGLM** can also perform backward elimination very quickly, here
+is a comparison of runtimes with the `step()` function from the
+**stats** package. This comparison is based upon a randomly generated
+logistic regression model with 1000 observations and 50 covariates.
 
 ``` r
-# Setting seed and simulating data
-set.seed(871980)
-df <- LogisticSimul(1000, 40, .5, sd = .5)
+# Setting seed and creating dataset
+set.seed(33391)
+df <- LogisticSimul(1000, 50, .5, sd = 0.5)
 
-# Performing branch and bound
-SerialTime <- system.time(BranchVS <- VariableSelection(y ~ ., data = df, 
+# Times
+## Timing BranchGLM
+BackwardTime <- system.time(BackwardVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "switch branch and bound", showprogress = FALSE,
-                  parallel = FALSE, nthreads = 8, method = "Fisher"))
+                  type = "backward", showprogress = FALSE,
+                  parallel = FALSE, method = "LBFGS", 
+                  metric = "AIC"))
 
-SerialTime
+BackwardTime
 ```
 
     ##    user  system elapsed 
-    ##   10.25    0.11   11.85
-
-### Parallel time
+    ##    2.82    0.04    2.89
 
 ``` r
-# Performing parallel branch and bound
-ParallelTime <- system.time(ParBranchVS <- VariableSelection(y ~ ., data = df, 
-                                      family = "binomial", link = "logit",
-                  type = "switch branch and bound", showprogress = FALSE,
-                  parallel = TRUE, nthreads = 12, method = "Fisher"))
-
-ParallelTime
+## Timing step function
+fullmodel <- glm(y ~ ., data = df, family = binomial(link = "logit"))
+stepTime <- system.time(BackwardStep <- step(fullmodel, direction = "backward", trace = 0))
+stepTime
 ```
 
     ##    user  system elapsed 
-    ##    2.34    0.03    2.46
+    ##    8.71    0.20    8.96
 
-Finding the top logistic regression model for this simulated dataset
-with 40 variables with parallel computation is about 4.82 times faster
-than without parallel computation.
+Using the backward elimination algorithm from the **BranchGLM** package
+was about 3.1 times faster than step was for this logistic regression
+model.
 
 ### Checking results
 
 ``` r
-# Checking if 
-identical(summary(BranchVS)$results, summary(ParBranchVS)$results)
+# Checking if both methods give same results
+## Getting names of variables in final model from BranchGLM
+BackwardCoef <- coef(BackwardVS)
+BackwardCoef <- BackwardCoef[BackwardCoef != 0, ]
+BackwardCoef <- BackwardCoef[order(names(BackwardCoef))]
+
+## Getting names of variables in final model from step
+BackwardCoefGLM <- coef(BackwardStep)
+BackwardCoefGLM <- BackwardCoefGLM[order(names(BackwardCoefGLM))]
+identical(names(BackwardCoef), names(BackwardCoefGLM))
 ```
 
     ## [1] TRUE
 
-They both give the same results
+Hence the two methods result in the same best model and the backward
+elimination algorithm from **BranchGLM** is much faster than step.
+
+### Visualization
+
+There is also a convenient way to visualize the backward elimination
+path with the **BranchGLM** package.
+
+``` r
+# Plotting models
+plot(BackwardVS, type = "b")
+```
+
+![](README_images/visualization2-1.png)<!-- -->![](README_images/visualization2-2.png)<!-- -->

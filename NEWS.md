@@ -1,6 +1,14 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.1.5
+
+- Fixing a small bug with parallel computation for forward and switch
+  branch and bound algorithms.
+- Modifying stepwise variable selection algorithms to return the whole
+  solution path which can now be accessed with `predict()` or `coef()`
+  and can be plotted with `plot()`
+
 # BranchGLM 2.1.4
 
 - Updating all documentation and adding more tests
