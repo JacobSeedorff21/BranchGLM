@@ -74,9 +74,13 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
-  arma::vec BestModel(X.n_cols, 1, arma::fill::zeros);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel(keep.begin(), keep.size(), false, true);
+  arma::imat BestModels(CurModel.n_elem, CurModel.n_elem + 1, arma::fill::zeros);
+  arma::vec BestMetrics(CurModel.n_elem + 1, 1);
+  BestMetrics.fill(arma::datum::inf);
+  arma::vec BestModel(X.n_cols, 1, arma::fill::zeros);
+  arma::mat BestBetas(X.n_cols, CurModel.n_elem + 1, arma::fill::zeros);
   CurModel.replace(1, 0);
   IntegerVector order(CurModel.n_elem, - 1);
   arma::ivec Order(order.begin(), order.size(), false, true);
@@ -91,6 +95,9 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   BestMetric = MetricHelper(&X, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, 
                                tol, maxit, &Pen, 0, &betaMat);
   BestModel = betaMat.col(0);
+  BestMetrics.at(0) = BestMetric;
+  BestModels.col(0) = CurModel;
+  BestBetas.col(0) = BestModel;
   unsigned int numchecked = 1;
   
   // Performing forward selection
@@ -103,14 +110,18 @@ List ForwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     // Stopping process if no better model is found
     if(flag){
       break;
+    }else{
+      BestModels.col(i + 1) = CurModel;
+      BestBetas.col(i + 1) = BestModel;
+      BestMetrics.at(i + 1) = BestMetric;
     }
   }
   
   List FinalList = List::create(Named("order") = order,
                                 Named("numchecked") = numchecked,
-                                Named("bestmetric") = BestMetric, 
-                                Named("bestmodel") = CurModel, 
-                                Named("beta") = BestModel);
+                                Named("bestmetrics") = BestMetrics, 
+                                Named("bestmodels") = BestModels, 
+                                Named("betas") = BestBetas);
   
 #ifdef _OPENMP
   omp_set_num_threads(1);
@@ -181,9 +192,13 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   const arma::vec Pen(pen.begin(), pen.size(), false, true);
   const arma::imat Interactions(interactions.begin(), interactions.rows(), 
                                 interactions.cols(), false, true);
-  arma::vec BestModel(X.n_cols, 1, arma::fill::zeros);
   arma::ivec Indices(indices.begin(), indices.size(), false, true);
   arma::ivec CurModel(keep.begin(), keep.size(), false, true);
+  arma::imat BestModels(CurModel.n_elem, CurModel.n_elem + 1, arma::fill::zeros);
+  arma::vec BestMetrics(CurModel.n_elem + 1, 1);
+  BestMetrics.fill(arma::datum::inf);
+  arma::vec BestModel(X.n_cols, 1, arma::fill::zeros);
+  arma::mat BestBetas(X.n_cols, CurModel.n_elem + 1, arma::fill::zeros);
   CurModel.replace(0, 1);
   IntegerVector order(CurModel.n_elem, - 1);
   arma::ivec Order(order.begin(), order.size(), false, true);
@@ -197,11 +212,15 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
   BestMetric = MetricHelper(&X, &XTWX, &Y, &Offset, &Indices, &CurModel, method, m, Link, Dist, tol, maxit,
                             &Pen, 0, &betaMat);
   BestModel = betaMat.col(0);
+  BestMetrics.at(0) = BestMetric;
+  BestModels.col(0) = CurModel;
+  BestBetas.col(0) = BestModel;
   
   unsigned int numchecked = 1;
   
   // Performing Backward elimination
   for(unsigned int i = 0; i < steps; i++){
+    checkUserInterrupt();
     bool flag = true;
     drop1(&X, &XTWX, &Y, &Offset, &Interactions, method, m, Link, Dist, &CurModel, &BestModel, 
           &BestMetric, &numchecked, &flag, &Order, i, &Indices, tol, maxit, &Pen);
@@ -209,14 +228,18 @@ List BackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset,
     // Stopping the process if no better model is found
     if(flag){
       break;
+    }else{
+      BestModels.col(i + 1) = CurModel;
+      BestBetas.col(i + 1) = BestModel;
+      BestMetrics.at(i + 1) = BestMetric;
     }
   }
   
   List FinalList = List::create(Named("order") = order,
                                 Named("numchecked") = numchecked,
-                                Named("bestmetric") = BestMetric,
-                                Named("bestmodel") = CurModel,
-                                Named("beta") = BestModel);
+                                Named("bestmetrics") = BestMetrics,
+                                Named("bestmodels") = BestModels,
+                                Named("betas") = BestBetas);
   
 #ifdef _OPENMP
   omp_set_num_threads(1);
