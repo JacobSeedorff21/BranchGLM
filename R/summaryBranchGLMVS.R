@@ -80,54 +80,6 @@ summary.BranchGLMVS <- function(object, ...){
   return(structure(MyList, class = "summary.BranchGLMVS"))
 }
 
-#' Fits GLMs for summary.BranchGLMVS and BranchGLMVS Objects
-#' @name fit
-#' @param object a `summary.BranchGLMVS` or `BranchGLMVS` object.
-#' @param which a positive integer indicating which model to fit, 
-#' the default is to fit the first model .
-#' @param keepData Whether or not to store a copy of data and design matrix, the default 
-#' is TRUE. If this is FALSE, then the results from this cannot be used inside of `VariableSelection`.
-#' @param keepY Whether or not to store a copy of y, the default is TRUE. If 
-#' this is FALSE, then the binomial GLM helper functions may not work and this 
-#' cannot be used inside of `VariableSelection`.
-#' @param ... further arguments passed to other methods.
-#' @details The information needed to fit the GLM is taken from the original information 
-#' supplied to the `VariableSelection` function.
-#' 
-#' The fitted models do not have standard errors or p-values since these are 
-#' biased due to the selection process.
-#' 
-#' @return An object of class [BranchGLM]. 
-#' @export
-#' 
-fit <- function(object, ...) {
-  UseMethod("fit")
-}
-
-#' @rdname fit 
-#' @export
-fit.summary.BranchGLMVS <- function(object, which = 1, keepData = TRUE, keepY = TRUE,
-                                    ...){
-  .Deprecated("coef")
-  if(!is.numeric(which) || which < 0 || which > length(object$formulas) || 
-     which != as.integer(which)){
-    stop("which must be a positive integer denoting the rank of the model to fit")
-  }
-  FinalModel <- BranchGLM(object$formulas[[which]], data = object$VS$initmodel$mf, 
-                          family = object$VS$initmodel$family, link = object$VS$initmodel$link, 
-                          offset = object$VS$initmodel$offset,
-                          method = object$VS$initmodel$method, 
-                          tol = object$VS$initmodel$tol, maxit = object$VS$initmodel$maxit, 
-                          keepData = keepData, keepY = keepY)
-  
-  # Removing standard errors and p-values along with vcov
-  FinalModel$coefficients[, 2:4] <- NA
-  FinalModel$vcov <- NA
-  FinalModel$numobs <- object$VS$initmodel$numobs
-  FinalModel$missing <- object$VS$initmodel$missing
-  return(FinalModel)
-}
-
 #' @rdname coef.BranchGLMVS
 #' @export
 coef.summary.BranchGLMVS <- function(object, which = 1, ...){
@@ -180,8 +132,10 @@ print.summary.BranchGLMVS <- function(x, digits = 2, ...){
 #' and [image.default] for the "variables" plot.
 #' @details The different values for ptype are as follows
 #' \itemize{
-#'  \item "metrics" for a plot that displays the metric values ordered by rank
-#'  \item "variables" for a plot that displays which variables are in each of the top models
+#'  \item "metrics" for a plot that displays the metric values ordered by rank for the branch and bound algorithms 
+#'  or a plot which displays the metric values in the path taken by the stepwise algorithms
+#'  \item "variables" for a plot that displays which variables are in each of the top models for the branch and bound algorithms 
+#'  or a plot which displays the path taken by the stepwise algorithms
 #'  \item "both" for both plots
 #' }
 #' 
@@ -223,6 +177,10 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
                                      cex.axis = 1, cex.legend = 1,
                                      cols = c("deepskyblue", "indianred", "forestgreen"), 
                                      ...){
+  # Converting VS types to title case for plotting
+  s <- strsplit(x$VS$type, " ")[[1]]
+  x$VS$type <- paste(toupper(substring(s, 1,1)), substring(s, 2), sep="", collapse=" ")
+  
   # Converting ptype to lower
   ptype <- tolower(ptype)
   if(length(ptype) != 1 || !is.character(ptype)){
@@ -231,11 +189,20 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
     stop("ptype must be one of 'metrics', 'variables', or 'both'")
   }
   if(ptype %in% c("metrics", "both")){
+    if(x$VS$optType == "exact"){
+      main <- paste0("Best Models Ranked by ", x$metric)
+      xlab <- "Rank"
+      x1 <- 1:nrow(x$results)
+    }else{
+      main <- paste0(x$VS$type, " Path with ", x$metric)
+      xlab <- paste0(x$VS$type, " Step")
+      x1 <- (nrow(x$results) - 1):0
+    }
     plot(1:nrow(x$results), x$results[, ncol(x$results)], 
-         xlab = "Rank", ylab = x$metric, 
-         main = paste0("Best Models Ranked by ", x$metric),
-         type = type, cex.lab = cex.lab, cex.axis = cex.axis,
+         xlab = xlab, ylab = x$metric, xaxt = "n", 
+         main = main, type = type, cex.lab = cex.lab, cex.axis = cex.axis,
          ...)
+    axis(1, at = 1:nrow(x$results), labels = x1, line = 1, las = 1, cex.axis = cex.names)
   }
   # Checking cols
   if(length(cols) != 3 || !is.character(cols)){
@@ -256,6 +223,16 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
     y <- 1:ncol(z)
     x1 <- 1:nrow(z)
     
+    if(x$VS$optType == "exact"){
+      main <- paste0("Best Models Ranked by ", x$metric)
+      ylab <- paste0("Rank According to ", x$metric)
+      xnum <- 1:nrow(z)
+    }else{
+      main <- paste0(x$VS$type, " Path with ", x$metric)
+      ylab <- paste0(x$VS$type, " Step")
+      xnum <- (nrow(z) - 1):0
+    }
+    
     # Creating image  
     oldmar <- par("mar")
     on.exit(par(mar = oldmar))
@@ -265,7 +242,7 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
       # Do this if there were no variable kept
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
-            main = paste0("Best Models Ranked by ", x$metric), 
+            main = main, 
             col = cols[-3], ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded"), 
@@ -275,7 +252,7 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
       # Do this if there were any kept variables
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
-            main = paste0("Best Models Ranked by ", x$metric), 
+            main = main, 
             col = cols, ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded", "Kept"), 
@@ -291,11 +268,11 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
     }
     
     # Adding axis labels
-    axis(1, at = x1, labels = x1, line = 1, las = 1, cex.axis = cex.axis)
+    axis(1, at = x1, labels = xnum, line = 1, las = 1, cex.axis = cex.axis)
     axis(2, at = y, labels = Names, line = 1, las = 2, cex.axis = cex.names)
     
     # Adding y-axis title, this is used to avoid overlapping of axis title and labels
-    mtext(paste0("Rank According to ", x$metric), side = 1, line = 4, cex = cex.lab)
+    mtext(ylab, side = 1, line = 4, cex = cex.lab)
     
   }else if(ptype %in% c("variables", "both") && horiz){
     # This is inspired by the plot.regsubsets function
@@ -314,6 +291,16 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
     y <- 1:ncol(z)
     x1 <- 1:nrow(z)
     
+    if(x$VS$optType == "exact"){
+      main <- paste0("Best Models Ranked by ", x$metric)
+      ylab <- paste0("Rank According to ", x$metric)
+      ynum <- 1:ncol(z)
+    }else{
+      main <- paste0(x$VS$type, " Path with ", x$metric)
+      ylab <- paste0(x$VS$type, " Step")
+      ynum <- (ncol(z) - 1):0
+    }
+    
     # Creating image  
     oldmar <- par("mar")
     on.exit(par(mar = oldmar))
@@ -323,7 +310,7 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
       # Do this if there were no variable kept
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
-            main = paste0("Best Models Ranked by ", x$metric), 
+            main = main, 
             col = cols[-3], ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded"), 
@@ -333,7 +320,7 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
       # Do this if there were any kept variables
       image(x1, y, z, ylab = "", 
             xaxt = "n", yaxt = "n", xlab = "", 
-            main = paste0("Best Models Ranked by ", x$metric), 
+            main = main, 
             col = cols, ...)
       legend(grconvertX(1, from = "npc"), grconvertY(1, from = "npc"), 
              legend = c("Included", "Excluded", "Kept"), 
@@ -350,10 +337,10 @@ plot.summary.BranchGLMVS <- function(x, ptype = "both", marnames = 7, addLines =
     
     # Adding axis labels
     axis(1, at = x1, labels = Names, line = 1, las = 2, cex.axis = cex.names)
-    axis(2, at = y, labels = y, line = 1, las = 2, cex.axis = cex.axis)
+    axis(2, at = y, labels = ynum, line = 1, las = 2, cex.axis = cex.axis)
     
     # Adding y-axis title, this is used to avoid overlapping of axis title and labels
-    mtext(paste0("Rank According to ", x$metric), side = 2, line = 4, cex = cex.lab)
+    mtext(ylab, side = 2, line = 4, cex = cex.lab)
     
   }
 }
