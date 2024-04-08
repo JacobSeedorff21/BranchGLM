@@ -81,13 +81,13 @@ test_that("BranchGLM accessor functions", {
   ### Checking bestmodels
   expect_equal(is.matrix(forward$bestmodels), TRUE)
   expect_equal(is.matrix(BB$bestmodels), TRUE)
-  expect_equal(dim(forward$bestmodels), dim(BB$bestmodels))
+  expect_equal(nrow(forward$bestmodels), nrow(BB$bestmodels))
   expect_equal(is.matrix(BB5$bestmodels), TRUE)
   
   ### Checking beta
   expect_equal(is.matrix(forward$beta), TRUE)
   expect_equal(is.matrix(BB$beta), TRUE)
-  expect_equal(dim(forward$beta), dim(BB$beta))
+  expect_equal(nrow(forward$beta), nrow(BB$beta))
   expect_equal(is.matrix(BB5$beta), TRUE)
   
   ### Testing coef

@@ -40,17 +40,19 @@ test_that("Testing VS methods gamma", {
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
+  ##### forward
   forward <- VariableSelection(Fit, type = "FORWARD", bestmodels = 1, 
                                metric = "AIC")
   forwardCoef <- coef(forward)
   forwardCoef <- forwardCoef[forwardCoef != 0, ]
   forwardCoef <- forwardCoef[order(names(forwardCoef))]
+  
+  ##### backward
   backward <- VariableSelection(Fit, type = "backWARD", bestmodels = 1, 
                                 metric = "AIC")
   backwardCoef <- coef(backward)
   backwardCoef <- backwardCoef[backwardCoef != 0, ]
   backwardCoef <- backwardCoef[order(names(backwardCoef))]
-  
   
   #### step
   fullmodel <- glm(y ~ ., data = Data, family = Gamma(link = "inverse"))
@@ -106,11 +108,14 @@ test_that("Testing VS methods gaussian", {
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
+  ##### forward
   forward <- VariableSelection(Fit, type = "FORWARD", bestmodels = 1, 
                                metric = "AIC")
   forwardCoef <- coef(forward)
   forwardCoef <- forwardCoef[forwardCoef != 0, ]
   forwardCoef <- forwardCoef[order(names(forwardCoef))]
+  
+  ##### backward
   backward <- VariableSelection(Fit, type = "backWARD", bestmodels = 1, 
                                 metric = "AIC")
   backwardCoef <- coef(backward)
@@ -118,8 +123,8 @@ test_that("Testing VS methods gaussian", {
   backwardCoef <- backwardCoef[order(names(backwardCoef))]
   
   #### step
-  fullmodel <- glm(y ~ ., data = Data, family = gaussian)
-  forwardStep <- step(glm(y ~ 1, data = Data, family = gaussian), 
+  fullmodel <- glm(y ~ ., data = Data, family = gaussian(link = "identity"))
+  forwardStep <- step(glm(y ~ 1, data = Data, family = gaussian(link = "identity")), 
                       direction = "forward", trace = 0, scope = formula(fullmodel))
   forwardCoefGLM <- coef(forwardStep)
   forwardCoefGLM <- forwardCoefGLM[order(names(forwardCoefGLM))]
@@ -130,7 +135,6 @@ test_that("Testing VS methods gaussian", {
   #### Checking results
   expect_equal(forwardCoef, forwardCoefGLM, tolerance = 1e-2)
   expect_equal(backwardCoef, backwardCoefGLM, tolerance = 1e-2)
-  
 })
 
 ## Binomial
@@ -173,11 +177,14 @@ test_that("Testing VS methods binomial", {
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
+  ##### forward
   forward <- VariableSelection(Fit, type = "FORWARD", bestmodels = 1, 
                                metric = "AIC")
   forwardCoef <- coef(forward)
   forwardCoef <- forwardCoef[forwardCoef != 0, ]
   forwardCoef <- forwardCoef[order(names(forwardCoef))]
+  
+  ##### backward
   backward <- VariableSelection(Fit, type = "backWARD", bestmodels = 1, 
                                 metric = "AIC")
   backwardCoef <- coef(backward)
@@ -238,11 +245,14 @@ test_that("Testing VS methods binomial", {
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
+  ##### forward
   forward <- VariableSelection(Fit, type = "FORWARD", bestmodels = 1, 
                                metric = "AIC")
   forwardCoef <- coef(forward)
   forwardCoef <- forwardCoef[forwardCoef != 0, ]
   forwardCoef <- forwardCoef[order(names(forwardCoef))]
+  
+  ##### backward
   backward <- VariableSelection(Fit, type = "backWARD", bestmodels = 1, 
                                 metric = "AIC")
   backwardCoef <- coef(backward)
@@ -303,11 +313,14 @@ test_that("Testing VS methods poisson", {
   
   ### Checking that forward and backward are the same as step
   #### VariableSelection
+  ##### forward
   forward <- VariableSelection(Fit, type = "FORWARD", bestmodels = 1, 
                                metric = "AIC")
   forwardCoef <- coef(forward)
   forwardCoef <- forwardCoef[forwardCoef != 0, ]
   forwardCoef <- forwardCoef[order(names(forwardCoef))]
+  
+  ##### backward
   backward <- VariableSelection(Fit, type = "backWARD", bestmodels = 1, 
                                 metric = "AIC")
   backwardCoef <- coef(backward)

@@ -268,9 +268,10 @@ test_that("VariableSelection bad inputs", {
   expect_error(VariableSelection(Fit, parallel = "apple"))
   
   ### maxsize
-  expect_error(VariableSelection(Fit, maxsize = -1))
-  expect_error(VariableSelection(Fit, maxsize = 1:2))
-  expect_error(VariableSelection(Fit, maxsize = "apple"))
+  #### maxsize now defunct
+  # expect_error(VariableSelection(Fit, maxsize = -1))
+  # expect_error(VariableSelection(Fit, maxsize = 1:2))
+  # expect_error(VariableSelection(Fit, maxsize = "apple"))
   
   ### showprogress
   expect_error(VariableSelection(Fit, showprogress = -1))
