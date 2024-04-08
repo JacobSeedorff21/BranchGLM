@@ -144,13 +144,22 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
       
       // Creating vector to store lower bounds
       arma::vec Bounds(NewOrder2.n_elem - 1);
-      Bounds.fill(arma::datum::inf);
-      bool flag = false;
+      Bounds.fill(-arma::datum::inf);
+      arma::vec Bounds2 = Bounds;
       arma::uvec Counts2(NewOrder2.n_elem - 1, arma::fill::zeros);
       
       // Getting lower bounds
     #pragma omp parallel for schedule(dynamic)
       for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
+        // Checking if any previous bounds mean we don't need to check this set of models
+        bool flag = false;
+        for(unsigned int i = 0; i < j; i++){
+          if(Bounds2.at(i) +  + min(*pen) > metricCutoff){
+            flag = true;
+            Bounds2.at(j) = Bounds2.at(i);
+            break;
+          }
+        }
         if(!flag && CheckModels(CurModel, &NewOrder2, Interactions, j + 1)){
           // Only need to calculate bounds if this set of models is valid
           if(j > 0){
@@ -160,18 +169,20 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
             Bounds.at(j) = GetBound(X, XTWX, Y, Offset, method, m, Link, Dist, CurModel,
                          indices, tol, maxit, pen, j, &NewOrder2, LowerBound, 
                          &Metrics, &NewModels);
-            Bounds.at(j) += min(*pen);
+            if(std::isinf(Bounds.at(j))){
+              Bounds.at(j) = LowerBound;
             }
+            Bounds.at(j) += min(*pen);
+            Bounds2.at(j) = Bounds.at(j);
+          }
           else{
             // Don't need to recalculate this
             Bounds.at(0) = LowerBound;
-          }
-          if(Bounds.at(j) + min(*pen) > metricCutoff){
-            // None of the next models can have a better lower bound
-            flag = true;
+            Bounds2.at(0) = Bounds.at(0);
           }
           Bounds.at(j) += pen->at(NewOrder2.at(j));
-        }
+        }else
+          Bounds.at(j) = arma::datum::inf;
       }
       
       // Updating numchecked
@@ -326,7 +337,6 @@ void BackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* 
   else{
     metricCutoff = BestMetrics->at(0) + cutoff;
   }
-  
   // Continuing branching process if lower bound is smaller than the best observed metric
   if(LowerBound < metricCutoff){
     // Updating progress
@@ -354,7 +364,6 @@ void BackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* 
                                           tol, maxit, pen, j, &NewModels);
       }
     }
-    
     
     
     // Updating numchecked and potentially updating the best model
@@ -388,9 +397,12 @@ void BackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* 
                   method, m, Link, Dist, 
                   tol, maxit, pen, j, &NewModels);
         }
-        
-        Metrics.at(j) = BackwardGetBound(X, indices, &CurModel2, &NewOrder2, 
-                   j, Metrics.at(j), pen);
+        if(!std::isinf(Metrics.at(j))){
+          Metrics.at(j) = BackwardGetBound(X, indices, &CurModel2, &NewOrder2, 
+                     j, Metrics.at(j), pen);
+        }else{
+          Metrics.at(j) = LowerBound;
+        }
       }
       else{
         // If this set of models is invalid then set bound to infinity so no branching is done
@@ -610,18 +622,25 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
       /// Bounds stores the bounds
       /// Metrics2 stores the metric values from the upper models
       arma::vec Bounds(NewOrder2.n_elem - 1);
-      Bounds.fill(arma::datum::inf);
+      Bounds.fill(-arma::datum::inf);
+      arma::vec Bounds2 = Bounds;
       arma::vec Metrics2(NewOrder2.n_elem - 1);
       arma::uvec Counts2(NewOrder2.n_elem - 1, arma::fill::zeros);
       Metrics2.fill(arma::datum::inf);
       arma::mat NewModels(X->n_cols, Bounds.n_elem, arma::fill::zeros);
-      bool flag = false;
       
 #pragma omp parallel for schedule(dynamic)
       for(unsigned int j = 0; j < NewOrder2.n_elem - 1; j++){
         arma::ivec CurModel2 = *CurModel;
-        
-        if(CheckModels(&CurModel2, &NewOrder2, Interactions, j + 1) && !flag){
+        bool flag = false;
+        for(unsigned int i = 0; i < j; i++){
+          if(Bounds2.at(i) + min(*pen) > metricCutoff){
+            flag = true;
+            Bounds2.at(j) = Bounds2.at(i);
+            break;
+          }
+        }
+        if(!flag && CheckModels(&CurModel2, &NewOrder2, Interactions, j + 1)){
           // Only need to calculate bounds if this set of models is valid
           if(j > 0){
             Counts2.at(j) = 1;
@@ -630,19 +649,21 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
             Bounds.at(j) = GetBound(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2,
                       indices, tol, maxit, pen, j, &NewOrder2, 
                       LowerBound, &Metrics2, &NewModels);
+            if(std::isinf(Bounds.at(j))){
+              Bounds.at(j) = LowerBound;
+            }
             Bounds.at(j) += min(*pen);
+            Bounds2.at(j) = Bounds.at(j);
           }
           else{
             // Don't need to recalculate this
             Bounds.at(0) = LowerBound;
-          }
-          
-          if(Bounds.at(j) + min(*pen) > metricCutoff){
-            // None of the next models can have a better lower bound
-            flag = true;
+            Bounds2.at(0) = Bounds.at(0);
           }
           // Updating bound
           Bounds.at(j) += pen->at(NewOrder2.at(j));
+        }else{
+          Bounds.at(j) = arma::datum::inf;
         }
       }
       
@@ -788,8 +809,12 @@ void SwitchBackwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma:
           Metrics(j) = MetricHelper(X, XTWX, Y, Offset, indices, &CurModel2,
                   method, m, Link, Dist, tol, maxit, pen, j, &NewModels);
         }
-        Bounds(j - 1) = BackwardGetBound(X, indices, &CurModel2, &NewOrder2, 
-               j, Metrics(j), pen);
+        if(!std::isinf(Metrics.at(j))){
+          Bounds(j - 1) = BackwardGetBound(X, indices, &CurModel2, &NewOrder2, 
+                 j, Metrics(j), pen);
+        }else{
+          Bounds(j - 1) = LowerBound;
+        }
       }
       else{
         // If this set of models is invalid then set bound to infinity so no branching is done
