@@ -647,6 +647,30 @@ GetPreds <- function(linpreds, Link){
   }
 }
 
+#' Plot Method for BranchGLM Objects
+#' @description Creates a plot to help visualize fitted values from BranchGLM objects.
+#' @param x a `BranchGLM` object.
+#' @param ... further arguments passed to [plot.default]. 
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' plot(Fit)
+#' 
+#' @return This only produce a plot, nothing is returned.
+#' @export
+
+plot.BranchGLM <- function(x, ...){
+  # Checking for y
+  if(is.null(x$y)){
+    stop("plot can only be used when keepY = TRUE")  
+  }else if(is.null(x$preds)){
+    stop("plot can only be used when fit = TRUE")
+  }
+  
+  # Plotting fitted values
+  plot(x$preds, x$y, xlab = "Fitted Values", ylab = x$yname, ...)
+}
+
 #' Print Method for BranchGLM Objects
 #' @description Print method for `BranchGLM` objects.
 #' @param x a `BranchGLM` object.
