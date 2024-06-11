@@ -17,3 +17,4 @@ TestingPackage.R
 TestingPackage.cpp
 NEWS.RMD
 NEWS.MD
+codecov.yml
