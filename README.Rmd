@@ -1,7 +1,12 @@
 ---
-title: "BranchGLM"
+title: "BranchGLM: Efficient Variable Selection for GLMs in R"
 output: github_document
 ---
+
+<!-- badges: start -->
+[![CRAN status](https://www.r-pkg.org/badges/version/BranchGLM)](https://CRAN.R-project.org/package=BranchGLM)
+[![Codecov test coverage](https://codecov.io/gh/JacobSeedorff21/BranchGLM/branch/master/graph/badge.svg)](https://app.codecov.io/gh/JacobSeedorff21/BranchGLM?branch=master)
+<!-- badges: end -->
 
 # Overview
 

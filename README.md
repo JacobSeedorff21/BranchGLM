@@ -1,5 +1,13 @@
-BranchGLM
+BranchGLM: Efficient Variable Selection for GLMs in R
 ================
+
+<!-- badges: start -->
+
+[![CRAN
+status](https://www.r-pkg.org/badges/version/BranchGLM)](https://CRAN.R-project.org/package=BranchGLM)
+[![Codecov test
+coverage](https://codecov.io/gh/JacobSeedorff21/BranchGLM/branch/master/graph/badge.svg)](https://app.codecov.io/gh/JacobSeedorff21/BranchGLM?branch=master)
+<!-- badges: end -->
 
 # Overview
 
@@ -170,7 +178,7 @@ BranchTime
 ```
 
     ##    user  system elapsed 
-    ##    0.17    0.00    0.16
+    ##    0.17    0.00    0.17
 
 ``` r
 ## Timing exhaustive search
@@ -181,11 +189,11 @@ ExhaustiveTime
 ```
 
     ##    user  system elapsed 
-    ##  100.66    0.44  101.30
+    ##  125.47   18.26  151.73
 
 Finding the top 10 logistic regression models according to AIC for this
 simulated regression model with 15 variables with the switch branch and
-bound algorithm is about 633.13 times faster than an exhaustive search.
+bound algorithm is about 892.53 times faster than an exhaustive search.
 
 ### Checking results
 
@@ -238,7 +246,7 @@ BackwardTime
 ```
 
     ##    user  system elapsed 
-    ##    2.82    0.04    2.89
+    ##    3.30    0.04    3.55
 
 ``` r
 ## Timing step function
@@ -248,10 +256,10 @@ stepTime
 ```
 
     ##    user  system elapsed 
-    ##    8.71    0.20    8.96
+    ##    9.92    0.93   11.32
 
 Using the backward elimination algorithm from the **BranchGLM** package
-was about 3.1 times faster than step was for this logistic regression
+was about 3.19 times faster than step was for this logistic regression
 model.
 
 ### Checking results
