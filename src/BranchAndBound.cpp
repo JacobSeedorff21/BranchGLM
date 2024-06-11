@@ -154,7 +154,7 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
         // Checking if any previous bounds mean we don't need to check this set of models
         bool flag = false;
         for(unsigned int i = 0; i < j; i++){
-          if(Bounds2.at(i) +  + min(*pen) > metricCutoff){
+          if(Bounds2.at(i) + min(*pen) > metricCutoff){
             flag = true;
             Bounds2.at(j) = Bounds2.at(i);
             break;
@@ -169,10 +169,10 @@ void Branch(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, const
             Bounds.at(j) = GetBound(X, XTWX, Y, Offset, method, m, Link, Dist, CurModel,
                          indices, tol, maxit, pen, j, &NewOrder2, LowerBound, 
                          &Metrics, &NewModels);
+            Bounds.at(j) += min(*pen);
             if(std::isinf(Bounds.at(j))){
               Bounds.at(j) = LowerBound;
             }
-            Bounds.at(j) += min(*pen);
             Bounds2.at(j) = Bounds.at(j);
           }
           else{
@@ -649,10 +649,10 @@ void SwitchForwardBranch(const arma::mat* X, const arma::mat* XTWX, const arma::
             Bounds.at(j) = GetBound(X, XTWX, Y, Offset, method, m, Link, Dist, &CurModel2,
                       indices, tol, maxit, pen, j, &NewOrder2, 
                       LowerBound, &Metrics2, &NewModels);
+            Bounds.at(j) += min(*pen);
             if(std::isinf(Bounds.at(j))){
               Bounds.at(j) = LowerBound;
             }
-            Bounds.at(j) += min(*pen);
             Bounds2.at(j) = Bounds.at(j);
           }
           else{
