@@ -1,6 +1,13 @@
 BranchGLM News
 ================
 
+# BranchGLM 2.1.6
+
+- Adding plot method for BranchGLM objects
+- Fixing another very small bug in branch and bound algorithms
+- Fixing bug in log-likelihood calculation for gaussian models when the
+  number of observations is odd
+
 # BranchGLM 2.1.5
 
 - Fixing a small bug with parallel computation for forward and switch

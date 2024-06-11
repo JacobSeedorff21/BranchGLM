@@ -224,3 +224,35 @@ test_that("Testing highly correlated covariates", {
   expect_equal(coef(BBLinear)[, 1], LinearCoefs, tolerance = 1e-4)
   
 })
+
+# Testing gaussian log-likelihood with odd number of observations
+## There was a bug in this due to integer division
+
+test_that("Gaussian log-likelihood recovery test", {
+  library(BranchGLM)
+  set.seed(8621)
+  x <- sapply(rep(0, 10), rnorm, n = 1001, simplify = TRUE)
+  x <- cbind(1, x)
+  beta <- rnorm(11)
+  y <- rnorm(n = 1001, mean = x %*% beta, sd = 2)
+  Data <- cbind(y, x[,-1]) |>
+    as.data.frame()
+  
+  ### Fitting models
+  Fit <- BranchGLM(y ~ ., data = Data, family = "gaussian", link = "identity")
+  glmfit <- glm(y ~ ., data = Data)
+  
+  #### log-likelihood
+  expect_equal(logLik(Fit), logLik(glmfit))
+  
+  ### Variable selection tests
+  SBB <- VariableSelection(y ~ ., data = Data, family = "gaussian", link = "identity", 
+                           showprogress = FALSE)
+  temp <- summary(SBB)
+  Fit <- BranchGLM(temp$formulas[[1]], data = Data, family = "gaussian", link = "identity")
+  glmfit <- glm(temp$formulas[[1]], data = Data)
+  
+  #### log-likelihood
+  expect_equal(AIC(Fit), AIC(glmfit))
+  expect_equal(SBB$bestmetrics[1], AIC(Fit))
+})

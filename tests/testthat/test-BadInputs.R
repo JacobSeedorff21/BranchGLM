@@ -115,6 +115,14 @@ test_that("BranchGLM bad inputs", {
   expect_error(BranchGLM.fit(x, y, family = "gamma", link = "log", 
                          init = rep(NA_real_, 11)))
   
+  ### plot
+  nofit <- BranchGLM(y ~ ., data = Data, family = "gamma", link = "log", fit = FALSE)
+  noy <- BranchGLM(y ~ ., data = Data, family = "gamma", link = "log", keepY = FALSE)
+  fit <- BranchGLM(y ~ ., data = Data, family = "gamma", link = "log")
+  expect_error(plot(nofit))
+  expect_error(plot(noy))
+  expect_error(plot(fit), NA)
+  
 })
 
 ## predict.BranchGLM
