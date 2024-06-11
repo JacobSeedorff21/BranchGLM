@@ -40,7 +40,7 @@
 #' for `type = "forward"` and `type = "branch and bound"`. This argument is now 
 #' deprecated.
 #' @param grads a positive integer to denote the number of gradients used to 
-#' approximate the inverse information with, only for `method = "LBFGS"`..
+#' approximate the inverse information with, only for `method = "LBFGS"`.
 #' @param parallel a logical value to indicate if parallelization should be used.
 #' @param nthreads a positive integer to denote the number of threads used with OpenMP, 
 #' only used if `parallel = TRUE`.
@@ -92,6 +92,7 @@
 #' \item{`cutoff`}{ the cutoff that was used, this is set to -1 if bestmodels was used instead or if 
 #' a stepwise algorithm was used}
 #' \item{`keep`}{ vector of which variables were kept through the selection process}
+#' \item{`keepintercept`}{ a boolean value denoting whether to keep the intercept through the selection process or not}
 #' @name VariableSelection
 #' 
 #' @examples

@@ -99,7 +99,7 @@ for \code{type = "forward"} and \code{type = "branch and bound"}. This argument 
 deprecated.}
 
 \item{grads}{a positive integer to denote the number of gradients used to
-approximate the inverse information with, only for \code{method = "LBFGS"}..}
+approximate the inverse information with, only for \code{method = "LBFGS"}.}
 
 \item{parallel}{a logical value to indicate if parallelization should be used.}
 
@@ -133,6 +133,7 @@ or a numeric vector with the metric values along the path taken for stepwise alg
 \item{\code{cutoff}}{ the cutoff that was used, this is set to -1 if bestmodels was used instead or if
 a stepwise algorithm was used}
 \item{\code{keep}}{ vector of which variables were kept through the selection process}
+\item{\code{keepintercept}}{ a boolean value denoting whether to keep the intercept through the selection process or not}
 }
 \description{
 Performs forward selection, backward elimination, and efficient
