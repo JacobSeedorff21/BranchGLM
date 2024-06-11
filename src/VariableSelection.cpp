@@ -153,7 +153,7 @@ double MetricHelper(const arma::mat* OldX, const arma::mat* XTWX,
   }
   
   if(Dist == "gaussian"){
-    double temp = X.n_rows/2 * log(2*M_PI*dispersion);
+    double temp = X.n_rows/2. * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
   }
   else if(Dist == "poisson"){
@@ -340,7 +340,7 @@ double GetBound(const arma::mat* X, const arma::mat* XTWX, const arma::vec* Y, c
   
   // Final computation of log-likelihood
   if(Dist == "gaussian"){
-    double temp = xTemp.n_rows/2 * log(2*M_PI*dispersion);
+    double temp = xTemp.n_rows/2. * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
   }
   else if(Dist == "poisson"){

@@ -853,7 +853,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   
   NumericVector linPreds1 = NumericVector(linPreds.begin(), linPreds.end());
   
-  // Getting dispersion paramater
+  // Getting dispersion parameter
   dispersion = GetDispersion(&X, &Y, &mu, LogLik, Dist, tol);
   
   // Checking for valid dispersion parameter
@@ -862,7 +862,7 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   }
   
   if(Dist == "gaussian"){
-    double temp = Y.n_elem/2 * log(2*M_PI*dispersion);
+    double temp = Y.n_elem/2. * log(2*M_PI*dispersion);
     LogLik = LogLik / dispersion - temp;
     AIC = -2 * LogLik + 2 * (X.n_cols + 1);
   }
