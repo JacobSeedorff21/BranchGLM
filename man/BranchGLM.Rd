@@ -7,7 +7,7 @@
 \usage{
 BranchGLM(
   formula,
-  data,
+  data = NULL,
   family,
   link,
   offset = NULL,
@@ -42,16 +42,22 @@ BranchGLM.fit(
 \arguments{
 \item{formula}{a formula for the model.}
 
-\item{data}{a data.frame, list or environment (or object coercible by
+\item{data}{an optional data.frame, list or environment (or object coercible by
 \link{as.data.frame} to a data.frame), containing the variables in formula.
-Neither a matrix nor an array will be accepted.}
+Neither a matrix nor an array will be accepted. If not found in \code{data}, the
+variables are taken from \code{environment(formula)}, typically the environment from
+which \code{BranchGLM} is called.}
 
 \item{family}{the distribution used to model the data, one of "gaussian",
-"gamma", "binomial", or "poisson".}
+"gamma", "binomial", or "poisson". A \code{family} object may also be supplied for
+one of the accepted distributions.}
 
 \item{link}{the link used to link the mean structure to the linear predictors. One of
 "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log". The accepted
-links depend on the specified family, see more in details.}
+links depend on the specified family, see more in details. This only needs to be
+supplied if a string is supplied for \code{family}. If a \code{family} object is supplied
+for the \code{family} argument, then the link function is taken from that \code{family}
+object.}
 
 \item{offset}{the offset vector, by default the zero vector is used.}
 
@@ -94,15 +100,17 @@ may not work and this cannot be used inside of \code{VariableSelection}.}
 }
 \value{
 \code{BranchGLM} returns a \code{BranchGLM} object which is a list with the following components
-\item{\code{coefficients}}{ a matrix with the coefficient estimates, SEs, Wald test statistics, and p-values}
+\item{\code{coefficients}}{ a data.frame with the coefficient estimates, SEs, Wald test statistics, and p-values}
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
-\item{\code{dispersion}}{ the value of the dispersion parameter}
+\item{\code{dispersion}}{ a vector of length 2 with the MLE of the dispersion parameter first and the Pearson estimator of the dispersion parameter second}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
 \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
 \item{\code{resDev}}{ the residual deviance of the fitted model}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
 \item{\code{linpreds}}{ linear predictors from the fitted model}
+\item{\code{residuals}}{ a numeric vector with the Pearson residuals}
+\item{\code{variance}}{ a numeric vector with the variance evaluated at the final coefficient estimates}
 \item{\code{tol}}{ tolerance used to fit the model}
 \item{\code{maxit}}{ maximum number of iterations used to fit the model}
 \item{\code{formula}}{ formula used to fit the model}
@@ -110,6 +118,7 @@ may not work and this cannot be used inside of \code{VariableSelection}.}
 \item{\code{grads}}{ number of gradients used to approximate inverse information for L-BFGS}
 \item{\code{y}}{ y vector used in the model, not included if \code{keepY = FALSE}}
 \item{\code{x}}{ design matrix used to fit the model, not included if \code{keepData = FALSE}}
+\item{\code{rownames}}{ rownames taken from the design matrix}
 \item{\code{offset}}{ offset vector in the model, not included if \code{keepData = FALSE}}
 \item{\code{fulloffset}}{ supplied offset vector, not included if \code{keepData = FALSE}}
 \item{\code{data}}{ original \code{data} argument supplied to the function, not included if \code{keepData = FALSE}}
@@ -126,15 +135,17 @@ may not work and this cannot be used inside of \code{VariableSelection}.}
 \item{\code{terms}}{the terms object used}
 
 \code{BranchGLM.fit} returns a list with the following components
-\item{\code{coefficients}}{ a matrix with the coefficients estimates, SEs, Wald test statistics, and p-values}
+\item{\code{coefficients}}{ a data.frame with the coefficients estimates, SEs, Wald test statistics, and p-values}
 \item{\code{iterations}}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
-\item{\code{dispersion}}{ the value of the dispersion parameter}
+\item{\code{dispersion}}{ a vector of length 2 with the MLE of the dispersion parameter first and the Pearson estimator of the dispersion parameter second}
 \item{\code{logLik}}{ the log-likelihood of the fitted model}
 \item{\code{vcov}}{ the variance-covariance matrix of the fitted model}
 \item{\code{resDev}}{ the residual deviance of the fitted model}
 \item{\code{AIC}}{ the AIC of the fitted model}
 \item{\code{preds}}{ predictions from the fitted model}
 \item{\code{linpreds}}{ linear predictors from the fitted model}
+\item{\code{residuals}}{ a numeric vector with the Pearson residuals}
+\item{\code{variance}}{ a numeric vector with the variance evaluated at the final coefficient estimates}
 \item{\code{tol}}{ tolerance used to fit the model}
 \item{\code{maxit}}{ maximum number of iterations used to fit the model}
 }
@@ -173,10 +184,10 @@ all of the methods for \code{BranchGLM} objects such as \code{predict} or
 
 \subsection{Dispersion Parameter}{
 
-The dispersion parameter for gamma regression is estimated via maximum likelihood,
-very similar to the \code{gamma.dispersion} function from the MASS package. The
-dispersion parameter for gaussian regression is also estimated via maximum
-likelihood estimation.
+The dispersion parameter for binomial and Poisson regression is always fixed to be 1.
+For gaussian and gamma regression, the MLE of the dispersion parameter is used
+for the calculation of the log-likelihood and the Pearson estimator of the dispersion parameter
+is used for the calculation of standard errors for the coefficient estimates.
 }
 
 \subsection{Families and Links}{

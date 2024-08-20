@@ -12,10 +12,10 @@
 \item{...}{further arguments passed to \link{plot.default}.}
 }
 \value{
-This only produce a plot, nothing is returned.
+This only produces a plot, nothing is returned.
 }
 \description{
-Creates a plot to help visualize fitted values from BranchGLM objects.
+Creates a plot to help visualize fitted values from \code{BranchGLM} objects.
 }
 \examples{
 Data <- iris

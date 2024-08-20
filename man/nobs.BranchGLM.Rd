@@ -15,5 +15,5 @@
 A single number indicating the number of observations used to fit the model.
 }
 \description{
-Extracts number of observations from BranchGLM objects.
+Extracts number of observations from \code{BranchGLM} objects.
 }

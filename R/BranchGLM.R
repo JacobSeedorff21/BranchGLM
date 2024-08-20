@@ -2,14 +2,20 @@
 #' @description Fits generalized linear models (GLMs) via RcppArmadillo with the 
 #' ability to perform some computation in parallel with OpenMP.
 #' @param formula a formula for the model.
-#' @param data a data.frame, list or environment (or object coercible by 
+#' @param data an optional data.frame, list or environment (or object coercible by 
 #' [as.data.frame] to a data.frame), containing the variables in formula. 
-#' Neither a matrix nor an array will be accepted.
+#' Neither a matrix nor an array will be accepted. If not found in `data`, the 
+#' variables are taken from `environment(formula)`, typically the environment from 
+#' which `BranchGLM` is called.
 #' @param family the distribution used to model the data, one of "gaussian", 
-#' "gamma", "binomial", or "poisson".
+#' "gamma", "binomial", or "poisson". A `family` object may also be supplied for 
+#' one of the accepted distributions.
 #' @param link the link used to link the mean structure to the linear predictors. One of
 #' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log". The accepted 
-#' links depend on the specified family, see more in details.
+#' links depend on the specified family, see more in details. This only needs to be 
+#' supplied if a string is supplied for `family`. If a `family` object is supplied 
+#' for the `family` argument, then the link function is taken from that `family` 
+#' object.
 #' @param offset the offset vector, by default the zero vector is used.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". BFGS and L-BFGS are 
 #' quasi-newton methods which are typically faster than Fisher's scoring when
@@ -37,15 +43,17 @@
 #' @param y outcome vector, must be numeric.
 #' @seealso [predict.BranchGLM], [coef.BranchGLM], [VariableSelection], [confint.BranchGLM], [logLik.BranchGLM]
 #' @return `BranchGLM` returns a `BranchGLM` object which is a list with the following components
-#' \item{`coefficients`}{ a matrix with the coefficient estimates, SEs, Wald test statistics, and p-values}
+#' \item{`coefficients`}{ a data.frame with the coefficient estimates, SEs, Wald test statistics, and p-values}
 #' \item{`iterations`}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
-#' \item{`dispersion`}{ the value of the dispersion parameter}
+#' \item{`dispersion`}{ a vector of length 2 with the MLE of the dispersion parameter first and the Pearson estimator of the dispersion parameter second}
 #' \item{`logLik`}{ the log-likelihood of the fitted model}
 #' \item{`vcov`}{ the variance-covariance matrix of the fitted model}
 #' \item{`resDev`}{ the residual deviance of the fitted model}
 #' \item{`AIC`}{ the AIC of the fitted model}
 #' \item{`preds`}{ predictions from the fitted model}
 #' \item{`linpreds`}{ linear predictors from the fitted model}
+#' \item{`residuals`}{ a numeric vector with the Pearson residuals}
+#' \item{`variance`}{ a numeric vector with the variance evaluated at the final coefficient estimates}
 #' \item{`tol`}{ tolerance used to fit the model}
 #' \item{`maxit`}{ maximum number of iterations used to fit the model}
 #' \item{`formula`}{ formula used to fit the model}
@@ -53,6 +61,7 @@
 #' \item{`grads`}{ number of gradients used to approximate inverse information for L-BFGS}
 #' \item{`y`}{ y vector used in the model, not included if `keepY = FALSE`}
 #' \item{`x`}{ design matrix used to fit the model, not included if `keepData = FALSE`}
+#' \item{`rownames`}{ rownames taken from the design matrix}
 #' \item{`offset`}{ offset vector in the model, not included if `keepData = FALSE`}
 #' \item{`fulloffset`}{ supplied offset vector, not included if `keepData = FALSE`}
 #' \item{`data`}{ original `data` argument supplied to the function, not included if `keepData = FALSE`}
@@ -69,15 +78,17 @@
 #' \item{`terms`}{the terms object used}
 #' 
 #' `BranchGLM.fit` returns a list with the following components
-#' \item{`coefficients`}{ a matrix with the coefficients estimates, SEs, Wald test statistics, and p-values}
+#' \item{`coefficients`}{ a data.frame with the coefficients estimates, SEs, Wald test statistics, and p-values}
 #' \item{`iterations`}{ number of iterations it took the algorithm to converge, if the algorithm failed to converge then this is -1}
-#' \item{`dispersion`}{ the value of the dispersion parameter}
+#' \item{`dispersion`}{ a vector of length 2 with the MLE of the dispersion parameter first and the Pearson estimator of the dispersion parameter second}
 #' \item{`logLik`}{ the log-likelihood of the fitted model}
 #' \item{`vcov`}{ the variance-covariance matrix of the fitted model}
 #' \item{`resDev`}{ the residual deviance of the fitted model}
 #' \item{`AIC`}{ the AIC of the fitted model}
 #' \item{`preds`}{ predictions from the fitted model}
 #' \item{`linpreds`}{ linear predictors from the fitted model}
+#' \item{`residuals`}{ a numeric vector with the Pearson residuals}
+#' \item{`variance`}{ a numeric vector with the variance evaluated at the final coefficient estimates}
 #' \item{`tol`}{ tolerance used to fit the model}
 #' \item{`maxit`}{ maximum number of iterations used to fit the model}
 #' @details 
@@ -109,10 +120,10 @@
 #' `VariableSelection` cannot be used.
 #' 
 #' ## Dispersion Parameter
-#' The dispersion parameter for gamma regression is estimated via maximum likelihood, 
-#' very similar to the `gamma.dispersion` function from the MASS package. The 
-#' dispersion parameter for gaussian regression is also estimated via maximum 
-#' likelihood estimation.
+#' The dispersion parameter for binomial and Poisson regression is always fixed to be 1.
+#' For gaussian and gamma regression, the MLE of the dispersion parameter is used 
+#' for the calculation of the log-likelihood and the Pearson estimator of the dispersion parameter 
+#' is used for the calculation of standard errors for the coefficient estimates.
 #' 
 #' ## Families and Links
 #' The binomial family accepts "cloglog", "log", "logit", and "probit" as possible 
@@ -160,7 +171,7 @@
 #' Chapman & Hall.
 #' @export
 
-BranchGLM <- function(formula, data, family, link, offset = NULL, 
+BranchGLM <- function(formula, data = NULL, family, link, offset = NULL, 
                     method = "Fisher", grads = 10,
                     parallel = FALSE, nthreads = 8, 
                     tol = 1e-6, maxit = NULL, init = NULL, fit = TRUE, 
@@ -168,6 +179,12 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
                     keepY = TRUE){
   
   ### converting family, link, and method to lower
+  if(is(family, "family")){
+    link <- family$link
+    family <- family$family
+  }else if(!is.character(family)){
+    stop("family must be an object of class 'family' or 'character'") 
+  }
   family <- tolower(family)
   link <- tolower(link)
   method <- tolower(method)
@@ -202,6 +219,11 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   mf$drop.unused.levels <- TRUE
   mf$na.action <- "na.omit"
   mf[[1L]] <- quote(model.frame)
+  if(is.null(data)){
+    tempmf <- mf
+    tempmf$na.action <- "na.pass"
+    data <- eval(tempmf, parent.frame())
+  }
   mf <- eval(mf, parent.frame())
   
   ## Getting data objects
@@ -246,6 +268,8 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(fit){
     df <- BranchGLM.fit(x, y, family, link, offset, method, grads, parallel, nthreads, 
                         init, maxit, tol)
+    df$residuals <- as.vector(df$residuals)
+    df$dispersion <- as.vector(df$dispersion)
   }else{
     df <- list("coefficients" = matrix(NA, nrow = ncol(x), ncol = 4), 
                "vcov" = matrix(NA, nrow = ncol(x), ncol = ncol(x)))
@@ -305,8 +329,11 @@ BranchGLM <- function(formula, data, family, link, offset = NULL,
   if(family == "binomial"){
     df$ylevel <- ylevel
   }
-  if((family == "gaussian" || family == "gamma")){
-    colnames(df$coefficients)[3] <- "t"
+  
+  if(!is.null(rownames(x))){
+    df$rownames <- rownames(x)
+  }else{
+    df$rownames <- 1:nrow(x)
   }
   
   structure(df, class = "BranchGLM")
@@ -438,6 +465,16 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
                        GetInit) 
   }
   
+  if((family == "gaussian" || family == "gamma")){
+    colnames(df$coefficients)[1:2] <- c("Estimate", "Std. Error")
+    colnames(df$coefficients)[3] <- "t value"
+    colnames(df$coefficients)[4] <- "Pr(>|t|)"
+  }else{
+    colnames(df$coefficients)[1:2] <- c("Estimate", "Std. Error")
+    colnames(df$coefficients)[3] <- "z value"
+    colnames(df$coefficients)[4] <- "Pr(>|z|)"
+  }
+  
   df$tol <- tol
   df$maxit <- maxit
   
@@ -445,36 +482,61 @@ BranchGLM.fit <- function(x, y, family, link, offset = NULL,
 }
 
 #' Extract Model Formula from BranchGLM Objects
-#' @description Extracts model formula from BranchGLM objects.
+#' @description Extracts model formula from `BranchGLM` objects.
 #' @param x a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
-#' @return a formula representing the model used to obtain `object`.
+#' @return A formula representing the model used to obtain `x`.
 #' @export
-
 formula.BranchGLM <- function(x, ...){
   return(x$formula) 
 }
 
+#' Extract Model Frame from a BranchGLM Object
+#' @description Extracts model frame from `BranchGLM` objects.
+#' @param formula a `BranchGLM` object.
+#' @param ... further arguments passed to or from other methods.
+#' @return A [data.frame] used for the fitted model.
+#' @export
+model.frame.BranchGLM <- function(formula, ...){
+  return(formula$mf) 
+}
+
+#' Extract Family from BranchGLM Objects
+#' @description Extracts family from `BranchGLM` objects.
+#' @param object a `BranchGLM` object.
+#' @param ... further arguments passed to or from other methods.
+#' @return An object of class `family`.
+#' @note
+#' Only the `family` and `link` components of `family` objects are used by the 
+#' `BranchGLM` package. The other components of the `family` object may not 
+#' be the same as what is used in the fitting process for `BranchGLM`.
+#' @export
+family.BranchGLM <- function(object, ...){
+  myfamily <- object$family
+  if(myfamily == "gamma"){
+    myfamily <- "Gamma"
+  }
+  return(do.call(myfamily, list("link" = object$link))) 
+}
+
 #' Extract Number of Observations from BranchGLM Objects
-#' @description Extracts number of observations from BranchGLM objects.
+#' @description Extracts number of observations from `BranchGLM` objects.
 #' @param object a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
 #' @return A single number indicating the number of observations used to fit the model.
 #' @export
-
 nobs.BranchGLM <- function(object, ...){
   return(object$numobs) 
 }
 
 #' Extract Log-Likelihood from BranchGLM Objects
-#' @description Extracts log-likelihood from BranchGLM objects.
+#' @description Extracts log-likelihood from `BranchGLM` objects.
 #' @param object a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
 #' @return An object of class `logLik` which is a number corresponding to 
 #' the log-likelihood with the following attributes: "df" (degrees of freedom) 
 #' and "nobs" (number of observations).
 #' @export
-
 logLik.BranchGLM <- function(object, ...){
   df <- length(coef(object))
   if(object$family == "gaussian" || object$family == "gamma"){
@@ -487,8 +549,44 @@ logLik.BranchGLM <- function(object, ...){
   return(val)
 }
 
+#' Extract AIC from BranchGLM Objects
+#' @description Computes the (generalized) Akaike An Information Criterion for 
+#' BranchGLM objects.
+#' @param fit a `BranchGLM` object.
+#' @param scale ignored.
+#' @param k a non-negative number specifying the ‘weight’ of the equivalent degrees 
+#' of freedom (= edf) part in the AIC formula.
+#' @param ... further arguments passed to or from other methods.
+#' @return A numeric vector of length 2, with first and second elements giving
+#' \item{`edf`}{ the ‘equivalent degrees of freedom’ for `fit`}
+#' \item{`AIC`}{ the (generalized) Akaike Information Criterion for `fit`}
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' extractAIC(Fit)
+#' 
+#' @export
+extractAIC.BranchGLM <- function(fit, scale, k = 2, ...){
+  if(!is.numeric(k) || length(k) != 1 || k < 0){
+    stop("k must be a non-negative number")
+  }
+  loglik <- logLik(fit)
+  edf <- attr(loglik, "df")
+  return(c(edf, -2 * loglik[[1]] + k * edf))
+}
+
+#' Extract the Deviance
+#' @description Extracts the deviance from `BranchGLM` objects.
+#' @param object a `BranchGLM` object.
+#' @param ... further arguments passed to or from other methods.
+#' @return A single number denoting the deviance.
+#' @export
+deviance.BranchGLM <- function(object, ...){
+  return(object$resDev)
+}
+
 #' Extract covariance matrix from BranchGLM Objects
-#' @description Extracts covariance matrix of beta coefficients from BranchGLM objects.
+#' @description Extracts covariance matrix of beta coefficients from `BranchGLM` objects.
 #' @param object a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
 #' @return A numeric matrix which is the covariance matrix of the beta coefficients.
@@ -497,16 +595,75 @@ vcov.BranchGLM <- function(object, ...){
   return(object$vcov)
 }
 
-#' Extract Coefficients from BranchGLM Objects
-#' @description Extracts beta coefficients from BranchGLM objects.
+#' Extract Square Root of the Dispersion Parameter Estimates
+#' @description Extracts the square root of the dispersion parameter estimates from `BranchGLM` objects.
 #' @param object a `BranchGLM` object.
 #' @param ... further arguments passed to or from other methods.
-#' @return A named vector with the corresponding coefficient estimates.
+#' @return A numeric vector of length 2 with first and second elements giving
+#' \item{`mle`}{ the MLE of the dispersion parameter}
+#' \item{`pearson`}{ the Pearson estimator of the dispersion parameter}
+#' @note
+#' The dispersion parameter for binomial and Poisson regression is always fixed to be 1.
+#' The MLE of the dispersion parameter is used in the calculation of the log-likelihood 
+#' while the Pearson estimator of the dispersion parameter is used to calculate 
+#' standard errors for the coefficient estimates.
+#' @examples
+#' Data <- iris
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' sigma(Fit)
+#' 
+#' @export
+sigma.BranchGLM <- function(object, ...){
+  temp <- sqrt(object$dispersion)
+  names(temp) <- c("mle", "pearson")
+  return(temp)
+}
+
+#' Extract the Pearson Residuals from BranchGLM Objects
+#' @description Extracts the Pearson residuals from `BranchGLM` objects.
+#' @param object a `BranchGLM` object.
+#' @param ... further arguments passed to or from other methods.
+#' @return A vector of the Pearson residuals from the supplied `BranchGLM` object.
+#' @export
+residuals.BranchGLM <- function(object, ...){
+  res <- object$residuals
+  names(res) <- object$rownames
+  return(res)
+}
+
+#' Extract Coefficients from BranchGLM Objects
+#' @description Extracts beta coefficients from `BranchGLM` objects.
+#' @param object a `BranchGLM` object.
+#' @param type "estimates" to only return the coefficient estimates or "all" to 
+#' return the estimates along with SEs, test statistics, and p-values.
+#' @param ... further arguments passed to or from other methods.
+#' @return A named vector with the corresponding coefficient estimates or a 
+#' data.frame with the coefficient estimates along with SEs, test statistics, and p-values.
+#' @examples
+#' Data <- iris
+#' 
+#' # Linear regression model
+#' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+#' Fit
+#' 
+#' # Getting only coefficient estimates
+#' coef(Fit, type = "estimates")
+#' 
+#' # Getting coefficient estimates along with SEs, tests, and p-values
+#' coef(Fit, type = "all")
+#' 
 #' @export
 
-coef.BranchGLM <- function(object, ...){
-  coefs <- object$coefficients[,1]
-  names(coefs) <- row.names(object$coefficients)
+coef.BranchGLM <- function(object, type = "estimates", ...){
+  type <- tolower(type)
+  if(type == "estimates"){
+    coefs <- object$coefficients[,1]
+    names(coefs) <- row.names(object$coefficients)
+  }else if(type == "all"){
+    coefs <- object$coefficients
+  }else{
+    stop("type must be 'estimates' or 'all'")
+  }
   return(coefs)
 }
 
@@ -573,11 +730,11 @@ predict.BranchGLM <- function(object, newdata = NULL, offset = NULL,
   }else if(is.null(newdata) && is.null(object$data)){
     if(type == "linpreds"){
       linpreds <- object$linpreds
-      names(linpreds) <- rownames(object$x)
+      names(linpreds) <- object$rownames
       return(linpreds)
     }else if(type == "response"){
       preds <- object$preds
-      names(preds) <- rownames(object$x)
+      names(preds) <- object$rownames
       return(preds)
     }
   }
@@ -648,7 +805,7 @@ GetPreds <- function(linpreds, Link){
 }
 
 #' Plot Method for BranchGLM Objects
-#' @description Creates a plot to help visualize fitted values from BranchGLM objects.
+#' @description Creates a plot to help visualize fitted values from `BranchGLM` objects.
 #' @param x a `BranchGLM` object.
 #' @param ... further arguments passed to [plot.default]. 
 #' @examples
@@ -656,7 +813,7 @@ GetPreds <- function(linpreds, Link){
 #' Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
 #' plot(Fit)
 #' 
-#' @return This only produce a plot, nothing is returned.
+#' @return This only produces a plot, nothing is returned.
 #' @export
 
 plot.BranchGLM <- function(x, ...){
@@ -675,12 +832,12 @@ plot.BranchGLM <- function(x, ...){
 #' @description Print method for `BranchGLM` objects.
 #' @param x a `BranchGLM` object.
 #' @param coefdigits number of digits to display for coefficients table.
-#' @param digits number of digits to display for information after table.
+#' @param digits number of significant digits to display for information after table.
 #' @param ... further arguments passed to or from other methods.
 #' @return The supplied `BranchGLM` object.
 #' @export
 
-print.BranchGLM <- function(x, coefdigits = 4, digits = 2, ...){
+print.BranchGLM <- function(x, coefdigits = 4, digits = 4, ...){
   if(length(coefdigits)!= 1  || !is.numeric(coefdigits) || coefdigits < 0){
     stop("coefdigits must be a non-negative number")
   }
@@ -693,12 +850,15 @@ print.BranchGLM <- function(x, coefdigits = 4, digits = 2, ...){
   printCoefmat(signif(x$coefficients, digits = coefdigits), signif.stars = TRUE, P.values = TRUE, 
                has.Pvalue = TRUE)
   
-  cat(paste0("\nDispersion parameter taken to be ", round(x$dispersion, coefdigits)))
-  cat(paste0("\n", x$numobs, " observations used to fit model\n(", x$missing, 
+  cat(paste0("\nDispersion parameter taken to be ", 
+             format(x$dispersion[1], digits = digits), " for the log-likelihood"))
+  cat(paste0("\nDispersion parameter taken to be ", 
+             format(x$dispersion[2], digits = digits), " for standard errors"))
+  cat(paste0("\n", x$numobs, " observations used to fit the model\n(", x$missing, 
              " observations removed due to missingness)\n"))
-  cat(paste0("\nResidual Deviance: ", round(x$resDev, digits = digits), " on ",
+  cat(paste0("\nResidual Deviance: ", format(x$resDev, digits = digits), " on ",
              x$numobs - nrow(x$coefficients), " degrees of freedom"))
-  cat(paste0("\nAIC: ", round(x$AIC, digits = digits)))
+  cat(paste0("\nAIC: ", format(x$AIC, digits = digits)))
   if(x$family != "gaussian" || x$link != "identity"){
     if(x$method == "Fisher"){
       method = "Fisher's scoring"

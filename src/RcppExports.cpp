@@ -118,6 +118,84 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// FastBackwardCpp
+List FastBackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, unsigned int steps, NumericVector pen);
+RcppExport SEXP _BranchGLM_FastBackwardCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP stepsSEXP, SEXP penSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type indices(indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type num(numSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type interactions(interactionsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Link(LinkSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Dist(DistSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type nthreads(nthreadsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type keep(keepSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type steps(stepsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type pen(penSEXP);
+    rcpp_result_gen = Rcpp::wrap(FastBackwardCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen));
+    return rcpp_result_gen;
+END_RCPP
+}
+// FastDoubleBackwardCpp
+List FastDoubleBackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, unsigned int steps, NumericVector pen);
+RcppExport SEXP _BranchGLM_FastDoubleBackwardCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP stepsSEXP, SEXP penSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type indices(indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type num(numSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type interactions(interactionsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Link(LinkSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Dist(DistSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type nthreads(nthreadsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type keep(keepSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type steps(stepsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type pen(penSEXP);
+    rcpp_result_gen = Rcpp::wrap(FastDoubleBackwardCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DoubleBackwardCpp
+List DoubleBackwardCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, unsigned int steps, NumericVector pen);
+RcppExport SEXP _BranchGLM_DoubleBackwardCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP stepsSEXP, SEXP penSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type indices(indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type num(numSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type interactions(interactionsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Link(LinkSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Dist(DistSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type nthreads(nthreadsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type keep(keepSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type steps(stepsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type pen(penSEXP);
+    rcpp_result_gen = Rcpp::wrap(DoubleBackwardCpp(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MetricIntervalCpp
 List MetricIntervalCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerVector model, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, NumericVector pen, NumericVector mle, NumericVector se, NumericVector best, double cutoff, double Metric, std::string rootMethod);
 RcppExport SEXP _BranchGLM_MetricIntervalCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP modelSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP penSEXP, SEXP mleSEXP, SEXP seSEXP, SEXP bestSEXP, SEXP cutoffSEXP, SEXP MetricSEXP, SEXP rootMethodSEXP) {
@@ -264,12 +342,45 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// SwitchVariableImportanceCpp
+List SwitchVariableImportanceCpp(NumericMatrix x, NumericVector y, NumericVector offset, IntegerVector indices, IntegerVector num, IntegerMatrix interactions, IntegerMatrix withmodels, NumericVector withmetrics, IntegerMatrix withoutmodels, NumericVector withoutmetrics, std::string method, int m, std::string Link, std::string Dist, unsigned int nthreads, double tol, int maxit, IntegerVector keep, NumericVector pen, bool display_progress);
+RcppExport SEXP _BranchGLM_SwitchVariableImportanceCpp(SEXP xSEXP, SEXP ySEXP, SEXP offsetSEXP, SEXP indicesSEXP, SEXP numSEXP, SEXP interactionsSEXP, SEXP withmodelsSEXP, SEXP withmetricsSEXP, SEXP withoutmodelsSEXP, SEXP withoutmetricsSEXP, SEXP methodSEXP, SEXP mSEXP, SEXP LinkSEXP, SEXP DistSEXP, SEXP nthreadsSEXP, SEXP tolSEXP, SEXP maxitSEXP, SEXP keepSEXP, SEXP penSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type indices(indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type num(numSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type interactions(interactionsSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type withmodels(withmodelsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type withmetrics(withmetricsSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type withoutmodels(withoutmodelsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type withoutmetrics(withoutmetricsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Link(LinkSEXP);
+    Rcpp::traits::input_parameter< std::string >::type Dist(DistSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type nthreads(nthreadsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type keep(keepSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type pen(penSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(SwitchVariableImportanceCpp(x, y, offset, indices, num, interactions, withmodels, withmetrics, withoutmodels, withoutmetrics, method, m, Link, Dist, nthreads, tol, maxit, keep, pen, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_BranchGLM_BranchAndBoundCpp", (DL_FUNC) &_BranchGLM_BranchAndBoundCpp, 19},
     {"_BranchGLM_BackwardBranchAndBoundCpp", (DL_FUNC) &_BranchGLM_BackwardBranchAndBoundCpp, 18},
     {"_BranchGLM_SwitchBranchAndBoundCpp", (DL_FUNC) &_BranchGLM_SwitchBranchAndBoundCpp, 18},
     {"_BranchGLM_BranchGLMfit", (DL_FUNC) &_BranchGLM_BranchGLMfit, 12},
+    {"_BranchGLM_FastBackwardCpp", (DL_FUNC) &_BranchGLM_FastBackwardCpp, 16},
+    {"_BranchGLM_FastDoubleBackwardCpp", (DL_FUNC) &_BranchGLM_FastDoubleBackwardCpp, 16},
+    {"_BranchGLM_DoubleBackwardCpp", (DL_FUNC) &_BranchGLM_DoubleBackwardCpp, 16},
     {"_BranchGLM_MetricIntervalCpp", (DL_FUNC) &_BranchGLM_MetricIntervalCpp, 20},
     {"_BranchGLM_ForwardCpp", (DL_FUNC) &_BranchGLM_ForwardCpp, 16},
     {"_BranchGLM_BackwardCpp", (DL_FUNC) &_BranchGLM_BackwardCpp, 16},
@@ -278,6 +389,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BranchGLM_CindexCpp", (DL_FUNC) &_BranchGLM_CindexCpp, 2},
     {"_BranchGLM_CindexTrap", (DL_FUNC) &_BranchGLM_CindexTrap, 2},
     {"_BranchGLM_ROCCpp", (DL_FUNC) &_BranchGLM_ROCCpp, 3},
+    {"_BranchGLM_SwitchVariableImportanceCpp", (DL_FUNC) &_BranchGLM_SwitchVariableImportanceCpp, 20},
     {NULL, NULL, 0}
 };
 

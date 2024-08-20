@@ -9,11 +9,15 @@
 \alias{BackwardBranchAndBoundCpp}
 \alias{ForwardCpp}
 \alias{BackwardCpp}
+\alias{FastBackwardCpp}
+\alias{DoubleBackwardCpp}
+\alias{FastDoubleBackwardCpp}
 \alias{MakeTable}
 \alias{MakeTableFactor2}
 \alias{CindexCpp}
 \alias{CindexTrap}
 \alias{ROCCpp}
+\alias{SwitchVariableImportanceCpp}
 \title{Internal BranchGLM Functions}
 \description{
 Internal BranchGLM Functions.

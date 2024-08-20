@@ -12,8 +12,8 @@
 \item{...}{further arguments passed to or from other methods.}
 }
 \value{
-a formula representing the model used to obtain \code{object}.
+A formula representing the model used to obtain \code{x}.
 }
 \description{
-Extracts model formula from BranchGLM objects.
+Extracts model formula from \code{BranchGLM} objects.
 }

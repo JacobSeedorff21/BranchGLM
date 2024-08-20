@@ -17,5 +17,5 @@ the log-likelihood with the following attributes: "df" (degrees of freedom)
 and "nobs" (number of observations).
 }
 \description{
-Extracts log-likelihood from BranchGLM objects.
+Extracts log-likelihood from \code{BranchGLM} objects.
 }

@@ -17,6 +17,18 @@ BranchGLMfit <- function(x, y, offset, init, method, m, Link, Dist, nthreads, to
     .Call(`_BranchGLM_BranchGLMfit`, x, y, offset, init, method, m, Link, Dist, nthreads, tol, maxit, GetInit)
 }
 
+FastBackwardCpp <- function(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen) {
+    .Call(`_BranchGLM_FastBackwardCpp`, x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen)
+}
+
+FastDoubleBackwardCpp <- function(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen) {
+    .Call(`_BranchGLM_FastDoubleBackwardCpp`, x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen)
+}
+
+DoubleBackwardCpp <- function(x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen) {
+    .Call(`_BranchGLM_DoubleBackwardCpp`, x, y, offset, indices, num, interactions, method, m, Link, Dist, nthreads, tol, maxit, keep, steps, pen)
+}
+
 MetricIntervalCpp <- function(x, y, offset, indices, num, model, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, Metric, rootMethod) {
     .Call(`_BranchGLM_MetricIntervalCpp`, x, y, offset, indices, num, model, method, m, Link, Dist, nthreads, tol, maxit, pen, mle, se, best, cutoff, Metric, rootMethod)
 }
@@ -47,5 +59,9 @@ CindexTrap <- function(Sens, Spec) {
 
 ROCCpp <- function(preds, y, Cutoffs) {
     .Call(`_BranchGLM_ROCCpp`, preds, y, Cutoffs)
+}
+
+SwitchVariableImportanceCpp <- function(x, y, offset, indices, num, interactions, withmodels, withmetrics, withoutmodels, withoutmetrics, method, m, Link, Dist, nthreads, tol, maxit, keep, pen, display_progress) {
+    .Call(`_BranchGLM_SwitchVariableImportanceCpp`, x, y, offset, indices, num, interactions, withmodels, withmetrics, withoutmodels, withoutmetrics, method, m, Link, Dist, nthreads, tol, maxit, keep, pen, display_progress)
 }
 

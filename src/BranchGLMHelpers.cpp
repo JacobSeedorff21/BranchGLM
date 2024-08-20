@@ -813,14 +813,14 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
   
   // Calculating means
   arma::vec mu = LinkCpp(&X, &beta, &Offset, Link, Dist);
+  arma::vec Var = Variance(&mu, Dist);
+  
   
   // Calculating variances for betas for non-linear regression
   if(Dist != "gaussian" || Link != "identity"){
     
     // Calculating derivatives, and variances to be used for info
     arma::vec Deriv = DerivativeCpp(&X, &beta, &Offset, &mu, Link, Dist);
-    arma::vec Var = Variance(&mu, Dist);
-    
     // Calculating info and initaliazing inverse info
     Info = FisherInfoCpp(&X, &Deriv, &Var);
     InfoInv = Info;
@@ -832,6 +832,8 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     
     // Calculating variances which are later converted to SEs
     SE1 = arma::diagvec(InfoInv);
+  }else{
+    
   }
   
   // Getting SE
@@ -877,8 +879,23 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
     AIC = -2 * LogLik + 2 * (X.n_cols + 1);
   }
   
+  // Calculating pearson residuals
+  arma::vec residuals = (Y - mu) / arma::sqrt(Var);
+  
+  // Calculating dispersion parameter for SE
+  double SEdispersion;
+  if(Dist == "gaussian" || Dist == "gamma"){
+    SEdispersion = arma::accu(arma::square(residuals)) / (X.n_rows - X.n_cols);
+  }
+  else{
+    SEdispersion = 1;
+  }
+  arma::vec disp(2);
+  disp.at(0) = dispersion;
+  disp.at(1) = SEdispersion;
+  
   // Calculating SE with dispersion parameter
-  SE = sqrt(dispersion) * SE;
+  SE = sqrt(SEdispersion) * SE;
   vcov = vcov * dispersion;
   
   // Calculating z-values
@@ -898,15 +915,17 @@ List BranchGLMfit(NumericMatrix x, NumericVector y, NumericVector offset,
 #endif
   
   return List::create(Named("coefficients") = DataFrame::create(Named("Estimate") = beta1,  
-                            Named("SE") = SE,
-                            Named("z") = z, 
-                            Named("p-values") = p),
+                            Named("Std. Error") = SE,
+                            Named("z value") = z, 
+                            Named("Pr(>|z|)") = p),
                             Named("iterations") = Iter,
-                            Named("dispersion") = dispersion,
+                            Named("dispersion") = disp,
                             Named("logLik") =  LogLik,
                             Named("resDev") = resDev,
                             Named("AIC") = AIC,
                             Named("preds") = NumericVector(mu.begin(), mu.end()),
-                            Named("linpreds") = linPreds1, 
+                            Named("linpreds") = linPreds1,
+                            Named("residuals") = residuals,
+                            Named("variance") = Var, 
                             Named("vcov") = vcov);
 }

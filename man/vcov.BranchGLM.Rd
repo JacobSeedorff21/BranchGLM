@@ -15,5 +15,5 @@
 A numeric matrix which is the covariance matrix of the beta coefficients.
 }
 \description{
-Extracts covariance matrix of beta coefficients from BranchGLM objects.
+Extracts covariance matrix of beta coefficients from \code{BranchGLM} objects.
 }

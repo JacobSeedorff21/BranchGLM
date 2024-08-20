@@ -4,16 +4,34 @@
 \alias{coef.BranchGLM}
 \title{Extract Coefficients from BranchGLM Objects}
 \usage{
-\method{coef}{BranchGLM}(object, ...)
+\method{coef}{BranchGLM}(object, type = "estimates", ...)
 }
 \arguments{
 \item{object}{a \code{BranchGLM} object.}
 
+\item{type}{"estimates" to only return the coefficient estimates or "all" to
+return the estimates along with SEs, test statistics, and p-values.}
+
 \item{...}{further arguments passed to or from other methods.}
 }
 \value{
-A named vector with the corresponding coefficient estimates.
+A named vector with the corresponding coefficient estimates or a
+data.frame with the coefficient estimates along with SEs, test statistics, and p-values.
 }
 \description{
-Extracts beta coefficients from BranchGLM objects.
+Extracts beta coefficients from \code{BranchGLM} objects.
+}
+\examples{
+Data <- iris
+
+# Linear regression model
+Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+Fit
+
+# Getting only coefficient estimates
+coef(Fit, type = "estimates")
+
+# Getting coefficient estimates along with SEs, tests, and p-values
+coef(Fit, type = "all")
+
 }

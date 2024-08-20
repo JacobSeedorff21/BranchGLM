@@ -4,14 +4,14 @@
 \alias{print.BranchGLM}
 \title{Print Method for BranchGLM Objects}
 \usage{
-\method{print}{BranchGLM}(x, coefdigits = 4, digits = 2, ...)
+\method{print}{BranchGLM}(x, coefdigits = 4, digits = 4, ...)
 }
 \arguments{
 \item{x}{a \code{BranchGLM} object.}
 
 \item{coefdigits}{number of digits to display for coefficients table.}
 
-\item{digits}{number of digits to display for information after table.}
+\item{digits}{number of significant digits to display for information after table.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
