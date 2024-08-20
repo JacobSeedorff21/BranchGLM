@@ -1,22 +1,30 @@
 #' Variable Selection for GLMs 
-#' @description Performs forward selection, backward elimination, and efficient 
-#' best subset variable selection with information criterion for generalized linear 
-#' models (GLMs). Best subset selection is performed with branch and bound algorithms 
-#' to greatly speed up the process.
+#' @description Performs forward selection, multiple different variants of backward 
+#' elimination, and efficient best subset variable selection with information 
+#' criterion for generalized linear models (GLMs). Best subset selection is 
+#' performed with branch and bound algorithms to greatly speed up the process 
+#' and backward elimination can be performed with bounding algorithms to speed it up.
 #' @param object a formula or a `BranchGLM` object.
 #' @param ... further arguments.
 #' @param data a data.frame, list or environment (or object coercible by 
 #' [as.data.frame] to a data.frame), containing the variables in formula. 
-#' Neither a matrix nor an array will be accepted.
-#' @param family the distribution used to model the data, one of "gaussian", "gamma", 
-#' "binomial", or "poisson".
+#' Neither a matrix nor an array will be accepted. If not found in `data`, the 
+#' variables are taken from `environment(formula)`, typically the environment from 
+#' which `VariableSelection` is called.
+#' @param family the distribution used to model the data, one of "gaussian", 
+#' "gamma", "binomial", or "poisson". A `family` object may also be supplied for 
+#' one of the accepted distributions.
 #' @param link the link used to link the mean structure to the linear predictors. One of
-#' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".
+#' "identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log". This only needs to be 
+#' supplied if a string is supplied for `family`. If a [family] object is supplied 
+#' for the `family` argument, then the link function is taken from that [family] 
+#' object.
 #' @param offset the offset vector, by default the zero vector is used.
 #' @param method one of "Fisher", "BFGS", or "LBFGS". Fisher's scoring is recommended
 #' for forward selection and the branch and bound algorithms since they will typically 
 #' fit many models with a small number of covariates.
-#' @param type one of "forward", "backward", "branch and bound", "backward branch and bound", or "switch branch and bound" 
+#' @param type one of "forward", "backward", "fast backward", "double backward", "fast double backward", 
+#' "branch and bound", "backward branch and bound", or "switch branch and bound" 
 #' to indicate the type of variable selection to perform. The default value is 
 #' "switch branch and bound". See more about these algorithms in details
 #' @param metric the metric used to choose the best models, the default is "AIC", 
@@ -62,7 +70,30 @@
 #' interaction terms are properly handled. All observations that have any missing 
 #' values in the upper model are removed.
 #' 
-#' ## Branch and Bound Algorithms
+#' ## Stepwise Methods
+#' There are 5 different stepwise variable selection algorithms that are available. 
+#' These are forward selection, backward elimination, fast backward elimination, 
+#' double backward elimination, and fast double backward elimination. All of these 
+#' are heuristic algorithms, so the best model found by them may not be the optimal 
+#' model. 
+#' 
+#' ### Backward Elimination
+#' 
+#' Fast backward elimination should give the same results as backward elimination, but it makes 
+#' use of the bounding techniques used by the branch and bound algorithms to make 
+#' it faster. Fast backward elimination can give slightly different results than 
+#' backward elimination if the GLM solver has difficulties fitting some of the 
+#' larger models.
+#' 
+#' ### Double Backward Elimination
+#' 
+#' Double backward elimination and fast double backward elimination are a variant of 
+#' backward elimination where up to 2 variables can be removed in one step instead of 
+#' just 1. This typically results in higher quality models, but can also be much 
+#' slower. The bounding algorithm used in fast double backward elimination makes it 
+#' much faster.
+#' 
+#' ## Branch and Bound Methods
 #' The branch and bound algorithm is an efficient algorithm used to find the optimal 
 #' models. The backward branch and bound algorithm is very similar to 
 #' the branch and bound algorithm, except it tends to be faster when the best models 
@@ -74,7 +105,8 @@
 #' ## GLM Fitting
 #' 
 #' Fisher's scoring is recommended for branch and bound selection and forward selection.
-#' L-BFGS may be faster for backward elimination especially when there are many variables.
+#' L-BFGS may be faster for the backward elimination and double backward elimination 
+#' algorithms, especially when there are many variables.
 #' 
 #' @return A `BranchGLMVS` object which is a list with the following components
 #' \item{`initmodel`}{ the `BranchGLM` object corresponding to the upper model}
@@ -83,7 +115,7 @@
 #' \item{`order`}{ the order the variables were added to the model or removed from the model, this is only included for the stepwise algorithms}
 #' \item{`type`}{ type of variable selection employed}
 #' \item{`optType`}{ whether the type specified used a heuristic or exact algorithm}
-#' \item{`metric`}{ metric used to select best models}
+#' \item{`metric`}{ metric used to select the best models}
 #' \item{`bestmodels`}{ numeric matrix used to describe the best models for the branch and bound algorithms 
 #' or a numeric matrix describing the models along the path taken for stepwise algorithms}
 #' \item{`bestmetrics`}{ numeric vector with the best metrics found in the search for the branch and bound algorithms 
@@ -162,7 +194,7 @@ VariableSelection <- function(object, ...) {
 #'@rdname VariableSelection
 #'@export
 
-VariableSelection.formula <- function(object, data, family, link, offset = NULL,
+VariableSelection.formula <- function(object, data = NULL, family, link, offset = NULL,
                                       method = "Fisher", type = "switch branch and bound", 
                                       metric = "AIC",
                                       bestmodels = NULL, cutoff = NULL, 
@@ -172,14 +204,15 @@ VariableSelection.formula <- function(object, data, family, link, offset = NULL,
                                       contrasts = NULL,
                                       showprogress = TRUE, ...){
   ### Performing variable selection
-  ### model.frame searches for offset in the environment the formula is in, so 
-  ### we need to change the environment of the formula to be the current environment
-  formula <- object
-  environment(formula) <- environment()
-  fit <- BranchGLM(formula, data = data, family = family, link = link, 
-                   offset = offset, method = method, grads = grads, 
-                   tol = tol, maxit = maxit, contrasts = contrasts, 
-                   fit = FALSE)
+  ### Getting BranchGLM object
+  mf <- match.call(expand.dots = FALSE)
+  m <- match(c("data", "family", "link", "offset",
+               "method", "grads", "tol", "maxit", "contrasts"), names(mf), 0L)
+  mf <- mf[c(1L, m)]
+  mf[[1L]] <- quote(BranchGLM)
+  mf$fit <- FALSE
+  mf$formula <- object
+  fit <- eval(mf, parent.frame())
   
   VariableSelection(fit, type = type, metric = metric, 
                     bestmodels = bestmodels, cutoff = cutoff,
@@ -377,6 +410,33 @@ VariableSelection.BranchGLM <- function(object, type = "switch branch and bound"
                       object$link, object$family, nthreads, object$tol, object$maxit, 
                       keep, length(counts), pen)
     optType <- "heuristic"
+  }else if(type == "fast backward"){
+    if(bestmodels > 1 || cutoff > 0){
+      warning("fast backward elimination only finds 1 final model")
+    }
+    df <- FastBackwardCpp(object$x, object$y, object$offset, indices, counts, 
+                          interactions, object$method, object$grads,
+                          object$link, object$family, nthreads, object$tol, object$maxit, 
+                          keep, length(counts), pen)
+    optType <- "heuristic"
+  }else if(type == "double backward"){
+    if(bestmodels > 1 || cutoff > 0){
+      warning("double backward elimination only finds 1 final model")
+    }
+    df <- DoubleBackwardCpp(object$x, object$y, object$offset, indices, counts, 
+                            interactions, object$method, object$grads,
+                            object$link, object$family, nthreads, object$tol, object$maxit, 
+                            keep, length(counts), pen)
+    optType <- "heuristic"
+  }else if(type == "fast double backward"){
+    if(bestmodels > 1 || cutoff > 0){
+      warning("fast double backward elimination only finds 1 final model")
+    }
+    df <- FastDoubleBackwardCpp(object$x, object$y, object$offset, indices, counts, 
+                                interactions, object$method, object$grads,
+                                object$link, object$family, nthreads, object$tol, object$maxit, 
+                                keep, length(counts), pen)
+    optType <- "heuristic"
   }else if(type == "branch and bound"){
     df <- BranchAndBoundCpp(object$x, object$y, object$offset, indices, counts, 
                             interactions, object$method, object$grads,
@@ -483,7 +543,7 @@ VariableSelection.BranchGLM <- function(object, type = "switch branch and bound"
       apply(temp, 2, function(x)all(x != 0) * (keep[i] + 0.5) * 2)
     })
     
-
+    
     if(is.vector(bestmodels)){
       bestmodels <- matrix(bestmodels, ncol = 1)
     }else{
@@ -629,7 +689,7 @@ print.BranchGLMVS <- function(x, digits = 2, ...){
   cat("Variable Selection Info:\n")
   cat(paste0(rep("-", 24), collapse = ""))
   cat("\n")
-  if(!(x$type %in% c("backward"))){
+  if(!(x$type %in% c("backward", "fast backward", "double backward", "fast double backward"))){
     cat(paste0("Variables were selected using ", x$type, " selection with ", x$metric, "\n"))
   }else{
     cat(paste0("Variables were selected using ", x$type, " elimination with ", x$metric, "\n"))
@@ -670,12 +730,12 @@ print.BranchGLMVS <- function(x, digits = 2, ...){
   if(length(x$order) == 0){
     if(x$type == "forward"){
       cat("No variables were added to the model")
-    }else if(x$type %in% c("backward")){
+    }else if(x$type %in% c("backward", "fast backward", "double backward", "fast double backward")){
       cat("No variables were removed from the model")
     }
   }else if(x$type == "forward" ){
     cat("Order the variables were added to the model:\n")
-  }else if(x$type %in% c("backward")){
+  }else if(x$type %in% c("backward", "fast backward", "double backward", "fast double backward")){
     cat("Order the variables were removed from the model:\n")
   }
   cat("\n")

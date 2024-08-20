@@ -10,7 +10,7 @@ VariableSelection(object, ...)
 
 \method{VariableSelection}{formula}(
   object,
-  data,
+  data = NULL,
   family,
   link,
   offset = NULL,
@@ -54,13 +54,19 @@ VariableSelection(object, ...)
 
 \item{data}{a data.frame, list or environment (or object coercible by
 \link{as.data.frame} to a data.frame), containing the variables in formula.
-Neither a matrix nor an array will be accepted.}
+Neither a matrix nor an array will be accepted. If not found in \code{data}, the
+variables are taken from \code{environment(formula)}, typically the environment from
+which \code{VariableSelection} is called.}
 
-\item{family}{the distribution used to model the data, one of "gaussian", "gamma",
-"binomial", or "poisson".}
+\item{family}{the distribution used to model the data, one of "gaussian",
+"gamma", "binomial", or "poisson". A \code{family} object may also be supplied for
+one of the accepted distributions.}
 
 \item{link}{the link used to link the mean structure to the linear predictors. One of
-"identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log".}
+"identity", "logit", "probit", "cloglog", "sqrt", "inverse", or "log". This only needs to be
+supplied if a string is supplied for \code{family}. If a \link{family} object is supplied
+for the \code{family} argument, then the link function is taken from that \link{family}
+object.}
 
 \item{offset}{the offset vector, by default the zero vector is used.}
 
@@ -68,7 +74,8 @@ Neither a matrix nor an array will be accepted.}
 for forward selection and the branch and bound algorithms since they will typically
 fit many models with a small number of covariates.}
 
-\item{type}{one of "forward", "backward", "branch and bound", "backward branch and bound", or "switch branch and bound"
+\item{type}{one of "forward", "backward", "fast backward", "double backward", "fast double backward",
+"branch and bound", "backward branch and bound", or "switch branch and bound"
 to indicate the type of variable selection to perform. The default value is
 "switch branch and bound". See more about these algorithms in details}
 
@@ -124,7 +131,7 @@ A \code{BranchGLMVS} object which is a list with the following components
 \item{\code{order}}{ the order the variables were added to the model or removed from the model, this is only included for the stepwise algorithms}
 \item{\code{type}}{ type of variable selection employed}
 \item{\code{optType}}{ whether the type specified used a heuristic or exact algorithm}
-\item{\code{metric}}{ metric used to select best models}
+\item{\code{metric}}{ metric used to select the best models}
 \item{\code{bestmodels}}{ numeric matrix used to describe the best models for the branch and bound algorithms
 or a numeric matrix describing the models along the path taken for stepwise algorithms}
 \item{\code{bestmetrics}}{ numeric vector with the best metrics found in the search for the branch and bound algorithms
@@ -136,10 +143,11 @@ a stepwise algorithm was used}
 \item{\code{keepintercept}}{ a boolean value denoting whether to keep the intercept through the selection process or not}
 }
 \description{
-Performs forward selection, backward elimination, and efficient
-best subset variable selection with information criterion for generalized linear
-models (GLMs). Best subset selection is performed with branch and bound algorithms
-to greatly speed up the process.
+Performs forward selection, multiple different variants of backward
+elimination, and efficient best subset variable selection with information
+criterion for generalized linear models (GLMs). Best subset selection is
+performed with branch and bound algorithms to greatly speed up the process
+and backward elimination can be performed with bounding algorithms to speed it up.
 }
 \details{
 \subsection{Variable Selection Details}{
@@ -152,7 +160,34 @@ interaction terms are properly handled. All observations that have any missing
 values in the upper model are removed.
 }
 
-\subsection{Branch and Bound Algorithms}{
+\subsection{Stepwise Methods}{
+
+There are 5 different stepwise variable selection algorithms that are available.
+These are forward selection, backward elimination, fast backward elimination,
+double backward elimination, and fast double backward elimination. All of these
+are heuristic algorithms, so the best model found by them may not be the optimal
+model.
+\subsection{Backward Elimination}{
+
+Fast backward elimination should give the same results as backward elimination, but it makes
+use of the bounding techniques used by the branch and bound algorithms to make
+it faster. Fast backward elimination can give slightly different results than
+backward elimination if the GLM solver has difficulties fitting some of the
+larger models.
+}
+
+\subsection{Double Backward Elimination}{
+
+Double backward elimination and fast double backward elimination are a variant of
+backward elimination where up to 2 variables can be removed in one step instead of
+just 1. This typically results in higher quality models, but can also be much
+slower. The bounding algorithm used in fast double backward elimination makes it
+much faster.
+}
+
+}
+
+\subsection{Branch and Bound Methods}{
 
 The branch and bound algorithm is an efficient algorithm used to find the optimal
 models. The backward branch and bound algorithm is very similar to
@@ -166,7 +201,8 @@ the optimal models (up to numerical precision).
 \subsection{GLM Fitting}{
 
 Fisher's scoring is recommended for branch and bound selection and forward selection.
-L-BFGS may be faster for backward elimination especially when there are many variables.
+L-BFGS may be faster for the backward elimination and double backward elimination
+algorithms, especially when there are many variables.
 }
 }
 \examples{

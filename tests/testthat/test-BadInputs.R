@@ -10,6 +10,10 @@ test_that("BranchGLM bad inputs", {
   Data <- cbind(y, x[,-1]) |>
     as.data.frame()
   colnames(Data)[1] <- "y"
+  yBin <- (y >= median(y))
+  DataBin <- cbind(yBin, x[,-1]) |>
+    as.data.frame()
+  colnames(DataBin)[1] <- "y"
   
   ### formula
   expect_error(BranchGLM(1, data = Data, family = "gamma", link = "log"))
@@ -25,6 +29,21 @@ test_that("BranchGLM bad inputs", {
   expect_error(BranchGLM(y ~ ., data = Data, family = "gamma", link = 1:2))
   expect_error(BranchGLM(y ~ ., data = Data, family = "GamMA", link = "log"), NA)
   expect_error(BranchGLM(y ~ ., data = Data, family = "GamMA", link = "LOg"), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = gaussian(link = "sqrt")), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = gaussian(link = "inverse")), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = gaussian(link = "log")), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = gaussian()), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = Gamma(link = "sqrt")), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = Gamma()), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = Gamma(link = "identity"), fit = FALSE), NA)
+  expect_error(BranchGLM(y ~ ., data = Data, family = Gamma(link = "log")), NA)
+  expect_error(BranchGLM(y ~ ., data = DataBin, family = binomial(link = "log"), fit = FALSE), NA)
+  expect_error(BranchGLM(y ~ ., data = DataBin, family = binomial(), fit = FALSE), NA)
+  expect_error(BranchGLM(y ~ ., data = DataBin, family = binomial(link = "probit")), NA)
+  expect_error(BranchGLM(y ~ ., data = DataBin, family = binomial(link = "cloglog"), fit = FALSE), NA)
+  expect_error(BranchGLM(I(floor(y)) ~ ., data = Data, family = poisson()), NA)
+  expect_error(BranchGLM(I(floor(y)) ~ ., data = Data, family = poisson(link = "sqrt")), NA)
+  expect_error(BranchGLM(I(floor(y)) ~ ., data = Data, family = poisson(link = "identity"), fit = FALSE), NA)
   
   ### fitting parameters
   #### tol

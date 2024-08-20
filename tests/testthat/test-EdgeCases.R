@@ -256,3 +256,34 @@ test_that("Gaussian log-likelihood recovery test", {
   expect_equal(AIC(Fit), AIC(glmfit))
   expect_equal(SBB$bestmetrics[1], AIC(Fit))
 })
+
+# BranchGLM with no data
+test_that("NULL data tests", {
+  library(BranchGLM)
+  set.seed(8621)
+  x <- sapply(rep(1, 10), rgamma, n = 1000, simplify = TRUE)
+  x <- cbind(1, x)
+  beta <- rgamma(11, 1)
+  y <- rgamma(n = 1000, shape = 1, scale = x %*% beta)
+  Data <- cbind(y, x[,-1]) |>
+    as.data.frame()
+  
+  ### Testing null data
+  formula <- as.formula(paste0("y ~ ", paste0("x[, ", 2:11, "]", collapse = " + ")))
+  FitX <- BranchGLM(formula, family = gaussian())
+  FitData <- BranchGLM(y ~ ., data = Data, family = gaussian())
+  
+  ### Checks
+  expect_equal(unname(coef(FitX)), unname(coef(FitData)))
+  expect_equal(nobs(FitX), nobs(FitData))
+  expect_equal(FitX$missing, FitData$missing)
+  
+  ### Testing null data
+  VSX <- VariableSelection(formula, family = gaussian())
+  VSFitX <- VariableSelection(FitX)
+  VSFitData <- VariableSelection(FitData)
+  
+  ### Checks
+  expect_equal(unname(coef(VSX)), unname(coef(VSFitX)))
+  expect_equal(unname(coef(VSX)), unname(coef(VSFitData)))
+})

@@ -54,6 +54,28 @@ test_that("Testing VS methods gamma", {
   backwardCoef <- backwardCoef[backwardCoef != 0, ]
   backwardCoef <- backwardCoef[order(names(backwardCoef))]
   
+  ##### fast backward
+  fastbackward <- VariableSelection(Fit, type = "fast backWARD", bestmodels = 1, 
+                                    metric = "AIC")
+  fastbackwardCoef <- coef(fastbackward)
+  fastbackwardCoef <- fastbackwardCoef[fastbackwardCoef != 0, ]
+  fastbackwardCoef <- fastbackwardCoef[order(names(fastbackwardCoef))]
+  
+  ##### double backward
+  doublebackward <- VariableSelection(Fit, type = "double backWARD", bestmodels = 1, 
+                                      metric = "AIC")
+  doublebackwardCoef <- coef(doublebackward)
+  doublebackwardCoef <- doublebackwardCoef[doublebackwardCoef != 0, ]
+  doublebackwardCoef <- doublebackwardCoef[order(names(doublebackwardCoef))]
+  
+  ##### double backward
+  fastdoublebackward <- VariableSelection(Fit, type = "fast double backWARD", bestmodels = 1, 
+                                          metric = "AIC")
+  fastdoublebackwardCoef <- coef(fastdoublebackward)
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[fastdoublebackwardCoef != 0, ]
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[order(names(fastdoublebackwardCoef))]
+  
+  
   #### step
   fullmodel <- glm(y ~ ., data = Data, family = Gamma(link = "inverse"))
   forwardStep <- step(glm(y ~ 1, data = Data, family = Gamma(link = "inverse")), 
@@ -67,6 +89,8 @@ test_that("Testing VS methods gamma", {
   #### Checking results
   expect_equal(forwardCoef, forwardCoefGLM, tolerance = 1e-2)
   expect_equal(backwardCoef, backwardCoefGLM, tolerance = 1e-2)
+  expect_equal(fastbackwardCoef, backwardCoef)
+  expect_equal(fastdoublebackwardCoef, doublebackwardCoef)
 })
 
 ## Gaussian
@@ -122,6 +146,28 @@ test_that("Testing VS methods gaussian", {
   backwardCoef <- backwardCoef[backwardCoef != 0, ]
   backwardCoef <- backwardCoef[order(names(backwardCoef))]
   
+  ##### fast backward
+  fastbackward <- VariableSelection(Fit, type = "fast backWARD", bestmodels = 1, 
+                                    metric = "AIC")
+  fastbackwardCoef <- coef(fastbackward)
+  fastbackwardCoef <- fastbackwardCoef[fastbackwardCoef != 0, ]
+  fastbackwardCoef <- fastbackwardCoef[order(names(fastbackwardCoef))]
+  
+  ##### double backward
+  doublebackward <- VariableSelection(Fit, type = "double backWARD", bestmodels = 1, 
+                                      metric = "AIC")
+  doublebackwardCoef <- coef(doublebackward)
+  doublebackwardCoef <- doublebackwardCoef[doublebackwardCoef != 0, ]
+  doublebackwardCoef <- doublebackwardCoef[order(names(doublebackwardCoef))]
+  
+  ##### double backward
+  fastdoublebackward <- VariableSelection(Fit, type = "fast double backWARD", bestmodels = 1, 
+                                          metric = "AIC")
+  fastdoublebackwardCoef <- coef(fastdoublebackward)
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[fastdoublebackwardCoef != 0, ]
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[order(names(fastdoublebackwardCoef))]
+  
+  
   #### step
   fullmodel <- glm(y ~ ., data = Data, family = gaussian(link = "identity"))
   forwardStep <- step(glm(y ~ 1, data = Data, family = gaussian(link = "identity")), 
@@ -135,6 +181,8 @@ test_that("Testing VS methods gaussian", {
   #### Checking results
   expect_equal(forwardCoef, forwardCoefGLM, tolerance = 1e-2)
   expect_equal(backwardCoef, backwardCoefGLM, tolerance = 1e-2)
+  expect_equal(fastbackwardCoef, backwardCoef)
+  expect_equal(fastdoublebackwardCoef, doublebackwardCoef)
 })
 
 ## Binomial
@@ -191,6 +239,28 @@ test_that("Testing VS methods binomial", {
   backwardCoef <- backwardCoef[backwardCoef != 0, ]
   backwardCoef <- backwardCoef[order(names(backwardCoef))]
   
+  ##### fast backward
+  fastbackward <- VariableSelection(Fit, type = "fast backWARD", bestmodels = 1, 
+                                    metric = "AIC")
+  fastbackwardCoef <- coef(fastbackward)
+  fastbackwardCoef <- fastbackwardCoef[fastbackwardCoef != 0, ]
+  fastbackwardCoef <- fastbackwardCoef[order(names(fastbackwardCoef))]
+  
+  ##### double backward
+  doublebackward <- VariableSelection(Fit, type = "double backWARD", bestmodels = 1, 
+                                      metric = "AIC")
+  doublebackwardCoef <- coef(doublebackward)
+  doublebackwardCoef <- doublebackwardCoef[doublebackwardCoef != 0, ]
+  doublebackwardCoef <- doublebackwardCoef[order(names(doublebackwardCoef))]
+  
+  ##### double backward
+  fastdoublebackward <- VariableSelection(Fit, type = "fast double backWARD", bestmodels = 1, 
+                                          metric = "AIC")
+  fastdoublebackwardCoef <- coef(fastdoublebackward)
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[fastdoublebackwardCoef != 0, ]
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[order(names(fastdoublebackwardCoef))]
+  
+  
   #### step
   fullmodel <- glm(y ~ ., data = Data, family = binomial(link = "probit"))
   forwardStep <- step(glm(y ~ 1, data = Data, family = binomial(link = "probit")), 
@@ -204,6 +274,8 @@ test_that("Testing VS methods binomial", {
   #### Checking results
   expect_equal(forwardCoef, forwardCoefGLM, tolerance = 1e-2)
   expect_equal(backwardCoef, backwardCoefGLM, tolerance = 1e-2)
+  expect_equal(fastbackwardCoef, backwardCoef)
+  expect_equal(fastdoublebackwardCoef, doublebackwardCoef)
 })
 
 ### cloglog
@@ -259,6 +331,28 @@ test_that("Testing VS methods binomial", {
   backwardCoef <- backwardCoef[backwardCoef != 0, ]
   backwardCoef <- backwardCoef[order(names(backwardCoef))]
   
+  ##### fast backward
+  fastbackward <- VariableSelection(Fit, type = "fast backWARD", bestmodels = 1, 
+                                    metric = "AIC")
+  fastbackwardCoef <- coef(fastbackward)
+  fastbackwardCoef <- fastbackwardCoef[fastbackwardCoef != 0, ]
+  fastbackwardCoef <- fastbackwardCoef[order(names(fastbackwardCoef))]
+  
+  ##### double backward
+  doublebackward <- VariableSelection(Fit, type = "double backWARD", bestmodels = 1, 
+                                      metric = "AIC")
+  doublebackwardCoef <- coef(doublebackward)
+  doublebackwardCoef <- doublebackwardCoef[doublebackwardCoef != 0, ]
+  doublebackwardCoef <- doublebackwardCoef[order(names(doublebackwardCoef))]
+  
+  ##### double backward
+  fastdoublebackward <- VariableSelection(Fit, type = "fast double backWARD", bestmodels = 1, 
+                                          metric = "AIC")
+  fastdoublebackwardCoef <- coef(fastdoublebackward)
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[fastdoublebackwardCoef != 0, ]
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[order(names(fastdoublebackwardCoef))]
+  
+  
   #### step
   fullmodel <- glm(y ~ ., data = Data, family = binomial(link = "cloglog"))
   forwardStep <- step(glm(y ~ 1, data = Data, family = binomial(link = "cloglog")), 
@@ -272,6 +366,8 @@ test_that("Testing VS methods binomial", {
   #### Checking results
   expect_equal(forwardCoef, forwardCoefGLM, tolerance = 1e-2)
   expect_equal(backwardCoef, backwardCoefGLM, tolerance = 1e-2)
+  expect_equal(fastbackwardCoef, backwardCoef)
+  expect_equal(fastdoublebackwardCoef, doublebackwardCoef)
 })
 
 ## Poisson
@@ -327,6 +423,28 @@ test_that("Testing VS methods poisson", {
   backwardCoef <- backwardCoef[backwardCoef != 0, ]
   backwardCoef <- backwardCoef[order(names(backwardCoef))]
   
+  ##### fast backward
+  fastbackward <- VariableSelection(Fit, type = "fast backWARD", bestmodels = 1, 
+                                    metric = "AIC")
+  fastbackwardCoef <- coef(fastbackward)
+  fastbackwardCoef <- fastbackwardCoef[fastbackwardCoef != 0, ]
+  fastbackwardCoef <- fastbackwardCoef[order(names(fastbackwardCoef))]
+  
+  ##### double backward
+  doublebackward <- VariableSelection(Fit, type = "double backWARD", bestmodels = 1, 
+                                      metric = "AIC")
+  doublebackwardCoef <- coef(doublebackward)
+  doublebackwardCoef <- doublebackwardCoef[doublebackwardCoef != 0, ]
+  doublebackwardCoef <- doublebackwardCoef[order(names(doublebackwardCoef))]
+  
+  ##### double backward
+  fastdoublebackward <- VariableSelection(Fit, type = "fast double backWARD", bestmodels = 1, 
+                                          metric = "AIC")
+  fastdoublebackwardCoef <- coef(fastdoublebackward)
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[fastdoublebackwardCoef != 0, ]
+  fastdoublebackwardCoef <- fastdoublebackwardCoef[order(names(fastdoublebackwardCoef))]
+  
+  
   #### step
   fullmodel <- glm(y ~ ., data = Data, family = poisson(link = "sqrt"))
   forwardStep <- step(glm(y ~ 1, data = Data, family = poisson(link = "sqrt")), 
@@ -340,6 +458,8 @@ test_that("Testing VS methods poisson", {
   #### Checking results
   expect_equal(forwardCoef, forwardCoefGLM, tolerance = 1e-2)
   expect_equal(backwardCoef, backwardCoefGLM, tolerance = 1e-2)
+  expect_equal(fastbackwardCoef, backwardCoef)
+  expect_equal(fastdoublebackwardCoef, doublebackwardCoef)
 })
 
 ## Testing formula with -

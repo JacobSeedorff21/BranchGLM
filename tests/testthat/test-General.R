@@ -244,7 +244,7 @@ test_that("gamma regression works", {
     as.data.frame()
   
   ## Finding gamma regression
-  expect_equal(BranchGLM(y ~ ., data = Data, family = "gamma", link = "log")$dispersion, 
+  expect_equal(BranchGLM(y ~ ., data = Data, family = "gamma", link = "log")$dispersion[[1]], 
                2, tolerance = 1e-1)
   
   ### forward selection

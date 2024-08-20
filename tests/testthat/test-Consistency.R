@@ -64,11 +64,12 @@ test_that("BranchGLM accessor functions", {
     as.data.frame()
   
   ## Fitting model while keeping data and y
-  Fit <- BranchGLM(y ~ ., data = Data, family = "Gamma", link = "log")
+  Fit <- BranchGLM(y ~ ., data = Data, family = gaussian())
   
   ### Testing nobs and formula
   expect_equal(formula(Fit), formula(y ~ .))
   expect_equal(nobs(Fit), 1000)
+  expect_equal(Fit$missing, 100)
   expect_equal(nobs(Fit), attr(logLik(Fit), "nobs"))
   expect_equal(Fit$logLik, as.numeric(logLik(Fit)))
   expect_equal(length(coef(Fit)), 6)
@@ -148,27 +149,100 @@ test_that("Continuous regression tests", {
   GLMGamInv <- glm(y ~ ., data = DataInv, family = Gamma(link = "inverse"))
   
   ### Checking results
+  #### model.frame, and nobs
+  expect_equal(model.frame(GLMGausIden), model.frame(FitGausIden))
+  expect_equal(nobs(GLMGausIden), nobs(FitGausIden))
+  
   #### gaussian
-  expect_equal(coef(FitGausIden), coef(GLMGausIden), tolerance = 1e-2)
+  ##### Checking log-likelihood
+  expect_equal(logLik(FitGausIden)[[1]], 
+               sum(dnorm(y, FitGausIden$pred, sigma(FitGausIden)[[1]], log = TRUE)))
+  
+  ##### Identity
+  expect_equal(coef(FitGausIden), coef(GLMGausIden), tolerance = 1e-3)
+  expect_equal(residuals(FitGausIden), residuals(GLMGausIden, type = "pearson"), 
+               tolerance = 1e-3)
   expect_equal(predict(FitGausIden), predict(GLMGausIden, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitGausLog), coef(GLMGausLog), tolerance = 1e-2)
+               tolerance = 1e-3)
+  expect_equal(deviance(FitGausIden), deviance(GLMGausIden), tolerance = 1e-3)
+  expect_equal(logLik(FitGausIden), logLik(GLMGausIden), tolerance = 1e-3)
+  expect_equal(extractAIC(FitGausIden)[[2]], extractAIC(GLMGausIden)[[2]], tolerance = 1e-3)
+  expect_equal(sigma(GLMGausIden), sigma(FitGausIden)[[2]], tolerance = 1e-3)
+  expect_equal(as.data.frame(coef(summary(GLMGausIden))), 
+                             coef(FitGausIden, type = "all"), tolerance = 1e-3)
+  expect_equal(vcov(GLMGausIden), vcov(FitGausIden) * (1000 / (1000 - 11)), tolerance = 1e-3)
+  expect_equal(family(GLMGausIden),  family(FitGausIden))
+  
+  ##### Log
+  expect_equal(coef(FitGausLog), coef(GLMGausLog), tolerance = 1e-3)
   expect_equal(predict(FitGausLog), predict(GLMGausLog, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitGausInv), coef(GLMGausInv), tolerance = 1e-2)
+               tolerance = 1e-3)
+  expect_equal(residuals(FitGausLog), residuals(GLMGausLog, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitGausLog), deviance(GLMGausLog), tolerance = 1e-3)
+  expect_equal(logLik(FitGausLog), logLik(GLMGausLog), tolerance = 1e-3)
+  expect_equal(extractAIC(FitGausLog), extractAIC(GLMGausLog), tolerance = 1e-3)
+  expect_equal(sigma(GLMGausLog), sigma(FitGausLog)[[2]], tolerance = 1e-3)
+  expect_equal(as.data.frame(coef(summary(GLMGausLog))), 
+                             coef(FitGausLog, type = "all"), tolerance = 1e-3)
+  expect_equal(family(GLMGausLog),  family(FitGausLog))
+  
+  ##### Inverse
+  expect_equal(coef(FitGausInv), coef(GLMGausInv), tolerance = 1e-3)
   expect_equal(predict(FitGausInv), predict(GLMGausInv, type = "response"), 
-               tolerance = 1e-2)
+               tolerance = 1e-3)
+  expect_equal(residuals(FitGausInv), residuals(GLMGausInv, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitGausInv), deviance(GLMGausInv), tolerance = 1e-3)
+  expect_equal(logLik(FitGausInv), logLik(GLMGausInv), tolerance = 1e-3)
+  expect_equal(extractAIC(FitGausInv), extractAIC(GLMGausInv), tolerance = 1e-3)
+  expect_equal(sigma(GLMGausInv), sigma(FitGausInv)[[2]], tolerance = 1e-3)
+  expect_equal(as.data.frame(coef(summary(GLMGausInv))), 
+                             coef(FitGausInv, type = "all"), tolerance = 1e-2)
+  expect_equal(family(GLMGausInv),  family(FitGausInv))
   
   #### gamma
-  expect_equal(coef(FitGamIden), coef(GLMGamIden), tolerance = 1e-2)
+  ##### Checking log-likelihood
+  expect_equal(logLik(FitGamIden)[[1]], 
+               sum(dgamma(y, 1 / sigma(FitGamIden)[[1]]^2, 
+                          scale = FitGamIden$preds * sigma(FitGamIden)[[1]]^2, 
+                          log = TRUE)))
+  
+  ##### Identity
+  expect_equal(coef(FitGamIden), coef(GLMGamIden), tolerance = 1e-3)
   expect_equal(predict(FitGamIden), predict(GLMGamIden, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitGamLog), coef(GLMGamLog), tolerance = 1e-2)
+               tolerance = 1e-3)
+  expect_equal(residuals(FitGamIden), residuals(GLMGamIden, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitGamIden), deviance(GLMGamIden), tolerance = 1e-3)
+  expect_equal(sigma(GLMGamIden), sigma(FitGamIden)[[2]], tolerance = 1e-3)
+  expect_equal(as.data.frame(coef(summary(GLMGamIden))), 
+                             coef(FitGamIden, type = "all"), tolerance = 1e-3)
+  expect_equal(family(FitGamIden), family(GLMGamIden))
+  
+  ##### Log
+  expect_equal(coef(FitGamLog), coef(GLMGamLog), tolerance = 1e-3)
   expect_equal(predict(FitGamLog), predict(GLMGamLog, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitGamInv), coef(GLMGamInv), tolerance = 1e-2)
+               tolerance = 1e-3)
+  expect_equal(residuals(FitGamLog), residuals(GLMGamLog, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitGamLog), deviance(GLMGamLog), tolerance = 1e-3)
+  expect_equal(sigma(GLMGamLog), sigma(FitGamLog)[[2]], tolerance = 1e-3)
+  expect_equal(as.data.frame(coef(summary(GLMGamLog))), 
+                             coef(FitGamLog, type = "all"), tolerance = 1e-3)
+  expect_equal(family(FitGamLog), family(GLMGamLog))
+  
+  ##### Inverse
+  expect_equal(coef(FitGamInv), coef(GLMGamInv), tolerance = 1e-3)
   expect_equal(predict(FitGamInv), predict(GLMGamInv, type = "response"), 
-               tolerance = 1e-2)
+               tolerance = 1e-3)
+  expect_equal(residuals(FitGamInv), residuals(GLMGamInv, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitGamInv), deviance(GLMGamInv), tolerance = 1e-3)
+  expect_equal(sigma(GLMGamInv), sigma(FitGamInv)[[2]], tolerance = 1e-3)
+  expect_equal(as.data.frame(coef(summary(GLMGamInv))), 
+               coef(FitGamInv, type = "all"), tolerance = 1e-3)
+  expect_equal(family(FitGamInv), family(GLMGamInv))
   
 })
 
@@ -194,17 +268,55 @@ test_that("Binomial regression tests", {
   GLMLogit <- glm(y ~ ., data = Data, family = binomial(link = "logit"))
   GLMProbit <- glm(y ~ ., data = Data, family = binomial(link = "probit"))
   
-  ### Checking results
-  expect_equal(coef(FitClog), coef(GLMClog), tolerance = 1e-2)
-  expect_equal(predict(FitClog), predict(GLMClog, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitLogit), coef(GLMLogit), tolerance = 1e-2)
-  expect_equal(predict(FitLogit), predict(GLMLogit, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitProbit), coef(GLMProbit), tolerance = 1e-2)
-  expect_equal(predict(FitProbit), predict(GLMProbit, type = "response"), 
-               tolerance = 1e-2)
+  ##### Checking log-likelihood
+  expect_equal(logLik(FitClog)[[1]], 
+               sum(dbinom(y, 1, FitClog$preds, log = TRUE)))
   
+  ### Checking results
+  #### Cloglog
+  expect_equal(coef(FitClog), coef(GLMClog), tolerance = 1e-3)
+  expect_equal(predict(FitClog), predict(GLMClog, type = "response"), 
+               tolerance = 1e-3)
+  expect_equal(residuals(FitClog), residuals(GLMClog, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitClog), deviance(GLMClog), tolerance = 1e-3)
+  expect_equal(logLik(FitClog), logLik(GLMClog), tolerance = 1e-3)
+  expect_equal(extractAIC(FitClog), extractAIC(GLMClog), tolerance = 1e-3)
+  expect_equal(vcov(FitClog), vcov(GLMClog), tolerance = 1e-3)
+  expect_equal(coef(FitClog, type = "all"), as.data.frame(coef(summary(GLMClog))), 
+               tolerance = 1e-3)
+  expect_equal(unname(sigma(FitClog)), c(1, 1))
+  expect_equal(family(FitClog), family(GLMClog), tolerance = 1e-3)
+  
+  #### Logit
+  expect_equal(coef(FitLogit), coef(GLMLogit), tolerance = 1e-3)
+  expect_equal(predict(FitLogit), predict(GLMLogit, type = "response"), 
+               tolerance = 1e-3)
+  expect_equal(residuals(FitLogit), residuals(GLMLogit, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitLogit), deviance(GLMLogit), tolerance = 1e-3)
+  expect_equal(logLik(FitLogit), logLik(GLMLogit), tolerance = 1e-3)
+  expect_equal(extractAIC(FitLogit), extractAIC(GLMLogit), tolerance = 1e-3)
+  expect_equal(vcov(FitLogit), vcov(GLMLogit), tolerance = 1e-3)
+  expect_equal(coef(FitLogit, type = "all"), as.data.frame(coef(summary(GLMLogit))), 
+               tolerance = 1e-3)
+  expect_equal(unname(sigma(FitLogit)), c(1, 1))
+  expect_equal(family(FitLogit), family(GLMLogit), tolerance = 1e-3)
+  
+  #### Probit
+  expect_equal(coef(FitProbit), coef(GLMProbit), tolerance = 1e-3)
+  expect_equal(predict(FitProbit), predict(GLMProbit, type = "response"), 
+               tolerance = 1e-3)
+  expect_equal(residuals(FitProbit), residuals(GLMProbit, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitProbit), deviance(GLMProbit), tolerance = 1e-3)
+  expect_equal(logLik(FitProbit), logLik(GLMProbit), tolerance = 1e-3)
+  expect_equal(extractAIC(FitProbit), extractAIC(GLMProbit), tolerance = 1e-3)
+  expect_equal(vcov(FitProbit), vcov(GLMProbit), tolerance = 1e-3)
+  expect_equal(coef(FitProbit, type = "all"), as.data.frame(coef(summary(GLMProbit))), 
+               tolerance = 1e-3)
+  expect_equal(unname(sigma(FitProbit)), c(1, 1))
+  expect_equal(family(FitProbit), family(GLMProbit), tolerance = 1e-3)
 })
 
 ## Poisson regression
@@ -229,15 +341,53 @@ test_that("Poisson regression tests", {
   GLMLog <- glm(y ~ ., data = Data, family = poisson(link = "log"))
   GLMSqrt <- glm(y ~ ., data = Data, family = poisson(link = "sqrt"))
   
-  ### Checking results
-  expect_equal(coef(FitIden), coef(GLMIden), tolerance = 1e-2)
-  expect_equal(predict(FitIden), predict(GLMIden, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitLog), coef(GLMLog), tolerance = 1e-2)
-  expect_equal(predict(FitLog), predict(GLMLog, type = "response"), 
-               tolerance = 1e-2)
-  expect_equal(coef(FitSqrt), coef(GLMSqrt), tolerance = 1e-2)
-  expect_equal(predict(FitSqrt), predict(GLMSqrt, type = "response"), 
-               tolerance = 1e-2)
+  ##### Checking log-likelihood
+  expect_equal(logLik(FitLog)[[1]], 
+               sum(dpois(y, FitLog$pred, log = TRUE)))
   
+  ### Checking results
+  #### Identity
+  expect_equal(coef(FitIden), coef(GLMIden), tolerance = 1e-3)
+  expect_equal(predict(FitIden), predict(GLMIden, type = "response"), 
+               tolerance = 1e-3)
+  expect_equal(residuals(FitIden), residuals(GLMIden, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitIden), deviance(GLMIden), tolerance = 1e-3)
+  expect_equal(logLik(FitIden), logLik(GLMIden), tolerance = 1e-3)
+  expect_equal(extractAIC(FitIden), extractAIC(GLMIden), tolerance = 1e-3)
+  expect_equal(vcov(FitIden), vcov(GLMIden), tolerance = 1e-3)
+  expect_equal(coef(FitIden, type = "all"), as.data.frame(coef(summary(GLMIden))), 
+               tolerance = 1e-3)
+  expect_equal(unname(sigma(FitIden)), c(1, 1))
+  expect_equal(family(FitIden), family(GLMIden), tolerance = 1e-3)
+  
+  #### Log
+  expect_equal(coef(FitLog), coef(GLMLog), tolerance = 1e-3)
+  expect_equal(predict(FitLog), predict(GLMLog, type = "response"), 
+               tolerance = 1e-3)
+  expect_equal(residuals(FitLog), residuals(GLMLog, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitLog), deviance(GLMLog), tolerance = 1e-3)
+  expect_equal(logLik(FitLog), logLik(GLMLog), tolerance = 1e-3)
+  expect_equal(extractAIC(FitLog), extractAIC(GLMLog), tolerance = 1e-3)
+  expect_equal(vcov(FitLog), vcov(GLMLog), tolerance = 1e-3)
+  expect_equal(coef(FitLog, type = "all"), as.data.frame(coef(summary(GLMLog))), 
+               tolerance = 1e-3)
+  expect_equal(unname(sigma(FitLog)), c(1, 1))
+  expect_equal(family(FitLog), family(GLMLog), tolerance = 1e-3)
+  
+  ## Square root
+  expect_equal(coef(FitSqrt), coef(GLMSqrt), tolerance = 1e-3)
+  expect_equal(predict(FitSqrt), predict(GLMSqrt, type = "response"), 
+               tolerance = 1e-3)
+  expect_equal(residuals(FitSqrt), residuals(GLMSqrt, type = "pearson"), 
+               tolerance = 1e-3)
+  expect_equal(deviance(FitSqrt), deviance(GLMSqrt), tolerance = 1e-3)
+  expect_equal(logLik(FitSqrt), logLik(GLMSqrt), tolerance = 1e-3)
+  expect_equal(extractAIC(FitSqrt), extractAIC(GLMSqrt), tolerance = 1e-3)
+  expect_equal(vcov(FitSqrt), vcov(GLMSqrt), tolerance = 1e-3)
+  expect_equal(coef(FitSqrt, type = "all"), as.data.frame(coef(summary(GLMSqrt))), 
+               tolerance = 1e-3)
+  expect_equal(unname(sigma(FitSqrt)), c(1, 1))
+  expect_equal(family(FitSqrt), family(GLMSqrt), tolerance = 1e-3)
 })
