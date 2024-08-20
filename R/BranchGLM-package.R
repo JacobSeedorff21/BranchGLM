@@ -26,6 +26,7 @@
 #' @import graphics
 #' @importFrom methods is
 #' @importFrom Rcpp evalCpp
+#' @importFrom utils setTxtProgressBar txtProgressBar
 ## usethis namespace: end
 
 NULL
@@ -55,8 +56,8 @@ fit.BranchGLMVS <- function(...){
 #' that do not check the arguments, so improper usage may result in R crashing.
 #' 
 #' @aliases BranchGLMFit MetricIntervalCpp SwitchBranchAndBoundCpp BranchAndBoundCpp 
-#' BackwardBranchAndBoundCpp ForwardCpp BackwardCpp  
-#' MakeTable MakeTableFactor2 CindexCpp CindexTrap ROCCpp
+#' BackwardBranchAndBoundCpp ForwardCpp BackwardCpp  FastBackwardCpp DoubleBackwardCpp FastDoubleBackwardCpp
+#' MakeTable MakeTableFactor2 CindexCpp CindexTrap ROCCpp SwitchVariableImportanceCpp
 #' @keywords internal
 
 NULL

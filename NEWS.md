@@ -1,6 +1,24 @@
 BranchGLM News
 ================
 
+# BranchGLM 3.0.0
+
+- Added function to calculate variable importance for L0-penalized
+  regression via the `VariableImportance()` function along with a way to
+  generate p-values based on variable importance via
+  `VariableImporance.boot()`
+- Added new heuristic methods for performing variable selection
+  - fast backward elimination
+  - double backward elimination
+  - fast double backward elimination
+- Adding ability to use family objects with `BranchGLM()` and
+  `VariableSelection()`
+- Adding multiple new utility functions for BranchGLM objects
+- Fixing behavior of `BranchGLM()` and `VariableSelection()` when a data
+  argument is not supplied
+- Changing the estimate of dispersion parameter that is used to
+  calculate standard errors to be consistent with `lm()` and `glm()`
+
 # BranchGLM 2.1.6
 
 - Adding plot method for BranchGLM objects

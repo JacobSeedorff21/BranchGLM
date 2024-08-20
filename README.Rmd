@@ -214,9 +214,9 @@ plot(BranchVS, type = "b")
 
 ## Backward elimination
 
-**BranchGLM** can also perform backward elimination very quickly, here is a 
-comparison of runtimes with the `step()` function from the **stats** package. 
-This comparison is based upon a randomly generated logistic 
+**BranchGLM** can also perform backward elimination very quickly with a bounding 
+algorithm, here is a comparison of runtimes with the `step()` function from the 
+**stats** package. This comparison is based upon a randomly generated logistic 
 regression model with 1000 observations and 50 covariates.
 
 
@@ -225,45 +225,45 @@ regression model with 1000 observations and 50 covariates.
 set.seed(33391)
 df <- LogisticSimul(1000, 50, .5, sd = 0.5)
 
-# Times
-## Timing BranchGLM
+## Times
+### Timing fast backward elimination
 BackwardTime <- system.time(BackwardVS <- VariableSelection(y ~ ., data = df, 
                                       family = "binomial", link = "logit",
-                  type = "backward", showprogress = FALSE,
+                  type = "fast backward", showprogress = FALSE,
                   parallel = FALSE, method = "LBFGS", 
                   metric = "AIC"))
 
 BackwardTime
 
-## Timing step function
+### Timing step function
 fullmodel <- glm(y ~ ., data = df, family = binomial(link = "logit"))
 stepTime <- system.time(BackwardStep <- step(fullmodel, direction = "backward", trace = 0))
 stepTime
 
 ```
 
-Using the backward elimination algorithm from the **BranchGLM** package was 
+Using the fast backward elimination algorithm from the **BranchGLM** package was 
 about `r round(stepTime[[3]] / BackwardTime[[3]], 2)` times faster than step was 
 for this logistic regression model.
 
 ### Checking results
 
 ```{r}
-# Checking if both methods give same results
-## Getting names of variables in final model from BranchGLM
+## Checking if both methods give same results
+### Getting names of variables in final model from BranchGLM
 BackwardCoef <- coef(BackwardVS)
 BackwardCoef <- BackwardCoef[BackwardCoef != 0, ]
 BackwardCoef <- BackwardCoef[order(names(BackwardCoef))]
 
-## Getting names of variables in final model from step
+### Getting names of variables in final model from step
 BackwardCoefGLM <- coef(BackwardStep)
 BackwardCoefGLM <- BackwardCoefGLM[order(names(BackwardCoefGLM))]
 identical(names(BackwardCoef), names(BackwardCoefGLM))
 
 ```
 
-Hence the two methods result in the same best model and the backward 
-elimination algorithm from **BranchGLM** is much faster than step.
+Hence the two methods result in the same best model and the fast backward 
+elimination algorithm is much faster than step.
 
 ### Visualization
 
@@ -271,8 +271,96 @@ There is also a convenient way to visualize the backward elimination path with
 the **BranchGLM** package.
 
 ```{r visualization2, fig.path = "README_images/"}
-# Plotting models
+## Plotting models
 plot(BackwardVS, type = "b")
+
+```
+
+## Double backward elimination
+
+**BranchGLM** can also perform a variant of backward elimination where up to 
+two variables can be removed in one step. We call this method double backward 
+elimination and we have also developed a faster variant that we call fast double backward 
+elimination. This method can result in better solutions than what is obtained from 
+traditional backward elimination, but is also slower. Next, we show a comparison 
+of runtimes and BIC values from fast backward elimination and fast double backward 
+elimination. This comparison is based upon a randomly generated logistic regression model 
+with 1000 observations and 100 covariates.
+
+
+```{r, warning = FALSE, message = FALSE}
+# Setting seed and creating dataset
+set.seed(79897)
+df <- LogisticSimul(1000, 100, .5, sd = 0.5)
+
+## Times
+### Timing fast backward
+BackwardTime <- system.time(BackwardVS <- VariableSelection(y ~ ., data = df, 
+                                      family = "binomial", link = "logit",
+                  type = "fast backward", showprogress = FALSE,
+                  parallel = FALSE, method = "LBFGS", metric = "BIC"))
+
+BackwardTime
+
+### Timing fast double backward
+DoubleBackwardTime <- system.time(DoubleBackwardVS <- VariableSelection(y ~ ., data = df, 
+                                      family = "binomial", link = "logit",
+                  type = "fast double backward", showprogress = FALSE,
+                  parallel = FALSE, method = "LBFGS", metric = "BIC"))
+
+DoubleBackwardTime
+
+```
+
+Using the fast backward elimination algorithm from the **BranchGLM** package was 
+about `r round(DoubleBackwardTime[[3]] / BackwardTime[[3]], 2)` times faster than 
+the fast double backward elimination algorithm was 
+for this logistic regression model. However, the final model from double backward 
+elimination had a BIC of `r round(DoubleBackwardVS$bestmetrics[1], 2)` while 
+the final model from traditional backward elimination had a BIC of 
+`r round(BackwardVS$bestmetrics[1], 2)`. The difference in BIC between these 
+two methods is pretty small for this logistic regression model, but for some 
+regression models the difference can be quite large.
+
+
+## Variable Importance
+
+Calculating L0-penalization based variable importance is quite a bit slower than 
+just performing best subset selection. But, branch and bound algorithms are used 
+to make this process considerably faster than using an exhaustive search.
+
+```{r}
+# Getting variable importance values
+VITime <- system.time(BranchVI <- VariableImportance(BranchVS, showprogress = FALSE))
+BranchVI
+
+# Displaying time to calculate VI values
+VITime
+
+# Plotting variable importance
+barplot(BranchVI)
+
+```
+
+Furthermore, p-values can be found based on the variable importance values. This can 
+be done with the use of the parametric bootstrap. 
+
+```{r}
+# Getting p-values
+pvalsTime <- system.time(pvals <- VariableImportance.boot(BranchVI, 
+                                                          nboot = 100, 
+                                                          showprogress = FALSE))
+pvals
+
+```
+
+Performing the parametric bootstrap with 100 bootstrapped replications took about 
+`r round(pvalsTime[[3]] / VITime[[3]], 2)` times longer than finding the 
+variable importance values.
+
+```{r}
+# Plotting results
+boxplot(pvals, las = 1)
 
 ```
 

@@ -43,7 +43,8 @@ categorical variables.
 
 ## Stepwise algorithms
 
-- Forward selection and backward elimination are stepwise variable selection algorithms.
+- Forward selection, backward elimination, fast backward elimination, double backward 
+elimination, and fast double backward elimination are all stepwise variable selection algorithms.
 - They are not guaranteed to find the best model or even a good model, but they are very fast.
 - Forward selection is recommended if the number of variables is greater than the number of observations or if many of the larger models don't converge.
 - Parallel computation can be used for these algorithms, but is generally only necessary 
@@ -75,6 +76,7 @@ plot(forwardVS)
 ```
 
 ### Backward elimination
+#### Traditional variant
 
 ```{r, fig.height = 4, fig.width = 6}
 # Backward elimination with mtcars
@@ -88,6 +90,51 @@ coef(backwardVS, which = 1)
 plot(backwardVS)
 
 ```
+
+#### Fast variant
+
+Fast backward elimination is equivalent to traditional backward elimination, 
+except much faster. The results from the two algorithms may differ if many of the 
+larger models in the candidate set of models are difficult to fit numerically.
+
+```{r, fig.height = 4, fig.width = 6}
+# Fast backward elimination with mtcars
+fastbackwardVS <- VariableSelection(GammaFit, type = "fast backward")
+fastbackwardVS
+
+## Getting final coefficients
+coef(fastbackwardVS, which = 1)
+
+## Plotting path
+plot(fastbackwardVS)
+
+```
+
+We got the same model that we got from traditional backward elimination, but we only had 
+to fit `r fastbackwardVS$numchecked` models while we had to fit 
+`r backwardVS$numchecked` models using traditional backward elimination.
+
+
+### Double backward elimination
+
+One of the double backward elimination variants could also be used to (potentially) 
+find higher quality models than what is found by traditional backward elimination. 
+
+```{r, fig.height = 4, fig.width = 6}
+# Fast double backward elimination with mtcars
+fastdoublebackwardVS <- VariableSelection(GammaFit, type = "fast double backward")
+fastdoublebackwardVS
+
+## Getting final coefficients
+coef(fastdoublebackwardVS, which = 1)
+
+## Plotting path
+plot(fastdoublebackwardVS)
+
+```
+
+However, in this case they get the same final model and the double backward 
+elimination algorithm fits slightly more models. 
 
 ## Branch and bound
 
@@ -228,6 +275,6 @@ plot(VSCat, cex.names = 0.75, type = "b")
 ## Convergence issues
 
 - It is not recommended to use the branch and bound algorithms if many of the upper models do not converge since it can make the algorithms very slow.
-- Sometimes when using backward elimination and all of the upper models that are tested 
+- Sometimes when using one of the backward elimination algorithms and all the upper models that are tested 
 do not converge, no final model can be selected.
 - For these reasons, if there are convergence issues it is recommended to use forward selection.

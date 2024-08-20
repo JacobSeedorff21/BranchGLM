@@ -1,0 +1,118 @@
+---
+title: "Variable Importance Vignette"
+output: 
+  rmarkdown::html_vignette:
+    toc: TRUE
+    number_sections: TRUE
+
+vignette: >
+  %\VignetteIndexEntry{Variable Importance Vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+A paper that describes the variable importance measures in more detail should be 
+available soon.
+
+# Variable Importance
+## Definition
+
+L0-penalization based modified variable importance is defined in the following way
+
+$$mVI(i|X, y, \lambda) = \min_{\beta:\beta_i \neq 0} Q(\beta|X, y, \lambda) - \min_{\beta:\beta_i = 0} Q(\beta|X, y, \lambda) + \lambda |S_i|$$
+where $Q(\beta|X, y, \lambda) = -2l(\beta|X, y) + \lambda ||\beta||_0$, 
+$||\beta||_0$ is the number of nonzero elements in $\beta$, and 
+$||S_i||$ is the number of beta parameters associated with the ith set of variables.
+The number of parameters in the ith set of variables is 1 for continuous 
+variables and is the number of levels minus 1 for categorical variables. 
+$\lambda$ is defined by the chosen metric where AIC results in 
+$\lambda = 2$, BIC results in $\lambda = \log{(n)}$, and HQIC results in 
+$\lambda = 2\log{(\log{(n)})}$.
+
+These variable importance values are equivalent to the traditional likelihood 
+ratio test for beta parameters when $\lambda = 0$. However, when $\lambda > 0$, 
+the null distribution of the variable importance values may not be chi-squared
+distributed. P-values for the variable importance values may be obtained from
+the `VariableImportance.boot()` function which uses a parametric bootstrap 
+approach to approximate the null distribution. This process entails performing 
+best subset selection many times over, so it is quite slow. 
+
+## Variable importance example
+
+L0-penalization based variable importance values may be calculated with the 
+`VariableImportance()` function. The `VariableImportance()` function requires an 
+object returned from calling the `VariableSelection()` function. The exact variable 
+importance values are returned if a branch and bound algorithm is used with the 
+`VariableSelection()` function. If a heuristic method is used with the 
+`VariableSelection()` function, then approximate variable importance values based 
+on the specified heuristic method are returned.
+
+```{r}
+# Loading BranchGLM package
+library(BranchGLM)
+
+# Using iris dataset to demonstrate usage of VI
+Data <- iris
+Fit <- BranchGLM(Sepal.Length ~ ., data = Data, family = "gaussian", link = "identity")
+
+# Doing branch and bound selection 
+VS <- VariableSelection(Fit, type = "branch and bound", metric = "BIC", 
+showprogress = FALSE)
+
+# Getting variable importance
+VI <- VariableImportance(VS, showprogress = FALSE)
+VI
+
+```
+
+We can visualize the variable importance values with the `barplot()` function.
+
+```{r, fig.height = 4, fig.width = 6}
+# Plotting variable importance
+oldmar <- par("mar")
+par(mar = c(4, 6, 3, 1) + 0.1)
+barplot(VI)
+par(mar = oldmar)
+
+```
+
+### P-values
+
+We can get approximate p-values based on the L0-penalization based 
+variable importance values from the `VariableImportance.boot()` function. This 
+function uses a parametric bootstrap approach to create an approximate null 
+distribution for the variable importance values. This approach is very slow, so it 
+is not feasible to get these p-values when there are many sets of variables.
+
+```{r}
+# Getting approximate null distributions
+set.seed(59903)
+myBoot <- VariableImportance.boot(VI, nboot = 1000, showprogress = FALSE)
+myBoot
+
+```
+
+We can visualize the results from `VariableImportance.boot()` with the `hist()` 
+function or the `boxplot()` function. The `boxplot()` approach is convenient 
+because we can look at all of the results in one plot while the `hist()` 
+approach only contains the results for one set of variables in each plot. 
+
+```{r, fig.height = 4, fig.width = 6}
+# Plotting histogram of results for second set of variables
+hist(myBoot)
+
+# Plotting boxplots of results
+oldmar <- par("mar")
+par(mar = c(4, 6, 3, 1) + 0.1)
+boxplot(myBoot, las = 1)
+par(mar = oldmar)
+
+
+```
