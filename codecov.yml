@@ -1,3 +1,6 @@
+codecov: 
+ token: 01d56445-4584-4638-b51d-0d54282d4c8d
+
 comment: false
 
 language: R
