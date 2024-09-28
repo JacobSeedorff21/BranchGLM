@@ -1,6 +1,10 @@
 BranchGLM News
 ================
 
+# BranchGLM 3.0.1
+
+- Adding citation for variable importance paper.
+
 # BranchGLM 3.0.0
 
 - Added function to calculate variable importance for L0-penalized

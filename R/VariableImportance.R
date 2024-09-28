@@ -49,6 +49,9 @@
 #' barplot(VI)
 #' par(mar = oldmar)
 #' 
+#' @references Seedorff J, Cavanaugh JE. *Assessing Variable Importance for Best 
+#' Subset Selection. Entropy. 2024; 26(9):801*. \doi{https://doi.org/10.3390/e26090801}
+#' 
 #' @export
 #' 
 

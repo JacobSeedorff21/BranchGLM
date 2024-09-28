@@ -1,4 +1,4 @@
 BranchGLM
 ================
 
-Updating package to version 3.0.0.
+Updating package to version 3.0.1.
